@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  OWNER
+  CLIENT
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  type          UserType
+  name          String
+  email         String?   @unique
+  emailVerified Boolean   @default(false)
+  phone         String?   @unique
+  phoneVerified Boolean   @default(false)
+  zone          String?
+  district      String?
+  address       String?
+  operations    String[]  @default([])
+  hours         String[]  @default([])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 🔗 العلاقة مع الـ OTPs
+  otps          Otp[]
+}
+
+model Otp {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  code        String
+  identifier  String   // email أو phone
+  userId      String?  @db.ObjectId
+  user        User?    @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+}
