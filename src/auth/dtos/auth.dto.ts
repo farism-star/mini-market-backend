@@ -41,15 +41,15 @@ export class AuthDto {
 }
 export class VerifyOtpDto {
   @IsNotEmpty()
-  @IsPhoneNumber()
+  @IsString()
   phone: string;
 
-  @IsNotEmpty()
-  @IsPhoneNumber()
-  email: string;
+  @IsOptional()
+  @IsString()
+  email?: string;
 
   @IsNotEmpty()
   @IsString()
-  @Length(6, 6)
+  @Length(5, 5)
   otp: string;
 }

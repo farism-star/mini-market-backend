@@ -63,9 +63,9 @@ export class AuthService {
   }
 
   // إرسال OTP
-  await this.sendOtp(authDto);
+ const datamessage = await this.sendOtp(authDto);
 
-  return { message: 'OTP sent to your phone/email.' };
+  return { message: `OTP sent to your phone/email` };
 }
 
 
@@ -77,7 +77,9 @@ export class AuthService {
     throw new BadRequestException('Phone or email is required for OTP');
   }
 
-  const otpCode = randomInt(100000, 999999).toString();
+const otpCode = randomInt(10000, 99999).toString();
+console.log(otpCode);
+
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
   const user = await this.prisma.user.findFirst({
@@ -140,59 +142,63 @@ export class AuthService {
     console.log(`OTP for ${identifier}: ${otpCode}`);
   }
 
-  return { message: 'OTP sent successfully.' };
+  return { message: `OTP sent successfully.: ${otpCode}` };
 }
 
 
   // ✅ التحقق من OTP
-  async verifyOtp(dto: VerifyOtpDto) {
-    const identifier = dto.phone ?? dto.email;
-    if (!identifier) {
-      throw new BadRequestException('Phone or email is required for verification');
-    }
+ async verifyOtp(dto: VerifyOtpDto) {
+  const identifier = dto.phone ?? dto.email;
 
-    const otpRecord = await this.prisma.otp.findFirst({
-      where: { identifier },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!otpRecord) {
-      throw new UnauthorizedException('OTP not found');
-    }
-
-    // تحقق من انتهاء الصلاحية
-    if (new Date() > otpRecord.expiresAt) {
-      await this.prisma.otp.delete({ where: { id: otpRecord.id } });
-      throw new UnauthorizedException('OTP expired');
-    }
-
-    // تحقق من الكود
-    if (otpRecord.code !== dto.otp) {
-      throw new UnauthorizedException('Invalid OTP');
-    }
-
-    // حذف الـ OTP بعد الاستخدام
-    await this.prisma.otp.delete({ where: { id: otpRecord.id } });
-
-    const user = await this.prisma.user.findFirst({
-      where: { OR: [{ phone: dto.phone }, { email: dto.email }] },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    // تحديث حالة التحقق
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { phoneVerified: true },
-    });
-
-    // إصدار JWT
-    const token = this.jwtService.sign({ sub: user.id, type: user.type });
-
-    return { token, user };
+  if (!identifier) {
+    throw new BadRequestException('Phone or email is required for verification');
   }
+
+  const otpRecord = await this.prisma.otp.findFirst({
+    where: { identifier },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!otpRecord) {
+    throw new UnauthorizedException('OTP not found');
+  }
+
+  if (new Date() > otpRecord.expiresAt) {
+    await this.prisma.otp.delete({ where: { id: otpRecord.id } });
+    throw new UnauthorizedException('OTP expired');
+  }
+
+  if (otpRecord.code !== dto.otp) {
+    throw new UnauthorizedException('Invalid OTP');
+  }
+
+  // delete OTP
+  await this.prisma.otp.delete({ where: { id: otpRecord.id } });
+
+  // find user with phone or email
+  const user = await this.prisma.user.findFirst({
+    where: {
+      OR: [
+        { phone: dto.phone ?? null },
+        { email: dto.email ?? null },
+      ],
+    },
+  });
+
+  if (!user) {
+    throw new UnauthorizedException('User not found');
+  }
+
+  await this.prisma.user.update({
+    where: { id: user.id },
+    data: { phoneVerified: true },
+  });
+
+  const token = this.jwtService.sign({ sub: user.id, type: user.type });
+
+  return { token, user };
+}
+
 
   // ✅ استرجاع المستخدم من JWT
   async getUserFromToken(token: string) {
