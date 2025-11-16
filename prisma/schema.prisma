@@ -13,31 +13,60 @@ enum UserType {
 }
 
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
   type          UserType
   name          String
-  email         String?   @unique
-  emailVerified Boolean   @default(false)
-  phone         String?   @unique
-  phoneVerified Boolean   @default(false)
+  email         String?  @unique
+  emailVerified Boolean  @default(false)
+  phone         String?  @unique
+  phoneVerified Boolean  @default(false)
   zone          String?
   district      String?
   address       String?
-  operations    String[]  @default([])
-  hours         String[]  @default([])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  operations    String[] @default([])
+  hours         String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  // 🔗 العلاقة مع الـ OTPs
-  otps          Otp[]
+  otps Otp[]
+
+  products Product[]
+  categories Category[]
+
 }
 
 model Otp {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  code        String
-  identifier  String   // email أو phone
-  userId      String?  @db.ObjectId
-  user        User?    @relation(fields: [userId], references: [id])
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  code       String
+  identifier String
+  userId     String?  @db.ObjectId
+  user       User?    @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+}
+
+model Category {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  nameAr    String?
+  nameEn    String?
+  icon      String?
+  marketId String? @db.ObjectId
+  products  Product[]
+  createdAt DateTime  @default(now())
+  Market   User?   @relation(fields: [marketId], references: [id])
+}
+
+model Product {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  titleAr String?
+  titleEn String?
+  price   Float?
+  images  String[] @default([])
+
+  marketId String? @db.ObjectId
+  Market   User?   @relation(fields: [marketId], references: [id])
+
+  categoryId String?   @db.ObjectId
+  category   Category? @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime  @default(now())
 }

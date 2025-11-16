@@ -5,6 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { TwilioModule } from './twilio/twilio.module';
+import { ProductModule } from './produts/product.module';
+import { CategoryModule } from './category/category.module';
 
 @Module({
   imports: [
@@ -13,7 +15,9 @@ import { TwilioModule } from './twilio/twilio.module';
     }),
     PrismaModule,    
     AuthModule,  
-    TwilioModule    
+    TwilioModule,
+    ProductModule,
+    CategoryModule    
   ],
   controllers: [AppController],
   providers: [AppService],
