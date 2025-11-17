@@ -62,11 +62,11 @@ model Order {
   date DateTime?
   time DateTime?
 
-  status OrderStatus @default(IN_PROGRESS) // 👈 تمت الإضافة هنا
-createdAt    DateTime    @default(now())
+  status    OrderStatus @default(IN_PROGRESS) 
+  createdAt DateTime    @default(now())
   // relations
-  market Market? @relation(fields: [marketId], references: [id])
-  client User?   @relation(fields: [clientId], references: [id])
+  market    Market?     @relation(fields: [marketId], references: [id])
+  client    User?       @relation(fields: [clientId], references: [id])
 }
 
 model Otp {
