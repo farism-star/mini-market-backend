@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { randomInt } from 'crypto';
@@ -16,35 +16,59 @@ export class AuthService {
 
   // ✅ Registration endpoint
   async register(authDto: AuthDto) {
-    const { email, phone, name, type } = authDto;
+  const { email, phone, name, type, zone, district, address, operations, hours } = authDto;
 
-    if (!email && !phone) {
-      throw new BadRequestException('Email or phone is required');
-    }
+  if (!email && !phone) {
+    throw new BadRequestException('Email or phone is required');
+  }
 
-    const existingUser = await this.prisma.user.findFirst({
-      where: { OR: [{ email }, { phone }] },
-    });
+  // check if user exists
+  const existingUser = await this.prisma.user.findFirst({
+    where: { OR: [{ email }, { phone }] },
+  });
 
-    if (existingUser) {
-      return { message: 'User already exists, please login instead.' };
-    }
+  if (existingUser) {
+    throw new ConflictException('User already exists, please login instead.')  ;
+  }
 
-    const user = await this.prisma.user.create({
+  // create user
+  const user = await this.prisma.user.create({
+    data: {
+      name,
+      email: email ?? null,
+      phone: phone ?? null,
+      type,
+      phoneVerified: false,
+    },
+  });
+
+  let market = {};
+
+  // IF OWNER → create market
+  if (type === 'OWNER') {
+    market = await this.prisma.market.create({
       data: {
-        name,
-        email: email ?? null,
-        phone: phone ?? null,
-        type,
-        phoneVerified: false,
+        name: authDto.marketName ?? `${name}'s Market`, 
+        ownerId: user.id,
+        zone: zone ?? null,
+        district: district ?? null,
+        address: address ?? null,
+        operations: operations ?? [],
+        hours: hours ?? [],
       },
     });
-
-    // إرسال OTP
-    await this.sendOtp(authDto);
-
-    return { message: 'User registered. OTP sent to phone/email.', user };
   }
+
+  // send OTP
+  await this.sendOtp(authDto);
+
+  return {
+    message: 'User registered successfully. OTP sent.',
+    user,
+    market, // هيكون null لو مش OWNER
+  };
+}
+
 
   // ✅ Login endpoint
  async login(authDto: Login) {
@@ -102,45 +126,45 @@ console.log(otpCode);
   });
 
   // إرسال SMS لو رقم
-  if (authDto.phone) {
-    try {
-      await this.twilioService.sendSms(
-        authDto.phone,
-        `Your OTP is: ${otpCode}`,
-      );
-    } catch (error) {
-      // 🔥 هندلة أخطاء Twilio
-      if (error.code === 21608) {
-        throw new BadRequestException(
-          'This phone number is not verified in Twilio Trial. Please verify it first.',
-        );
-      }
+  // if (authDto.phone) {
+  //   try {
+  //     await this.twilioService.sendSms(
+  //       authDto.phone,
+  //       `Your OTP is: ${otpCode}`,
+  //     );
+  //   } catch (error) {
+  //     // 🔥 هندلة أخطاء Twilio
+  //     if (error.code === 21608) {
+  //       throw new BadRequestException(
+  //         'This phone number is not verified in Twilio Trial. Please verify it first.',
+  //       );
+  //     }
 
-      if (error.code === 21211) {
-        throw new BadRequestException('Invalid phone number format.');
-      }
+  //     if (error.code === 21211) {
+  //       throw new BadRequestException('Invalid phone number format.');
+  //     }
 
-      if (error.code === 30003) {
-        throw new BadRequestException(
-          'SMS delivery failed — the message was rejected.',
-        );
-      }
+  //     if (error.code === 30003) {
+  //       throw new BadRequestException(
+  //         'SMS delivery failed — the message was rejected.',
+  //       );
+  //     }
 
-      if (error.code === 30007) {
-        throw new BadRequestException(
-          'Carrier blocked this SMS (SMS Filtering / Spam).',
-        );
-      }
+  //     if (error.code === 30007) {
+  //       throw new BadRequestException(
+  //         'Carrier blocked this SMS (SMS Filtering / Spam).',
+  //       );
+  //     }
 
-      // fallback لأي خطأ آخر
-      throw new BadRequestException(
-        `Failed to send OTP: ${error.message || 'Unknown error'}`,
-      );
-    }
-  } else {
+  //     // fallback لأي خطأ آخر
+  //     throw new BadRequestException(
+  //       `Failed to send OTP: ${error.message || 'Unknown error'}`,
+  //     );
+  //   }
+  // } else {
     // في حالة الإيميل
     console.log(`OTP for ${identifier}: ${otpCode}`);
-  }
+  // }
 
   return { message: `OTP sent successfully.: ${otpCode}` };
 }

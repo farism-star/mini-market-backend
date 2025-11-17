@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -7,19 +7,40 @@ import { AuthModule } from './auth/auth.module';
 import { TwilioModule } from './twilio/twilio.module';
 import { ProductModule } from './produts/product.module';
 import { CategoryModule } from './category/category.module';
+import { UserCheckMiddleware } from './common/middelwares/UserCheckMiddleware ';
+import { JwtModule } from '@nestjs/jwt';
+import { MarketModule } from './market/market.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, 
+      isGlobal: true,
     }),
-    PrismaModule,    
-    AuthModule,  
+    PrismaModule,
+    AuthModule,
     TwilioModule,
     ProductModule,
-    CategoryModule    
+    CategoryModule,
+    MarketModule,
+    OrdersModule
+    ,
+    JwtModule.register({ secret: process.env.JWT_SECRET })
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(UserCheckMiddleware)
+      .exclude(
+        { path: 'auth/login', method: RequestMethod.POST },
+        { path: 'auth/register', method: RequestMethod.POST },
+        { path: 'auth/verify-otp', method: RequestMethod.POST },
+        { path: 'twilio/send-sms', method: RequestMethod.POST },
+      )
+      .forRoutes('*');
+  }
+}

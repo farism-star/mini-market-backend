@@ -17,6 +17,10 @@ export class AuthDto {
   @IsString()
   email?: string;
 
+  @IsOptional()
+  @IsString()
+  marketName?: string;
+
   @IsNotEmpty()
   @IsString() // null يسمح بأي صيغة رقم دولي
   phone: string;

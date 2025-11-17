@@ -70,7 +70,7 @@ async findAll(user: any) {
       where: { marketId: user.id },
       include: {
         category: true,
-        Market: true,
+        market: true,
       },
       orderBy: { titleAr: 'asc' },
     });
@@ -80,7 +80,7 @@ async findAll(user: any) {
   return this.prisma.product.findMany({
     include: {
       category: true,
-      Market: true,
+      market: true,
     },
     orderBy: { titleAr: 'asc' },
   });
@@ -101,7 +101,7 @@ async findAll(user: any) {
       where: { id },
       include: {
         category: true,
-        Market: true,
+        market: true,
       },
     });
 

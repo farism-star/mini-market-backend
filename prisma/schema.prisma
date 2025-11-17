@@ -20,19 +20,53 @@ model User {
   emailVerified Boolean  @default(false)
   phone         String?  @unique
   phoneVerified Boolean  @default(false)
-  zone          String?
-  district      String?
-  address       String?
-  operations    String[] @default([])
-  hours         String[] @default([])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 
-  otps Otp[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  products Product[]
+  otps   Otp[]
+  market Market?
+  orders Order[]
+}
+
+model Market {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+
+  ownerId String @unique @db.ObjectId
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  zone       String?
+  district   String?
+  address    String?
+  operations String[] @default([])
+  hours      String[] @default([])
+
+  products   Product[]
   categories Category[]
+  orders     Order[]
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  orderId String @unique
+
+  clientId String? @db.ObjectId
+  marketId String? @db.ObjectId
+
+  deliveryAddress String?
+
+  date DateTime?
+  time DateTime?
+
+  status OrderStatus @default(IN_PROGRESS) // 👈 تمت الإضافة هنا
+createdAt    DateTime    @default(now())
+  // relations
+  market Market? @relation(fields: [marketId], references: [id])
+  client User?   @relation(fields: [clientId], references: [id])
 }
 
 model Otp {
@@ -46,14 +80,17 @@ model Otp {
 }
 
 model Category {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  nameAr    String?
-  nameEn    String?
-  icon      String?
-  marketId String? @db.ObjectId
-  products  Product[]
-  createdAt DateTime  @default(now())
-  Market   User?   @relation(fields: [marketId], references: [id])
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  nameAr String?
+  nameEn String?
+  icon   String?
+
+  marketId String @db.ObjectId
+  market   Market @relation(fields: [marketId], references: [id])
+
+  products Product[]
+
+  createdAt DateTime @default(now())
 }
 
 model Product {
@@ -63,10 +100,17 @@ model Product {
   price   Float?
   images  String[] @default([])
 
-  marketId String? @db.ObjectId
-  Market   User?   @relation(fields: [marketId], references: [id])
+  marketId String @db.ObjectId
+  market   Market @relation(fields: [marketId], references: [id])
 
   categoryId String?   @db.ObjectId
   category   Category? @relation(fields: [categoryId], references: [id])
-  createdAt  DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  IN_PROGRESS
+  COMPLETED
+  DECLINE
 }
