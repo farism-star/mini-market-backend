@@ -11,26 +11,29 @@ import { UserCheckMiddleware } from './common/middelwares/UserCheckMiddleware ';
 import { JwtModule } from '@nestjs/jwt';
 import { MarketModule } from './market/market.module';
 import { OrdersModule } from './orders/orders.module';
+import { SocketModule } from './socket/socket.module';
+import { ConversationModule } from './conversation/conversation.module';
+import { MessageModule } from './message/message.module';
+
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
     TwilioModule,
     ProductModule,
     CategoryModule,
     MarketModule,
-    OrdersModule
-    ,
-    JwtModule.register({ secret: process.env.JWT_SECRET })
+    OrdersModule,
+    SocketModule, 
+    ConversationModule,
+    MessageModule,
+    JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
@@ -44,3 +47,4 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
+

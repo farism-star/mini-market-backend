@@ -12,6 +12,43 @@ enum UserType {
   CLIENT
 }
 
+model Conversation {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // participants (CLIENT - OWNER)
+  users String[] @db.ObjectId
+
+  // relation with messages
+  messages Message[]
+
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Message {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  conversationId String       @db.ObjectId
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  senderId String @db.ObjectId
+  sender   User   @relation("UserMessages", fields: [senderId], references: [id])
+
+  type      MessageType @default(TEXT)
+  text      String?
+  imageUrl  String?
+  voice     String?
+  createdAt DateTime    @default(now())
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VOICE
+  SYSTEM
+}
+
 model User {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   type          UserType
@@ -21,12 +58,12 @@ model User {
   phone         String?  @unique
   phoneVerified Boolean  @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  otps   Otp[]
-  market Market?
-  orders Order[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[] @relation("UserMessages")
+  otps      Otp[]
+  market    Market?
+  orders    Order[]
 }
 
 model Market {
@@ -62,7 +99,7 @@ model Order {
   date DateTime?
   time DateTime?
 
-  status    OrderStatus @default(IN_PROGRESS) 
+  status    OrderStatus @default(IN_PROGRESS)
   createdAt DateTime    @default(now())
   // relations
   market    Market?     @relation(fields: [marketId], references: [id])
