@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -17,10 +17,40 @@ export class MessageService {
   }
 
   // جلب كل الرسائل لمحادثة معينة
-  async getMessages(conversationId: string) {
-    return this.prisma.message.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: 'asc' },
+  async getMessages(
+    conversationId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    
+    const conversationExists = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
     });
+
+    if (!conversationExists) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    // احسب الـ offset
+    const skip = (page - 1) * limit;
+
+    const messages = await this.prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    // إجمالي عدد الرسائل (اختياري)
+    const total = await this.prisma.message.count({
+      where: { conversationId },
+    });
+
+    return {
+      page,
+      limit,
+      total,
+      messages,
+    };
   }
 }

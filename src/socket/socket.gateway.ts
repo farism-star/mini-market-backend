@@ -30,9 +30,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  afterInit(server: Server) {
-    console.log('✅ Socket server is running and ready to accept connections.');
-  }
+
 
   async handleConnection(client: Socket) {
  
@@ -50,8 +48,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       
       client.data.userId = payload.sub || payload.id;
       
-      // ✅ تم إصلاح console.log
-      console.log(`🔥 Client connected: ${client.id}, userId: ${client.data.userId}`);
+     
       
       // إرسال تأكيد الاتصال للعميل
       client.emit('connected', { 
@@ -67,8 +64,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
-    console.log('❌ Client disconnected:', client.id);
-  }
+  } 
 
   @SubscribeMessage('joinConversation')
   async joinConversation(
@@ -78,7 +74,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = `room_${data.conversationId}`;
     await client.join(room);
     
-    console.log(`👥 User ${client.data.userId} joined room: ${room}`);
+
     
     return { status: 'joined', room };
   }
@@ -88,7 +84,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: string,
     @ConnectedSocket() client: Socket
   ) {
-    console.log('📨 Received from client:', data);
+ 
     
     // معالجة الرسالة
     const response = `Server received: ${data}`;
@@ -133,7 +129,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const room = `room_${data.conversationId}`;
       this.server.to(room).emit('newMessage', message);
 
-      console.log(`📤 Message sent to room ${room}:`, message.id);
+      
 
       return { status: 'sent', message };
       

@@ -18,9 +18,9 @@ lerna-debug.log*
 # Tests
 /coverage
 /.nyc_output
-socket-test_3.ts
-socket-test_2.ts
-socket-test.ts
+.socket-test_3.ts
+.socket-test_2.ts
+.socket-test.ts
 # IDEs and editors
 /.idea
 .project

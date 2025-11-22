@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>Socket Chat & Notifications Test</title>
+  <style>
+    body { font-family: Arial; background:#f2f2f2; padding:20px; direction: rtl; }
+    #chatBox, #notificationBox { background:white; padding:15px; border-radius:12px; width:500px; margin:auto; margin-bottom:20px; }
+    #messages, #notifications { height:300px; overflow-y:auto; background:#fafafa; padding:10px; border:1px solid #ddd; border-radius:8px; margin-bottom:10px; }
+    .msg, .notify { padding:8px 10px; margin:6px 0; border-radius:8px; max-width:70%; }
+    .me { background:#d1e7ff; margin-left:auto; text-align:left; }
+    .other { background:#e8e8e8; margin-right:auto; text-align:right; }
+    .notifyItem { background:#fff3cd; border:1px solid #ffeeba; }
+    .msg img, .msg audio { max-width: 160px; border-radius: 6px; margin-top:5px; display:block; }
+    #inputArea { display:flex; margin-top:10px; gap:10px; }
+    input[type=text] { flex:1; padding:10px; border-radius:8px; border:1px solid #ccc; }
+    button { padding:10px 16px; border:none; color:white; font-weight:bold; border-radius:8px; cursor:pointer; }
+    button:hover { opacity:0.8; }
+    #imageBtn { background:#28a745; }
+    #voiceBtn { background:#6f42c1; }
+    #sendBtn { background:#007bff; }
+  </style>
+</head>
+
+<body>
+
+<div id="chatBox">
+  <h2>💬 Chat Test</h2>
+  <div id="messages"></div>
+
+  <div id="inputArea">
+    <input id="msgInput" type="text" placeholder="اكتب رسالة..." />
+    <input type="file" id="imgPicker" accept="image/*" style="display:none;">
+    <button id="imageBtn">📷</button>
+    <button id="voiceBtn">🎤</button>
+    <button id="sendBtn">إرسال</button>
+  </div>
+</div>
+
+<div id="notificationBox">
+  <h2>🔔 Notifications</h2>
+  <div id="notifications"></div>
+</div>
+
+<script type="module">
+  import { io } from "https://cdn.socket.io/4.6.1/socket.io.esm.min.js";
+
+  const serverUrl = "http://localhost:5000";
+  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OTE1OTk3NDljYTVlM2JjYTIxOTRjZmYiLCJ0eXBlIjoiQ0xJRU5UIiwiaWF0IjoxNzYzNzMwMDQ0LCJleHAiOjE3NjQzMzQ4NDR9.mpP8qiqFScUkbklG4dB_VXy0sdfv0ey7vnVLD7nbjzs"; // ← ضع التوكن
+ // ضع التوكن المناسب
+  const userId = "691599749ca5e3bca2194cff"; // معرف المستخدم الحالي
+
+  const conversationId = "69206fb76b5b051a80a9e1a9";
+
+  const messagesDiv = document.getElementById("messages");
+  const notificationsDiv = document.getElementById("notifications");
+  const input = document.getElementById("msgInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const imgPicker = document.getElementById("imgPicker");
+  const imageBtn = document.getElementById("imageBtn");
+  const voiceBtn = document.getElementById("voiceBtn");
+
+  const socket = io(serverUrl, { transports: ["websocket", "polling"], auth: { token, userId } });
+
+  // عند الاتصال
+  socket.on("connect", () => {
+    addText("✔️ Connected", "other");
+    socket.emit("joinConversation", { conversationId }, () => addText("🔗 Joined conversation", "other"));
+  });
+
+  // استقبال رسائل الدردشة
+  socket.on("newMessage", (msg) => {
+    if (msg.senderId === userId) return;
+    if (msg.type === "IMAGE" && msg.imageUrl) addImage(msg.imageUrl, "other");
+    else if (msg.type === "VOICE" && msg.voiceUrl) addVoice(msg.voiceUrl, "other");
+    else addText(msg.text, "other");
+  });
+
+  // استقبال notifications real-time
+  socket.on("newNotification", (notification) => {
+    if (notification.userId === userId) {
+      addNotification(notification.body);
+    }
+  });
+
+  // إرسال نص
+  sendBtn.onclick = () => sendText();
+  input.onkeydown = (e) => e.key === "Enter" && sendText();
+
+  function sendText() {
+    const text = input.value.trim();
+    if (!text) return;
+    socket.emit("sendMessage", { conversationId, senderId: userId, type: "TEXT", text });
+    addText(text, "me");
+    input.value = "";
+  }
+
+  // إرسال صورة
+  imageBtn.onclick = () => imgPicker.click();
+  imgPicker.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const base64 = await fileToBase64(file);
+    socket.emit("sendMessage", { conversationId, senderId: userId, type: "IMAGE", image: base64 });
+    addImage(base64, "me");
+    imgPicker.value = "";
+  };
+
+  // تسجيل صوت وإرساله
+  let mediaRecorder;
+  let audioChunks = [];
+
+  voiceBtn.onclick = async () => {
+    if (!mediaRecorder || mediaRecorder.state === "inactive") {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        const base64 = await blobToBase64(blob);
+        socket.emit("sendMessage", { conversationId, senderId: userId, type: "VOICE", voice: base64 });
+        addVoice(base64, "me");
+      };
+      mediaRecorder.start();
+      voiceBtn.textContent = "⏹️ Stop";
+    } else if (mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+      voiceBtn.textContent = "🎤";
+    }
+  };
+
+  // تحويل blob ل Base64
+  function blobToBase64(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // UI functions
+  function addText(text, type) {
+    const div = document.createElement("div");
+    div.className = "msg " + type;
+    div.textContent = text;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function addImage(src, type) {
+    const div = document.createElement("div");
+    div.className = "msg " + type;
+    const img = document.createElement("img");
+    img.src = src;
+    div.appendChild(img);
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function addVoice(src, type) {
+    const div = document.createElement("div");
+    div.className = "msg " + type;
+    const audio = document.createElement("audio");
+    audio.src = src;
+    audio.controls = true;
+    div.appendChild(audio);
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function addNotification(text) {
+    const div = document.createElement("div");
+    div.className = "notify notifyItem";
+    div.textContent = text;
+    notificationsDiv.appendChild(div);
+    notificationsDiv.scrollTop = notificationsDiv.scrollHeight;
+  }
+
+</script>
+</body>
+</html>

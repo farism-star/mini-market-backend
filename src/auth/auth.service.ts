@@ -5,6 +5,7 @@ import { randomInt } from 'crypto';
 import { AuthDto, VerifyOtpDto } from './dtos/auth.dto';
 import { TwilioService } from '../twilio/twilio.service';
 import { Login } from './dtos/login.dto';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class AuthService {
@@ -12,11 +13,12 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private twilioService: TwilioService,
+    private cloudinary:CloudinaryService
   ) {}
 
   // ✅ Registration endpoint
   async register(authDto: AuthDto) {
-  const { email, phone, name, type, zone, district, address, operations, hours } = authDto;
+  const { email, phone, name, type, zone, district, address, operations, hours,image } = authDto;
 
   if (!email && !phone) {
     throw new BadRequestException('Email or phone is required');
@@ -30,7 +32,15 @@ export class AuthService {
   if (existingUser) {
     throw new ConflictException('User already exists, please login instead.')  ;
   }
+let uploadedImageUrl: string | null = null;
 
+    if (image) {
+      try {
+        uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(image, 'users');
+      } catch (err) {
+        throw new BadRequestException('Image upload failed: ' + err.message);
+      }
+    }
   // create user
   const user = await this.prisma.user.create({
     data: {
@@ -38,6 +48,7 @@ export class AuthService {
       email: email ?? null,
       phone: phone ?? null,
       type,
+      image:uploadedImageUrl,
       phoneVerified: false,
     },
   });

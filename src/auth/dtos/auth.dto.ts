@@ -19,6 +19,10 @@ export class AuthDto {
 
   @IsOptional()
   @IsString()
+  image?: string;
+
+  @IsOptional()
+  @IsString()
   marketName?: string;
 
   @IsNotEmpty()

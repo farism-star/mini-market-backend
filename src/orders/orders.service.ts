@@ -1,48 +1,62 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dtos/create-order.dto';
 import { UpdateOrderDto } from './dtos/update-order.dto';
+import { NotificationService } from '../notifications/notification.service';
 
-type AuthUser = { id: string; type: string }; // adjust type name if you have UserType
+type AuthUser = { id: string; type: string };
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
-
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notification: NotificationService,
+    
+  ) {}
 
   async create(createDto: CreateOrderDto, user?: AuthUser) {
     try {
       const data: any = { ...createDto };
 
-      // If user is client and no clientId passed, set it
       if (user && user.type === 'CLIENT') {
         data.clientId = user.id;
       }
-    
 
-      // Optional: generate orderId if not provided
       if (!data.orderId) {
-        data.orderId = `ORD-${Date.now()}`; // simple unique generator: change if you want more robust
+        data.orderId = `ORD-${Date.now()}`;
       }
 
       const order = await this.prisma.order.create({
         data,
-        include: {
-          market: true,
-          client: true,
-        },
+        include: { market: true, client: true },
       });
+
+      if (order.market?.ownerId) {
+        await this.notification.create({
+          userId: order.market.ownerId,
+          body: `New order (${order.orderId}) from ${order.client?.name ?? 'a customer'}`,
+        });
+      }
+
+      if (order.clientId) {
+        await this.notification.create({
+          userId: order.clientId,
+          body: `Your order (${order.orderId}) has been created successfully`,
+        });
+      }
 
       return order;
     } catch (err) {
-      // Prisma errors bubble here; wrap in BadRequestException for simplicity
       throw new BadRequestException(err?.message || 'Failed to create order');
     }
   }
 
-
   async findAll(user?: AuthUser) {
-   
     if (!user) return [];
 
     if (user.type === 'CLIENT') {
@@ -54,28 +68,19 @@ export class OrdersService {
     }
 
     if (user.type === 'OWNER') {
-      // find orders whose market's ownerId is the user.id
       return this.prisma.order.findMany({
-        where: {
-          market: {
-            ownerId: user.id,
-          },
-        },
+        where: { market: { ownerId: user.id } },
         include: { market: true, client: true },
         orderBy: { createdAt: 'desc' },
       });
     }
 
-    // default (admin or others) => all orders
     return this.prisma.order.findMany({
       include: { market: true, client: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  /**
-   * Find single order by id, but check permission: client can read own order, owner can read if owns the market.
-   */
   async findOne(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -83,7 +88,6 @@ export class OrdersService {
     });
 
     if (!order) throw new NotFoundException('Order not found');
-
     if (!user) throw new ForbiddenException('Unauthorized');
 
     if (user.type === 'CLIENT' && order.clientId !== user.id) {
@@ -91,7 +95,6 @@ export class OrdersService {
     }
 
     if (user.type === 'OWNER') {
-      // ensure owner of the market
       if (!order.market || order.market.ownerId !== user.id) {
         throw new ForbiddenException('You can only view orders for your market');
       }
@@ -100,21 +103,18 @@ export class OrdersService {
     return order;
   }
 
- 
   async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { market: true },
+      include: { market: true, client: true },
     });
 
     if (!order) throw new NotFoundException('Order not found');
-
     if (!user) throw new ForbiddenException('Unauthorized');
 
-    // enforce owner-only update (as you requested)
-    if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
-      throw new ForbiddenException('Only the owner of the market can modify this order');
-    }
+    // if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
+    //   throw new ForbiddenException('Only the owner of the market can modify this order');
+    // }
 
     try {
       const updated = await this.prisma.order.update({
@@ -122,24 +122,27 @@ export class OrdersService {
         data: dto,
         include: { market: true, client: true },
       });
+
+      if (updated.clientId) {
+        await this.notification.create({
+          userId: updated.clientId,
+          body: `Your order (${updated.orderId}) status is now: ${updated.status}`,
+        });
+      }
+
       return updated;
     } catch (err) {
       throw new BadRequestException(err?.message || 'Failed to update order');
     }
   }
 
-  /**
-   * Remove order.
-   * Only owner of the market can delete orders of his market (mirrors update policy).
-   */
   async remove(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { market: true },
+      include: { market: true, client: true },
     });
 
     if (!order) throw new NotFoundException('Order not found');
-
     if (!user) throw new ForbiddenException('Unauthorized');
 
     if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
@@ -148,6 +151,14 @@ export class OrdersService {
 
     try {
       await this.prisma.order.delete({ where: { id } });
+
+      if (order.clientId) {
+        await this.notification.create({
+          userId: order.clientId,
+          body: `Your order (${order.orderId}) was deleted by the market owner`,
+        });
+      }
+
       return { success: true };
     } catch (err) {
       throw new BadRequestException(err?.message || 'Failed to delete order');

@@ -14,6 +14,7 @@ import { OrdersModule } from './orders/orders.module';
 import { SocketModule } from './socket/socket.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { MessageModule } from './message/message.module';
+import { NotificationModule } from './notifications/notification.module';
 
 
 @Module({
@@ -28,6 +29,7 @@ import { MessageModule } from './message/message.module';
     OrdersModule,
     SocketModule, 
     ConversationModule,
+    NotificationModule,
     MessageModule,
     JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],

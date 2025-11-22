@@ -5,6 +5,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { TwilioModule } from 'src/twilio/twilio.module';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { TwilioModule } from 'src/twilio/twilio.module';
     }),
     TwilioModule
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy,CloudinaryService],
   controllers: [AuthController],
 })
 export class AuthModule {}

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param,UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param,UseGuards, Query } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.gaurd';
@@ -20,7 +20,14 @@ export class MessageController {
  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.CLIENT, Role.OWNER)
   @Get(':conversationId')
-  async getMessages(@Param('conversationId') conversationId: string) {
-    return this.messageService.getMessages(conversationId);
+  async getMessages(
+    @Param('conversationId') conversationId: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string
+  ) {
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+
+    return this.messageService.getMessages(conversationId, pageNum, limitNum);
   }
 }
