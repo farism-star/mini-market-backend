@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { isValidObjectId } from 'mongoose';
+
 import { NotificationGateway } from '../socket/notification.gateway';
 
 @Injectable()
@@ -14,7 +14,6 @@ export class NotificationService {
   async create(dto: CreateNotificationDto) {
     const { userId, body } = dto;
 
-    if (!isValidObjectId(userId)) throw new BadRequestException('Invalid userId format');
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -27,7 +26,7 @@ export class NotificationService {
   }
 
   async update(id: string, body: string) {
-    if (!isValidObjectId(id)) throw new BadRequestException('Invalid notificationId');
+   
 
     const notification = await this.prisma.notification.findUnique({ where: { id } });
     if (!notification) throw new NotFoundException('Notification not found');
@@ -43,7 +42,7 @@ export class NotificationService {
   }
 
   async getUserNotifications(userId: string) {
-    if (!isValidObjectId(userId)) throw new BadRequestException('Invalid userId');
+
 
     return this.prisma.notification.findMany({
       where: { userId },
@@ -52,7 +51,7 @@ export class NotificationService {
   }
 
   async markAsRead(id: string) {
-    if (!isValidObjectId(id)) throw new BadRequestException('Invalid notificationId');
+   
 
     const exists = await this.prisma.notification.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Notification not found');
@@ -61,7 +60,7 @@ export class NotificationService {
   }
 
   async markAllAsRead(userId: string) {
-    if (!isValidObjectId(userId)) throw new BadRequestException('Invalid userId');
+   
 
     return this.prisma.notification.updateMany({
       where: { userId, isRead: false },
@@ -70,7 +69,7 @@ export class NotificationService {
   }
 
   async delete(id: string) {
-    if (!isValidObjectId(id)) throw new BadRequestException('Invalid notificationId');
+ 
 
     const exists = await this.prisma.notification.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Notification not found');
