@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,18 +18,24 @@ import { NotificationModule } from './notifications/notification.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
-  imports: [MailerModule.forRoot({
-      transport: {
-        service: 'gmail',
-        auth: {
-          user: process.env.MAIL_USER,   
-          pass: process.env.MAIL_PASS,   
-        },
+  imports: [MailerModule.forRootAsync({
+  useFactory: (config: ConfigService) => ({
+    transport: {
+      host: config.get('GMAIL_HOST', 'smtp.gmail.com'),
+      port: 465,
+      secure: true,
+      auth: {
+        user: config.get('EMAIL_USER'),
+        pass: config.get('EMAIL_PASS'),
       },
-      defaults: {
-        from: `"Your App" <${process.env.MAIL_USER}>`,
+      tls: {
+        rejectUnauthorized: false,
       },
-    }),
+    },
+  }),
+  inject: [ConfigService],
+}),
+
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
