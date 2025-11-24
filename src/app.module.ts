@@ -16,27 +16,10 @@ import { ConversationModule } from './conversation/conversation.module';
 import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notifications/notification.module';
 import { MailerModule } from '@nestjs-modules/mailer';
-
 @Module({
-  imports: [MailerModule.forRootAsync({
-  useFactory: (config: ConfigService) => ({
-    transport: {
-      host: config.get('GMAIL_HOST', 'smtp.gmail.com'),
-      port: 465,
-      secure: true,
-      auth: {
-        user: config.get('EMAIL_USER'),
-        pass: config.get('EMAIL_PASS'),
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    },
-  }),
-  inject: [ConfigService],
-}),
-
+  imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
     PrismaModule,
     AuthModule,
     TwilioModule,
@@ -44,7 +27,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     CategoryModule,
     MarketModule,
     OrdersModule,
-    SocketModule, 
+    SocketModule,
     ConversationModule,
     NotificationModule,
     MessageModule,
@@ -66,4 +49,3 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
-
