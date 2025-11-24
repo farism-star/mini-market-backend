@@ -1,13 +1,30 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
+import * as nodemailer from 'nodemailer';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailService {
-  constructor(private mailer: MailerService) {}
+  private transporter;
+
+  constructor(private config: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: this.config.get('EMAIL_USER'),
+        pass: this.config.get('EMAIL_PASS'), // App Password
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+  }
 
   async sendOtpMail(email: string, otp: string) {
     try {
-      await this.mailer.sendMail({
+      await this.transporter.sendMail({
+        from: `"Mini Market" <${this.config.get('EMAIL_USER')}>`,
         to: email,
         subject: 'Your OTP Code',
         html: `
@@ -19,6 +36,7 @@ export class MailService {
 
       return { message: 'OTP email sent successfully' };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException('Failed to send email: ' + error.message);
     }
   }
