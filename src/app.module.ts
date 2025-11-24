@@ -15,10 +15,21 @@ import { SocketModule } from './socket/socket.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notifications/notification.module';
-
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
-  imports: [
+  imports: [MailerModule.forRoot({
+      transport: {
+        service: 'gmail',
+        auth: {
+          user: process.env.MAIL_USER,   // مثال: fares@gmail.com
+          pass: process.env.MAIL_PASS,   // كلمة مرور App Password
+        },
+      },
+      defaults: {
+        from: `"Your App" <${process.env.MAIL_USER}>`,
+      },
+    }),
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
