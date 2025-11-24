@@ -22,8 +22,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
       transport: {
         service: 'gmail',
         auth: {
-          user: process.env.MAIL_USER,   // مثال: fares@gmail.com
-          pass: process.env.MAIL_PASS,   // كلمة مرور App Password
+          user: process.env.MAIL_USER,   
+          pass: process.env.MAIL_PASS,   
         },
       },
       defaults: {
