@@ -7,23 +7,27 @@ export class MailService {
   private transporter;
 
   constructor(private config: ConfigService) {
+
+    console.log('EMAIL_USER:', this.config.get('EMAIL_USER'));
+    console.log('EMAIL_PASS exists:', !!this.config.get('EMAIL_PASS'));
+    
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      service: 'gmail', 
       auth: {
         user: this.config.get('EMAIL_USER'),
-        pass: this.config.get('EMAIL_PASS'), // App Password
+        pass: this.config.get('EMAIL_PASS'),
       },
-      tls: {
-        rejectUnauthorized: false,
-      },
+   
     });
   }
 
   async sendOtpMail(email: string, otp: string) {
     try {
-      await this.transporter.sendMail({
+      // Test connection أول
+      await this.transporter.verify();
+      console.log('SMTP connection verified');
+
+      const info = await this.transporter.sendMail({
         from: `"Mini Market" <${this.config.get('EMAIL_USER')}>`,
         to: email,
         subject: 'Your OTP Code',
@@ -34,9 +38,10 @@ export class MailService {
         `,
       });
 
+      console.log('Email sent successfully:', info.messageId);
       return { message: 'OTP email sent successfully' };
     } catch (error) {
-      console.log(error);
+      console.error('Email Error Details:', error);
       throw new BadRequestException('Failed to send email: ' + error.message);
     }
   }
