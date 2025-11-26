@@ -135,10 +135,10 @@ export class AuthService {
       },
     });
 
-    // // إرسال عبر الإيميل
-    // if (authDto.email) {
-    //   await this.mailService.sendOtpMail(authDto.email, otpCode);
-    // }
+    // إرسال عبر الإيميل
+    if (authDto.email) {
+      await this.mailService.sendOtpMail(authDto.email, otpCode);
+    }
 
     console.log(`OTP (${otpCode}) sent to ${identifier}`);
 
