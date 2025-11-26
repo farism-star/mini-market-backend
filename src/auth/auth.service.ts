@@ -95,6 +95,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
+      include:{market:true}
     });
 
     if (!user) {
@@ -104,7 +105,7 @@ export class AuthService {
     // إرسال OTP
     await this.sendOtp({ email: user.email!, phone: user.phone! });
 
-    return { message: `OTP sent to your phone/email` };
+    return { message: `OTP sent to your phone/email`,user };
   }
 
   
@@ -178,7 +179,9 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ phone: dto.phone ?? null }, { email: dto.email ?? null }],
-      },
+      },include:{
+        market:true,
+      }
     });
 
     if (!user) {
