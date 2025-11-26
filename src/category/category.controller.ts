@@ -52,6 +52,7 @@ export class CategoryController {
   @Roles(Role.OWNER)
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.categoryService.remove(id,req);
+    
+    return this.categoryService.remove(id,req.user);
   }
 }
