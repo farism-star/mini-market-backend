@@ -1,8 +1,15 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Length } from 'class-validator';
+// dtos/auth.dto.ts
+import { IsEnum, IsNotEmpty, IsOptional, IsString, Length, IsBoolean } from 'class-validator';
 
 export enum UserType {
   OWNER = 'OWNER',
   CLIENT = 'CLIENT',
+}
+
+export enum AddressType {
+  WORK = 'WORK',
+  HOME = 'HOME',
+  OTHER = 'OTHER',
 }
 
 export class AuthDto {
@@ -26,7 +33,7 @@ export class AuthDto {
   marketName?: string;
 
   @IsNotEmpty()
-  @IsString() // null يسمح بأي صيغة رقم دولي
+  @IsString()
   phone: string;
 
   @IsOptional()
@@ -47,6 +54,7 @@ export class AuthDto {
   @IsOptional()
   hours?: string[];
 }
+
 export class VerifyOtpDto {
   @IsNotEmpty()
   @IsString()
@@ -60,4 +68,78 @@ export class VerifyOtpDto {
   @IsString()
   @Length(5, 5)
   otp: string;
+}
+
+export class UpdateAddressDto {
+  @IsOptional()
+  @IsString()
+  addressId?: string;
+
+  @IsOptional()
+  @IsEnum(AddressType)
+  type?: AddressType;
+
+  @IsOptional()
+  @IsString()
+  fullAddress?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isSelected?: boolean;
+}
+
+export class UpdateMarketDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  zone?: string;
+
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  operations?: string[];
+
+  @IsOptional()
+  hours?: string[];
+
+  @IsOptional()
+  @IsString()
+  image?: string;
+}
+
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsEnum(UserType)
+  type?: UserType;
+
+  @IsOptional()
+  @IsString()
+  image?: string;
+
+  @IsOptional()
+  address?: UpdateAddressDto;
+
+  @IsOptional()
+  market?: UpdateMarketDto;
 }
