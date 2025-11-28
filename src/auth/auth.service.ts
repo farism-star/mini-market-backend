@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+// auth.service.ts
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { randomInt } from 'crypto';
-import { AuthDto, VerifyOtpDto } from './dtos/auth.dto';
+import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
 import { Login } from './dtos/login.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { MailService } from 'src/mail/mail.service';
@@ -13,12 +14,9 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private cloudinary: CloudinaryService,
-    private mailService: MailService,   // 👈 إضافة خدمة الإيميل
+    private mailService: MailService,
   ) {}
 
-  // ===============================
-  // 🔵 Register
-  // ===============================
   async register(authDto: AuthDto) {
     const { email, phone, name, type, zone, district, address, operations, hours, image } = authDto;
 
@@ -26,27 +24,26 @@ export class AuthService {
       throw new BadRequestException('Email or phone is required');
     }
 
-    // check if user exists
     const existingUser = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
     });
 
     if (existingUser) {
-      throw new ConflictException('User already exists, please login instead.');
+      throw new ConflictException('User already exists');
     }
 
-    // upload image if exists
     let uploadedImageUrl: string | null = null;
 
     if (image) {
-      try {
-        uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(image, 'users');
-      } catch (err) {
-        throw new BadRequestException('Image upload failed: ' + err.message);
-      }
+      uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(image, 'users');
     }
 
-    // create user
+    const defaultAddress = {
+      type: 'HOME' as const,
+      fullAddress: address ?? '',
+      isSelected: true,
+    };
+
     const user = await this.prisma.user.create({
       data: {
         name,
@@ -55,12 +52,13 @@ export class AuthService {
         type,
         image: uploadedImageUrl,
         phoneVerified: false,
+        addresses: { create: defaultAddress },
       },
+      include: { addresses: true },
     });
 
     let market = {};
 
-    // create market if OWNER
     if (type === 'OWNER') {
       market = await this.prisma.market.create({
         data: {
@@ -75,16 +73,10 @@ export class AuthService {
       });
     }
 
-    // send OTP
     await this.sendOtp({ email, phone });
 
-    return {
-      message: 'User registered successfully. OTP sent.',
-      user,
-      market,
-    };
+    return { message: 'User registered successfully', user, market };
   }
-
 
   async login(authDto: Login) {
     const { email, phone } = authDto;
@@ -95,25 +87,23 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
-      include:{market:true}
+      include: { market: true, addresses: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found. Please register first.');
+      throw new UnauthorizedException('User not found');
     }
 
-    // إرسال OTP
     await this.sendOtp({ email: user.email!, phone: user.phone! });
 
-    return { message: `OTP sent to your phone/email`,user };
+    return { message: 'OTP sent', user };
   }
 
-  
   async sendOtp(authDto: { email?: string; phone?: string }) {
     const identifier = authDto.phone ?? authDto.email;
 
     if (!identifier) {
-      throw new BadRequestException('Phone or email is required for OTP');
+      throw new BadRequestException('Phone or email is required');
     }
 
     const otpCode = randomInt(10000, 99999).toString();
@@ -128,32 +118,18 @@ export class AuthService {
     }
 
     await this.prisma.otp.create({
-      data: {
-        code: otpCode,
-        identifier,
-        userId: user ? user.id : null,
-        expiresAt,
-      },
+      data: { code: otpCode, identifier, userId: user ? user.id : null, expiresAt },
     });
+console.log(otpCode);
 
-    // // إرسال عبر الإيميل
-    // if (authDto.email) {
-    //   await this.mailService.sendOtpMail(authDto.email, otpCode);
-    // }
-
-    console.log(`OTP (${otpCode}) sent to ${identifier}`);
-
-    return { message: `OTP sent successfully` };
+    return { message: 'OTP sent successfully' };
   }
 
-  // ===============================
-  // 🔵 Verify OTP
-  // ===============================
   async verifyOtp(dto: VerifyOtpDto) {
     const identifier = dto.phone ?? dto.email;
 
     if (!identifier) {
-      throw new BadRequestException('Phone or email is required for verification');
+      throw new BadRequestException('Phone or email is required');
     }
 
     const otpRecord = await this.prisma.otp.findFirst({
@@ -177,11 +153,8 @@ export class AuthService {
     await this.prisma.otp.delete({ where: { id: otpRecord.id } });
 
     const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ phone: dto.phone ?? null }, { email: dto.email ?? null }],
-      },include:{
-        market:true,
-      }
+      where: { OR: [{ phone: dto.phone ?? null }, { email: dto.email ?? null }] },
+      include: { market: true, addresses: true },
     });
 
     if (!user) {
@@ -197,4 +170,77 @@ export class AuthService {
 
     return { token, user };
   }
+
+async updateUser(userId: string, dto: UpdateUserDto) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { addresses: true, market: true }
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  let uploadedImageUrl = user.image;
+  if (dto.image) {
+    uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(dto.image, 'users');
+  }
+
+  if (dto.address) {
+    if (dto.address.isSelected && dto.address.addressId) {
+      await this.prisma.address.updateMany({
+        where: { userId },
+        data: { isSelected: false }
+      });
+    }
+
+    if (dto.address.addressId) {
+      await this.prisma.address.update({
+        where: { id: dto.address.addressId },
+        data: {
+          type: dto.address.type,
+          fullAddress: dto.address.fullAddress,
+          isSelected: dto.address.isSelected ?? false
+        }
+      });
+    } else if (dto.address.fullAddress) {
+      await this.prisma.address.create({
+        data: {
+          type: dto.address.type ?? 'HOME',
+          fullAddress: dto.address.fullAddress,
+          isSelected: dto.address.isSelected ?? false,
+          userId
+        }
+      });
+    }
+  }
+
+  if (user.type === 'OWNER' && user.market && dto.market) {
+    let uploadedMarketImage = user.market.image;
+    if (dto.market.image) {
+      uploadedMarketImage = await this.cloudinary.uploadImageFromBase64(dto.market.image, 'markets');
+    }
+
+    await this.prisma.market.update({
+      where: { id: user.market.id },
+      data: {
+        name: dto.market.name ?? user.market.name,
+        zone: dto.market.zone ?? user.market.zone,
+        district: dto.market.district ?? user.market.district,
+        address: dto.market.address ?? user.market.address,
+        operations: dto.market.operations ?? user.market.operations,
+        hours: dto.market.hours ?? user.market.hours,
+        image: uploadedMarketImage
+      }
+    });
+  }
+
+  // ترجع كل البيانات مرة واحدة بعد كل الـ updates
+  const updatedUser = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { addresses: true, market: true }
+  });
+
+  return updatedUser;
+}
+
+
 }
