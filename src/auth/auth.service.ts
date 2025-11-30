@@ -174,73 +174,139 @@ console.log(otpCode);
 async updateUser(userId: string, dto: UpdateUserDto) {
   const user = await this.prisma.user.findUnique({
     where: { id: userId },
-    include: { addresses: true, market: true }
+    include: { market: true } // لاحظ أننا شلنا addresses
   });
 
   if (!user) throw new NotFoundException('User not found');
 
+  // ================================
+  // 1) Update User basic fields
+  // ================================
   let uploadedImageUrl = user.image;
+
   if (dto.image) {
-    uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(dto.image, 'users');
+    uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(
+      dto.image,
+      'users'
+    );
   }
 
-  if (dto.address) {
-    if (dto.address.isSelected && dto.address.addressId) {
-      await this.prisma.address.updateMany({
-        where: { userId },
-        data: { isSelected: false }
-      });
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: dto.name ?? user.name,
+      email: dto.email ?? user.email,
+      phone: dto.phone ?? user.phone,
+      image: uploadedImageUrl
     }
+  });
 
-    if (dto.address.addressId) {
-      await this.prisma.address.update({
-        where: { id: dto.address.addressId },
-        data: {
-          type: dto.address.type,
-          fullAddress: dto.address.fullAddress,
-          isSelected: dto.address.isSelected ?? false
-        }
-      });
-    } else if (dto.address.fullAddress) {
-      await this.prisma.address.create({
-        data: {
-          type: dto.address.type ?? 'HOME',
-          fullAddress: dto.address.fullAddress,
-          isSelected: dto.address.isSelected ?? false,
-          userId
-        }
-      });
-    }
-  }
+  // =====================================================
+  // 2) Update Market (ONLY if user.type === OWNER)
+  // =====================================================
+  if (user.type === 'OWNER') {
+    if (user.market && dto.market) {
+      let uploadedMarketImage = user.market.image;
 
-  if (user.type === 'OWNER' && user.market && dto.market) {
-    let uploadedMarketImage = user.market.image;
-    if (dto.market.image) {
-      uploadedMarketImage = await this.cloudinary.uploadImageFromBase64(dto.market.image, 'markets');
-    }
-
-    await this.prisma.market.update({
-      where: { id: user.market.id },
-      data: {
-        name: dto.market.name ?? user.market.name,
-        zone: dto.market.zone ?? user.market.zone,
-        district: dto.market.district ?? user.market.district,
-        address: dto.market.address ?? user.market.address,
-        operations: dto.market.operations ?? user.market.operations,
-        hours: dto.market.hours ?? user.market.hours,
-        image: uploadedMarketImage
+      if (dto.market.image) {
+        uploadedMarketImage = await this.cloudinary.uploadImageFromBase64(
+          dto.market.image,
+          'markets'
+        );
       }
-    });
+
+      await this.prisma.market.update({
+        where: { id: user.market.id },
+        data: {
+          name: dto.market.name ?? user.market.name,
+          zone: dto.market.zone ?? user.market.zone,
+          district: dto.market.district ?? user.market.district,
+          address: dto.market.address ?? user.market.address,
+          operations: dto.market.operations ?? user.market.operations,
+          hours: dto.market.hours ?? user.market.hours,
+          image: uploadedMarketImage
+        }
+      });
+    }
+  } else {
+    // 🚫 منع أي تعديل على الماركت لو مش Owner
+    delete dto.market;
   }
 
-  // ترجع كل البيانات مرة واحدة بعد كل الـ updates
+  // ================================
+  // 3) Return updated user
+  // ================================
   const updatedUser = await this.prisma.user.findUnique({
     where: { id: userId },
-    include: { addresses: true, market: true }
+    include: { market: true } // شلنا addresses
   });
 
   return updatedUser;
 }
 
 
+async createAddress(userId: string, dto: UpdateAddressDto) {
+    if (!dto.fullAddress) {
+      throw new BadRequestException('fullAddress is required');
+    }
+
+    if (dto.isSelected) {
+      await this.prisma.address.updateMany({
+        where: { userId },
+        data: { isSelected: false }
+      });
+    }
+
+    const address = await this.prisma.address.create({
+      data: {
+        type: dto.type ?? 'HOME',
+        fullAddress: dto.fullAddress,
+        isSelected: dto.isSelected ?? false,
+        userId
+      }
+    });
+
+    return { message: 'Address added', address };
+  }
+
+  async updateAddress(addressId: string, dto: UpdateAddressDto) {
+    const address = await this.prisma.address.findUnique({ where: { id: addressId } });
+
+    if (!address) throw new NotFoundException('Address not found');
+
+    if (dto.isSelected) {
+      await this.prisma.address.updateMany({
+        where: { userId: address.userId },
+        data: { isSelected: false }
+      });
+    }
+
+    const updated = await this.prisma.address.update({
+      where: { id: addressId },
+      data: {
+        type: dto.type ?? address.type,
+        fullAddress: dto.fullAddress ?? address.fullAddress,
+        isSelected: dto.isSelected ?? address.isSelected
+      }
+    });
+
+    return { message: 'Address updated', updated };
+  }
+
+  async deleteAddress(addressId: string) {
+    const address = await this.prisma.address.findUnique({ where: { id: addressId } });
+
+    if (!address) throw new NotFoundException('Address not found');
+
+    await this.prisma.address.delete({ where: { id: addressId } });
+
+    return { message: 'Address deleted' };
+  }
+
+  async getUserAddresses(userId: string) {
+    return await this.prisma.address.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
 }
