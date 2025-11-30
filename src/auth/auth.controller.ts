@@ -1,5 +1,5 @@
 // auth.controller.ts
-import { Controller, Post, Body, UseGuards, Req, Param, Patch } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Param, Patch, Delete, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -10,7 +10,7 @@ import { Login } from './dtos/login.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   @Post('register')
   register(@Body() authDto: AuthDto) {
@@ -35,8 +35,37 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Roles(Role.CLIENT, Role.OWNER)
   @Patch('update-user/:id')
   updateUser(@Param('id') userId: string, @Body() dto: UpdateUserDto) {
     return this.authService.updateUser(userId, dto);
   }
+
+
+
+  @Post('address/user/:userId')
+  createAddress(@Param('userId') userId: string, @Body() dto: UpdateAddressDto) {
+    return this.authService.createAddress(userId, dto);
+  }
+
+  @Patch('address/update/:addressId')
+  updateAddress(@Param('addressId') addressId: string, @Body() dto: UpdateAddressDto) {
+    return this.authService.updateAddress(addressId, dto);
+  }
+
+  @Delete('address/delete/:addressId')
+  deleteAddress(@Param('addressId') addressId: string) {
+    return this.authService.deleteAddress(addressId);
+  }
+
+  @Get('address/user/:userId')
+  getUserAddresses(@Param('userId') userId: string) {
+    return this.authService.getUserAddresses(userId);
+  }
+
+
+
+
+
+
 }
