@@ -27,6 +27,13 @@ export class AuthController {
     return this.authService.verifyOtp(dto);
   }
 
+ 
+  @Delete('delete-all-data')
+  async deleteAllData() {
+    return this.authService.deleteAllData();
+  }
+
+
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.CLIENT, Role.OWNER)
   @Post('me')
