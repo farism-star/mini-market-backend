@@ -178,10 +178,6 @@ async updateUser(userId: string, dto: UpdateUserDto) {
   });
 
   if (!user) throw new NotFoundException('User not found');
-
-  // ================================
-  // 1) Update User basic fields
-  // ================================
   let uploadedImageUrl = user.image;
 
   if (dto.image) {
@@ -238,7 +234,7 @@ async updateUser(userId: string, dto: UpdateUserDto) {
   // ================================
   const updatedUser = await this.prisma.user.findUnique({
     where: { id: userId },
-    include: { market: true } // شلنا addresses
+    include: { market: true,addresses:true } // شلنا addresses
   });
 
   return updatedUser;
@@ -309,4 +305,27 @@ async createAddress(userId: string, dto: UpdateAddressDto) {
       orderBy: { createdAt: 'desc' }
     });
   }
+async deleteAllData() {
+  return await this.prisma.$transaction(async (prisma) => {
+    // حذف كل البيانات المرتبطة باليوزر
+    await prisma.order.deleteMany({});
+    await prisma.notification.deleteMany({});
+    await prisma.message.deleteMany({});
+    await prisma.otp.deleteMany({});
+
+    // أولاً نحذف كل المنتجات المرتبطة بكل market
+    await prisma.product.deleteMany({});
+
+    // بعد كده نحذف كل الأسواق
+    await prisma.market.deleteMany({});
+
+    // بعد كده العناوين واليوزر
+    await prisma.address.deleteMany({});
+    await prisma.user.deleteMany({});
+
+    return { message: 'All user data has been deleted successfully.' };
+  });
+}
+
+
 }

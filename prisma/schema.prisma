@@ -64,6 +64,18 @@ enum AddressType {
   HOME
   OTHER
 }
+model Payment {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String
+  amount           Float
+  method           String
+  status           String   // PENDING, SUCCESS, FAILED
+  clickpayOrderId  String?
+  clickpayCartId   String?
+  clickpayResponse String?  // تخزين كل الـ response
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
 
 model User {
   id            String          @id @default(auto()) @map("_id") @db.ObjectId
@@ -82,7 +94,7 @@ model User {
   market        Market?
   orders        Order[]
   notifications Notification[]
-
+// payments      Payment[]
   addresses     Address[]       // 👈 هنا الأراي بتاعة العناوين
 }
 

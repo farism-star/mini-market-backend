@@ -16,6 +16,7 @@ import { ConversationModule } from './conversation/conversation.module';
 import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notifications/notification.module';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { PaymentModule } from './payments/payment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -27,6 +28,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     CategoryModule,
     MarketModule,
     OrdersModule,
+    PaymentModule,
     SocketModule,
     ConversationModule,
     NotificationModule,
