@@ -67,6 +67,7 @@ async getUserConversations(userId: string) {
           ? {
               id: lastMsg.id,
               type: lastMsg.type,
+              senderId:lastMsg.senderId,
               text: lastMsg.text,
               image: lastMsg.imageUrl,
               voice: lastMsg.voice,
