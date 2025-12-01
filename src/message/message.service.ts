@@ -64,4 +64,11 @@ export class MessageService {
   };
 }
 
+
+async deleteMessages(){
+ await this.prisma.message.deleteMany({}); 
+}
+
+
+
 }
