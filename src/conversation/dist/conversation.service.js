@@ -123,7 +123,8 @@ var ConversationService = /** @class */ (function () {
                                                             type: lastMsg.type,
                                                             text: lastMsg.text,
                                                             image: lastMsg.imageUrl,
-                                                            voice: lastMsg.voice
+                                                            voice: lastMsg.voice,
+                                                            createdAt: lastMsg.createdAt
                                                         }
                                                         : null,
                                                     unreadMessages: unread

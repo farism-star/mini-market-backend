@@ -70,6 +70,7 @@ async getUserConversations(userId: string) {
               text: lastMsg.text,
               image: lastMsg.imageUrl,
               voice: lastMsg.voice,
+              createdAt:lastMsg.createdAt
             }
           : null,
         unreadMessages: unread,
