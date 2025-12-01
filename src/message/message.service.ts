@@ -17,40 +17,51 @@ export class MessageService {
   }
 
   // جلب كل الرسائل لمحادثة معينة
-  async getMessages(
-    conversationId: string,
-    page: number = 1,
-    limit: number = 20
-  ) {
-    
-    const conversationExists = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-    });
+ async getMessages(
+  conversationId: string,
+  userId: string,     // 👈 لازم نضيفه
+  page: number = 1,
+  limit: number = 20
+) {
 
-    if (!conversationExists) {
-      throw new NotFoundException('Conversation not found');
-    }
+  const conversationExists = await this.prisma.conversation.findUnique({
+    where: { id: conversationId },
+  });
 
-    // احسب الـ offset
-    const skip = (page - 1) * limit;
-
-    const messages = await this.prisma.message.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    });
-
-    // إجمالي عدد الرسائل (اختياري)
-    const total = await this.prisma.message.count({
-      where: { conversationId },
-    });
-
-    return {
-      page,
-      limit,
-      total,
-      messages,
-    };
+  if (!conversationExists) {
+    throw new NotFoundException('Conversation not found');
   }
+
+  // اعمل read للرسائل اللي اتبعت للشخص
+  await this.prisma.message.updateMany({
+    where: {
+      conversationId,
+      senderId: { not: userId }, // الرسائل اللي مش أنا اللي باعتها
+      isRead: false,             // فقط اللي مش مقروءة
+    },
+    data: { isRead: true },
+  });
+
+  // pagination
+  const skip = (page - 1) * limit;
+
+  const messages = await this.prisma.message.findMany({
+    where: { conversationId },
+    orderBy: { createdAt: 'desc' },
+    skip,
+    take: limit,
+  });
+
+  const total = await this.prisma.message.count({
+    where: { conversationId },
+  });
+
+  return {
+    page,
+    limit,
+    total,
+    messages,
+  };
+}
+
 }

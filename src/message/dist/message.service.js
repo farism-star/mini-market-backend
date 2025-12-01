@@ -5,9 +5,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -45,54 +42,82 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-exports.MessageController = void 0;
+exports.MessageService = void 0;
 var common_1 = require("@nestjs/common");
-var passport_1 = require("@nestjs/passport");
-var roles_gaurd_1 = require("../auth/roles.gaurd");
-var Role_decorator_1 = require("../auth/Role.decorator");
-var roles_enum_1 = require("../auth/roles.enum");
-var MessageController = /** @class */ (function () {
-    function MessageController(messageService) {
-        this.messageService = messageService;
+var MessageService = /** @class */ (function () {
+    function MessageService(prisma) {
+        this.prisma = prisma;
     }
-    MessageController.prototype.create = function (conversationId, senderId, text) {
+    // إنشاء رسالة
+    MessageService.prototype.createMessage = function (conversationId, senderId, text) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2 /*return*/, this.messageService.createMessage(conversationId, senderId, text)];
+                return [2 /*return*/, this.prisma.message.create({
+                        data: {
+                            conversationId: conversationId,
+                            senderId: senderId,
+                            text: text
+                        }
+                    })];
             });
         });
     };
-    MessageController.prototype.getMessages = function (conversationId, page, limit, req) {
+    // جلب كل الرسائل لمحادثة معينة
+    MessageService.prototype.getMessages = function (conversationId, userId, // 👈 لازم نضيفه
+    page, limit) {
+        if (page === void 0) { page = 1; }
+        if (limit === void 0) { limit = 20; }
         return __awaiter(this, void 0, void 0, function () {
-            var pageNum, limitNum, userId;
+            var conversationExists, skip, messages, total;
             return __generator(this, function (_a) {
-                pageNum = parseInt(page) || 1;
-                limitNum = parseInt(limit) || 20;
-                userId = req.user.id;
-                return [2 /*return*/, this.messageService.getMessages(conversationId, userId, pageNum, limitNum)];
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.conversation.findUnique({
+                            where: { id: conversationId }
+                        })];
+                    case 1:
+                        conversationExists = _a.sent();
+                        if (!conversationExists) {
+                            throw new common_1.NotFoundException('Conversation not found');
+                        }
+                        // اعمل read للرسائل اللي اتبعت للشخص
+                        return [4 /*yield*/, this.prisma.message.updateMany({
+                                where: {
+                                    conversationId: conversationId,
+                                    senderId: { not: userId },
+                                    isRead: false
+                                },
+                                data: { isRead: true }
+                            })];
+                    case 2:
+                        // اعمل read للرسائل اللي اتبعت للشخص
+                        _a.sent();
+                        skip = (page - 1) * limit;
+                        return [4 /*yield*/, this.prisma.message.findMany({
+                                where: { conversationId: conversationId },
+                                orderBy: { createdAt: 'desc' },
+                                skip: skip,
+                                take: limit
+                            })];
+                    case 3:
+                        messages = _a.sent();
+                        return [4 /*yield*/, this.prisma.message.count({
+                                where: { conversationId: conversationId }
+                            })];
+                    case 4:
+                        total = _a.sent();
+                        return [2 /*return*/, {
+                                page: page,
+                                limit: limit,
+                                total: total,
+                                messages: messages
+                            }];
+                }
             });
         });
     };
-    __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Post(),
-        __param(0, common_1.Body('conversationId')),
-        __param(1, common_1.Body('senderId')),
-        __param(2, common_1.Body('text'))
-    ], MessageController.prototype, "create");
-    __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get('/message/:conversationId'),
-        __param(0, common_1.Param('conversationId')),
-        __param(1, common_1.Query('page')),
-        __param(2, common_1.Query('limit')),
-        __param(3, common_1.Req())
-    ], MessageController.prototype, "getMessages");
-    MessageController = __decorate([
-        common_1.Controller('messages')
-    ], MessageController);
-    return MessageController;
+    MessageService = __decorate([
+        common_1.Injectable()
+    ], MessageService);
+    return MessageService;
 }());
-exports.MessageController = MessageController;
+exports.MessageService = MessageService;
