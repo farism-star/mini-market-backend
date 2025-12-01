@@ -19,7 +19,7 @@ export class MessageController {
   }
  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.CLIENT, Role.OWNER)
-  @Get(':conversationId')
+  @Get('/message/:conversationId')
   async getMessages(
     @Param('conversationId') conversationId: string,
     @Query('page') page: string,

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param,UseGuards,BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param,UseGuards,BadRequestException,Req } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.gaurd';
@@ -22,8 +22,9 @@ async create(@Body('users') users: string[]) {
 
  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.CLIENT, Role.OWNER)
-  @Get(':userId')
-  async getUserConversations(@Param('userId') userId: string) {
+  @Get('/user/')
+  async getUserConversations(@Req() req: any) {
+const userId =req.user.id
     return this.conversationService.getUserConversations(userId);
   }
  @UseGuards(AuthGuard('jwt'), RolesGuard)
