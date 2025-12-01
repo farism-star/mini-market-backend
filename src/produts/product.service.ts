@@ -71,7 +71,7 @@ return this.prisma.product.create({
     if (!existeUser) {
       throw new UnauthorizedException('User not found');
     }
-console.log(existeUser);
+
 
     // لو Owner يرجع بس منتجاته
     if (user.type === 'OWNER') {
