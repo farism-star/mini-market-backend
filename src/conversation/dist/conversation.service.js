@@ -80,7 +80,7 @@ var ConversationService = /** @class */ (function () {
     };
     ConversationService.prototype.getUserConversations = function (userId) {
         return __awaiter(this, void 0, void 0, function () {
-            var conversations;
+            var conversations, filteredConversations;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -94,7 +94,8 @@ var ConversationService = /** @class */ (function () {
                         })];
                     case 1:
                         conversations = _a.sent();
-                        return [2 /*return*/, Promise.all(conversations.map(function (conv) { return __awaiter(_this, void 0, void 0, function () {
+                        filteredConversations = conversations.filter(function (conv) { return conv.messages.length > 0; });
+                        return [2 /*return*/, Promise.all(filteredConversations.map(function (conv) { return __awaiter(_this, void 0, void 0, function () {
                                 var otherUserId, otherUser, lastMsg, unread;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
@@ -111,22 +112,18 @@ var ConversationService = /** @class */ (function () {
                                         case 1:
                                             otherUser = _a.sent();
                                             lastMsg = conv.messages[0];
-                                            unread = conv.messages.filter(function (m) { return m.senderId !== userId; } // sent by the other user
-                                            ).length;
-                                            // 5) Return formatted object
+                                            unread = conv.messages.filter(function (m) { return m.senderId !== userId; }).length;
                                             return [2 /*return*/, {
                                                     id: conv.id,
                                                     user: otherUser,
-                                                    lastMessage: lastMsg
-                                                        ? {
-                                                            id: lastMsg.id,
-                                                            type: lastMsg.type,
-                                                            text: lastMsg.text,
-                                                            image: lastMsg.imageUrl,
-                                                            voice: lastMsg.voice,
-                                                            createdAt: lastMsg.createdAt
-                                                        }
-                                                        : null,
+                                                    lastMessage: {
+                                                        id: lastMsg.id,
+                                                        type: lastMsg.type,
+                                                        text: lastMsg.text,
+                                                        image: lastMsg.imageUrl,
+                                                        voice: lastMsg.voice,
+                                                        createdAt: lastMsg.createdAt
+                                                    },
                                                     unreadMessages: unread
                                                 }];
                                     }
