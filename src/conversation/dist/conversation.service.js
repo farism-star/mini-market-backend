@@ -80,7 +80,7 @@ var ConversationService = /** @class */ (function () {
     };
     ConversationService.prototype.getUserConversations = function (userId) {
         return __awaiter(this, void 0, void 0, function () {
-            var conversations, filteredConversations;
+            var conversations;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -94,7 +94,10 @@ var ConversationService = /** @class */ (function () {
                         })];
                     case 1:
                         conversations = _a.sent();
-                        filteredConversations = conversations.filter(function (conv) { return conv.messages.length > 0; });
+                        // ❤️ 2) استبعد أي محادثة مفيهاش ولا رسالة
+                        // const filteredConversations = conversations.filter(
+                        //   (conv) => conv.messages.length > 0
+                        // );
                         return [2 /*return*/, Promise.all(filteredConversations.map(function (conv) { return __awaiter(_this, void 0, void 0, function () {
                                 var otherUserId, otherUser, lastMsg, unread;
                                 return __generator(this, function (_a) {
