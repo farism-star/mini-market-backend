@@ -26,59 +26,62 @@ export class ConversationService {
     return conversation;
   }
 
-  async getUserConversations(userId: string) {
-    // 1) Fetch all conversations of this user
-    const conversations = await this.prisma.conversation.findMany({
-      where: { users: { has: userId } },
-      include: {
-        messages: {
-          orderBy: { createdAt: "desc" },
+async getUserConversations(userId: string) {
+  const conversations = await this.prisma.conversation.findMany({
+    where: { users: { has: userId } },
+
+    include: {
+      // آخر رسالة فقط
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+
+      // احسب unread مباشرة من الداتا
+      _count: {
+        select: {
+          messages: {
+            where: {
+              senderId: { not: userId },
+              isRead: false,
+            },
+          },
         },
       },
-    });
+    },
+  });
 
-    return Promise.all(
-      conversations.map(async (conv) => {
-        // 2) Get the other participant (not me)
-        const otherUserId = conv.users.find((uid) => uid !== userId);
+  return Promise.all(
+    conversations.map(async (conv) => {
+      const otherUserId = conv.users.find((uid) => uid !== userId);
 
-        const otherUser = await this.prisma.user.findUnique({
-          where: { id: otherUserId },
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        });
+      const otherUser = await this.prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: { id: true, name: true, image: true },
+      });
 
-        // 3) Last message
-        const lastMsg = conv.messages[0];
+      const lastMsg = conv.messages[0];
 
-        // 4) Count unread messages
-        const unread = conv.messages.filter(
-          (m) => m.senderId !== userId && !m.isRead
-        ).length;
-
-
-        return {
-          id: conv.id,
-          user: otherUser,
-          lastMessage: lastMsg
-            ? {
+      return {
+        id: conv.id,
+        user: otherUser,
+        lastMessage: lastMsg
+          ? {
               id: lastMsg.id,
               type: lastMsg.type,
               senderId: lastMsg.senderId,
               text: lastMsg.text,
               image: lastMsg.imageUrl,
               voice: lastMsg.voice,
-              createdAt: lastMsg.createdAt
+              createdAt: lastMsg.createdAt,
             }
-            : null,
-          unreadMessages: unread,
-        };
-      })
-    );
-  }
+          : null,
+
+        unreadMessages: conv._count.messages, // ← الحل هنا
+      };
+    })
+  );
+}
 
 
   async getConversationById(conversationId: string) {
