@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Query, Req,Delete } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.gaurd';
@@ -30,5 +30,11 @@ export class MessageController {
     const limitNum = parseInt(limit) || 10;
     const userId = req.user.id
     return this.messageService.getMessages(conversationId, userId, pageNum, limitNum);
+  }
+  @Delete('delete-all')
+  async deleteMessages(
+  ) {
+  
+    return this.messageService.deleteMessages();
   }
 }

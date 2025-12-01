@@ -73,6 +73,13 @@ var MessageController = /** @class */ (function () {
             });
         });
     };
+    MessageController.prototype.deleteMessages = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.messageService.deleteMessages()];
+            });
+        });
+    };
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
@@ -90,6 +97,9 @@ var MessageController = /** @class */ (function () {
         __param(2, common_1.Query('limit')),
         __param(3, common_1.Req())
     ], MessageController.prototype, "getMessages");
+    __decorate([
+        common_1.Delete('delete-all')
+    ], MessageController.prototype, "deleteMessages");
     MessageController = __decorate([
         common_1.Controller('messages')
     ], MessageController);
