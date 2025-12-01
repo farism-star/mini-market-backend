@@ -87,31 +87,39 @@ var ConversationService = /** @class */ (function () {
                     case 0: return [4 /*yield*/, this.prisma.conversation.findMany({
                             where: { users: { has: userId } },
                             include: {
+                                // آخر رسالة فقط
                                 messages: {
-                                    orderBy: { createdAt: "desc" }
+                                    orderBy: { createdAt: "desc" },
+                                    take: 1
+                                },
+                                // احسب unread مباشرة من الداتا
+                                _count: {
+                                    select: {
+                                        messages: {
+                                            where: {
+                                                senderId: { not: userId },
+                                                isRead: false
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         })];
                     case 1:
                         conversations = _a.sent();
                         return [2 /*return*/, Promise.all(conversations.map(function (conv) { return __awaiter(_this, void 0, void 0, function () {
-                                var otherUserId, otherUser, lastMsg, unread;
+                                var otherUserId, otherUser, lastMsg;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
                                             otherUserId = conv.users.find(function (uid) { return uid !== userId; });
                                             return [4 /*yield*/, this.prisma.user.findUnique({
                                                     where: { id: otherUserId },
-                                                    select: {
-                                                        id: true,
-                                                        name: true,
-                                                        image: true
-                                                    }
+                                                    select: { id: true, name: true, image: true }
                                                 })];
                                         case 1:
                                             otherUser = _a.sent();
                                             lastMsg = conv.messages[0];
-                                            unread = conv.messages.filter(function (m) { return m.senderId !== userId && !m.isRead; }).length;
                                             return [2 /*return*/, {
                                                     id: conv.id,
                                                     user: otherUser,
@@ -126,7 +134,7 @@ var ConversationService = /** @class */ (function () {
                                                             createdAt: lastMsg.createdAt
                                                         }
                                                         : null,
-                                                    unreadMessages: unread
+                                                    unreadMessages: conv._count.messages
                                                 }];
                                     }
                                 });
