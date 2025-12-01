@@ -111,7 +111,7 @@ var ConversationService = /** @class */ (function () {
                                         case 1:
                                             otherUser = _a.sent();
                                             lastMsg = conv.messages[0];
-                                            unread = conv.messages.filter(function (m) { return m.senderId !== userId; }).length;
+                                            unread = conv.messages.filter(function (m) { return m.senderId !== userId && !m.isRead; }).length;
                                             return [2 /*return*/, {
                                                     id: conv.id,
                                                     user: otherUser,
@@ -119,6 +119,7 @@ var ConversationService = /** @class */ (function () {
                                                         ? {
                                                             id: lastMsg.id,
                                                             type: lastMsg.type,
+                                                            senderId: lastMsg.senderId,
                                                             text: lastMsg.text,
                                                             image: lastMsg.imageUrl,
                                                             voice: lastMsg.voice,
