@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum,IsBoolean } from 'class-validator';
 
 export enum MessageType {
   TEXT = "TEXT",
@@ -28,7 +28,8 @@ export class SendMessageDto {
   @IsString()
   voice?: string;
 
-
-
+@IsOptional()
+  @IsBoolean()
+isRead:boolean
 
 }

@@ -27,7 +27,7 @@ export class MessageController {
     @Req() req: any
   ) {
     const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 20;
+    const limitNum = parseInt(limit) || 10;
     const userId = req.user.id
     return this.messageService.getMessages(conversationId, userId, pageNum, limitNum);
   }
