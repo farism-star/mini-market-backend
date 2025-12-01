@@ -94,11 +94,7 @@ var ConversationService = /** @class */ (function () {
                         })];
                     case 1:
                         conversations = _a.sent();
-                        // ❤️ 2) استبعد أي محادثة مفيهاش ولا رسالة
-                        // const filteredConversations = conversations.filter(
-                        //   (conv) => conv.messages.length > 0
-                        // );
-                        return [2 /*return*/, Promise.all(filteredConversations.map(function (conv) { return __awaiter(_this, void 0, void 0, function () {
+                        return [2 /*return*/, Promise.all(conversations.map(function (conv) { return __awaiter(_this, void 0, void 0, function () {
                                 var otherUserId, otherUser, lastMsg, unread;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
@@ -119,14 +115,16 @@ var ConversationService = /** @class */ (function () {
                                             return [2 /*return*/, {
                                                     id: conv.id,
                                                     user: otherUser,
-                                                    lastMessage: {
-                                                        id: lastMsg.id,
-                                                        type: lastMsg.type,
-                                                        text: lastMsg.text,
-                                                        image: lastMsg.imageUrl,
-                                                        voice: lastMsg.voice,
-                                                        createdAt: lastMsg.createdAt
-                                                    },
+                                                    lastMessage: lastMsg
+                                                        ? {
+                                                            id: lastMsg.id,
+                                                            type: lastMsg.type,
+                                                            text: lastMsg.text,
+                                                            image: lastMsg.imageUrl,
+                                                            voice: lastMsg.voice,
+                                                            createdAt: lastMsg.createdAt
+                                                        }
+                                                        : null,
                                                     unreadMessages: unread
                                                 }];
                                     }

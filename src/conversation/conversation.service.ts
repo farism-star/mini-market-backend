@@ -37,14 +37,9 @@ async getUserConversations(userId: string) {
     },
   });
 
-  // ❤️ 2) استبعد أي محادثة مفيهاش ولا رسالة
-  // const filteredConversations = conversations.filter(
-  //   (conv) => conv.messages.length > 0
-  // );
-
   return Promise.all(
     conversations.map(async (conv) => {
-      // 3) Get the other participant
+      // 2) Get the other participant (not me)
       const otherUserId = conv.users.find((uid) => uid !== userId);
 
       const otherUser = await this.prisma.user.findUnique({
@@ -56,31 +51,33 @@ async getUserConversations(userId: string) {
         },
       });
 
-      // 4) Last message
+      // 3) Last message
       const lastMsg = conv.messages[0];
 
-      // 5) Count unread messages
+      // 4) Count unread messages
       const unread = conv.messages.filter(
-        (m) => m.senderId !== userId
+        (m) => m.senderId !== userId 
       ).length;
 
+     
       return {
         id: conv.id,
         user: otherUser,
-        lastMessage: {
-          id: lastMsg.id,
-          type: lastMsg.type,
-          text: lastMsg.text,
-          image: lastMsg.imageUrl,
-          voice: lastMsg.voice,
-          createdAt: lastMsg.createdAt,
-        },
+        lastMessage: lastMsg
+          ? {
+              id: lastMsg.id,
+              type: lastMsg.type,
+              text: lastMsg.text,
+              image: lastMsg.imageUrl,
+              voice: lastMsg.voice,
+              createdAt:lastMsg.createdAt
+            }
+          : null,
         unreadMessages: unread,
       };
     })
   );
 }
-
 
 
   async getConversationById(conversationId: string) {
