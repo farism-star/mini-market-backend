@@ -16,125 +16,158 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 @WebSocketGateway({
   cors: {
     origin: '*',
-    credentials: true
+    credentials: true,
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private cloudinary: CloudinaryService
+    private cloudinary: CloudinaryService,
   ) {}
 
   @WebSocketServer()
   server: Server;
 
-
-
+  // -----------------------------------
+  // 📌 Client Connected
+  // -----------------------------------
   async handleConnection(client: Socket) {
- 
+    console.log(`🟢 [CONNECT] Client connected: ${client.id}`);
+
     const token = client.handshake.auth.token as string;
-    
+
     if (!token) {
-      console.log('❌ No token provided, disconnecting client:', client.id);
+      console.log(`❌ [AUTH FAIL] No token for client ${client.id}`);
       return client.disconnect();
     }
 
     try {
       const payload = await this.jwt.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'your-secret-key'
+        secret: process.env.JWT_SECRET,
       });
-      
+
       client.data.userId = payload.sub || payload.id;
-      
-     
-      
-      // إرسال تأكيد الاتصال للعميل
-      client.emit('connected', { 
-        status: 'success', 
-        userId: client.data.userId 
+
+      console.log(
+        `✅ [AUTH SUCCESS] Client ${client.id} authenticated as user ${client.data.userId}`,
+      );
+
+      client.emit('connected', {
+        status: 'success',
+        userId: client.data.userId,
       });
-      
     } catch (err) {
-      console.log('❌ Invalid token, disconnecting client:', client.id, err.message);
+      console.log(
+        `❌ [AUTH ERROR] Client ${client.id} | ${err.message}`,
+      );
       client.emit('error', { message: 'Invalid authentication token' });
       client.disconnect();
     }
   }
 
+  // -----------------------------------
+  // 📌 Client Disconnected
+  // -----------------------------------
   handleDisconnect(client: Socket) {
-  } 
+    console.log(
+      `🔴 [DISCONNECT] Client disconnected: ${client.id} | User: ${client?.data?.userId}`,
+    );
+  }
 
+  // -----------------------------------
+  // 📌 Join Conversation Room
+  // -----------------------------------
   @SubscribeMessage('joinConversation')
   async joinConversation(
     @MessageBody() data: { conversationId: string },
-    @ConnectedSocket() client: Socket
+    @ConnectedSocket() client: Socket,
   ) {
-    const room = `room_${data.conversationId}`;
-    await client.join(room);
-    
+    try {
+      console.log(
+        `📥 [JOIN REQUEST] User ${client.data.userId} joining conversation ${data.conversationId}`,
+      );
 
-    
-    return { status: 'joined', room };
+      const room = `room_${data.conversationId}`;
+      await client.join(room);
+
+      console.log(
+        `✅ [JOIN SUCCESS] User ${client.data.userId} joined room ${room}`,
+      );
+
+      return { status: 'joined', room };
+    } catch (err) {
+      console.log(
+        `❌ [JOIN ERROR] User ${client.data.userId} failed to join ${data.conversationId} | ${err.message}`,
+      );
+      return { status: 'error', message: err.message };
+    }
   }
 
-  @SubscribeMessage('fares')
-  async handleFaresMessage(
-    @MessageBody() data: string,
-    @ConnectedSocket() client: Socket
-  ) {
- 
-    
-    // معالجة الرسالة
-    const response = `Server received: ${data}`;
-    
-    // الرد على العميل
-    return response;
-  }
-
+  // -----------------------------------
+  // 📌 Send Message
+  // -----------------------------------
   @SubscribeMessage('sendMessage')
   async sendMessage(
     @MessageBody() data: SendMessageDto,
-    @ConnectedSocket() client: Socket
+    @ConnectedSocket() client: Socket,
   ) {
+    console.log(
+      `📤 [SEND MESSAGE] User ${client.data.userId} sending message → conv: ${data.conversationId}`,
+    );
+
     try {
-      let imageUrl, voiceUrl;
+      let imageUrl: string | null = null;
+      let voiceUrl: string | null = null;
 
+      // IMAGE
       if (data.type === MessageType.IMAGE && data.image) {
+        console.log('⏳ Uploading image to Cloudinary...');
         imageUrl = await this.cloudinary.uploadImageFromBase64(
-          data.image, 
-          'chat-images'
+          data.image,
+          'chat-images',
         );
+        console.log(`📸 Image uploaded: ${imageUrl}`);
       }
 
+      // VOICE
       if (data.type === MessageType.VOICE && data.voice) {
+        console.log('⏳ Uploading voice to Cloudinary...');
         voiceUrl = await this.cloudinary.uploadVoiceFromBase64(
-          data.voice, 
-          'chat-voices'
+          data.voice,
+          'chat-voices',
         );
+        console.log(`🎤 Voice uploaded: ${voiceUrl}`);
       }
 
+      // SAVE MESSAGE IN DATABASE
+      console.log('⏳ Saving message to database...');
       const message = await this.prisma.message.create({
         data: {
           conversationId: data.conversationId,
           senderId: data.senderId,
           text: data.text || null,
-          imageUrl: imageUrl || null,
-          voice: voiceUrl || null,
-          type: data.type || MessageType.TEXT,
+          imageUrl,
+          voice: voiceUrl,
+          isRead: false,
+          type: data.type,
         },
       });
+      console.log(
+        `💾 [DB SAVE SUCCESS] Message saved with ID ${message.id}`,
+      );
 
+      // EMIT TO ROOM
       const room = `room_${data.conversationId}`;
+      console.log(`📡 Emitting message to room: ${room}`);
       this.server.to(room).emit('newMessage', message);
 
-      
+      console.log('🎉 [SEND SUCCESS] Message delivered to all clients');
 
       return { status: 'sent', message };
-      
     } catch (error) {
-      console.error('❌ Error sending message:', error);
+      console.error('❌ [SEND ERROR] ', error.message);
       return { status: 'error', message: error.message };
     }
   }

@@ -67,7 +67,7 @@ var MessageController = /** @class */ (function () {
             var pageNum, limitNum, userId;
             return __generator(this, function (_a) {
                 pageNum = parseInt(page) || 1;
-                limitNum = parseInt(limit) || 20;
+                limitNum = parseInt(limit) || 10;
                 userId = req.user.id;
                 return [2 /*return*/, this.messageService.getMessages(conversationId, userId, pageNum, limitNum)];
             });
