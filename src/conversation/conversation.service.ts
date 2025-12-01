@@ -38,12 +38,12 @@ async getUserConversations(userId: string) {
   });
 
   // ❤️ 2) استبعد أي محادثة مفيهاش ولا رسالة
-  const filteredConversations = conversations.filter(
-    (conv) => conv.messages.length > 0
-  );
+  // const filteredConversations = conversations.filter(
+  //   (conv) => conv.messages.length > 0
+  // );
 
   return Promise.all(
-    filteredConversations.map(async (conv) => {
+    conversations.map(async (conv) => {
       // 3) Get the other participant
       const otherUserId = conv.users.find((uid) => uid !== userId);
 
