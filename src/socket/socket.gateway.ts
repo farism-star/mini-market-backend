@@ -30,9 +30,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  // -----------------------------------
-  // 📌 Client Connected
-  // -----------------------------------
+
   async handleConnection(client: Socket) {
     console.log(`🟢 [CONNECT] Client connected: ${client.id}`);
 
@@ -50,72 +48,50 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.data.userId = payload.sub || payload.id;
 
-      console.log(
-        `✅ [AUTH SUCCESS] Client ${client.id} authenticated as user ${client.data.userId}`,
-      );
+   
 
       client.emit('connected', {
         status: 'success',
         userId: client.data.userId,
       });
     } catch (err) {
-      console.log(
-        `❌ [AUTH ERROR] Client ${client.id} | ${err.message}`,
-      );
+   
       client.emit('error', { message: 'Invalid authentication token' });
       client.disconnect();
     }
   }
 
-  // -----------------------------------
-  // 📌 Client Disconnected
-  // -----------------------------------
   handleDisconnect(client: Socket) {
     console.log(
       `🔴 [DISCONNECT] Client disconnected: ${client.id} | User: ${client?.data?.userId}`,
     );
   }
-
-  // -----------------------------------
-  // 📌 Join Conversation Room
-  // -----------------------------------
   @SubscribeMessage('joinConversation')
   async joinConversation(
     @MessageBody() data: { conversationId: string },
     @ConnectedSocket() client: Socket,
   ) {
     try {
-      console.log(
-        `📥 [JOIN REQUEST] User ${client.data.userId} joining conversation ${data.conversationId}`,
-      );
+   
 
       const room = `room_${data.conversationId}`;
       await client.join(room);
 
-      console.log(
-        `✅ [JOIN SUCCESS] User ${client.data.userId} joined room ${room}`,
-      );
 
       return { status: 'joined', room };
     } catch (err) {
-      console.log(
-        `❌ [JOIN ERROR] User ${client.data.userId} failed to join ${data.conversationId} | ${err.message}`,
-      );
+   
       return { status: 'error', message: err.message };
     }
   }
 
-  // -----------------------------------
-  // 📌 Send Message
-  // -----------------------------------
+ 
   @SubscribeMessage('sendMessage')
   async sendMessage(
     @MessageBody() data: SendMessageDto,
     @ConnectedSocket() client: Socket,
   ) {
-    console.log(
-      `📤 [SEND MESSAGE] User ${client.data.userId} sending message → conv: ${data.conversationId}`,
-    );
+  
 
     try {
       let imageUrl: string | null = null;
@@ -123,26 +99,26 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // IMAGE
       if (data.type === MessageType.IMAGE && data.image) {
-        console.log('⏳ Uploading image to Cloudinary...');
+    
         imageUrl = await this.cloudinary.uploadImageFromBase64(
           data.image,
           'chat-images',
         );
-        console.log(`📸 Image uploaded: ${imageUrl}`);
+
       }
 
       // VOICE
       if (data.type === MessageType.VOICE && data.voice) {
-        console.log('⏳ Uploading voice to Cloudinary...');
+  
         voiceUrl = await this.cloudinary.uploadVoiceFromBase64(
           data.voice,
           'chat-voices',
         );
-        console.log(`🎤 Voice uploaded: ${voiceUrl}`);
+      
       }
 
       // SAVE MESSAGE IN DATABASE
-      console.log('⏳ Saving message to database...');
+
       const message = await this.prisma.message.create({
         data: {
           conversationId: data.conversationId,
@@ -154,20 +130,18 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
           type: data.type,
         },
       });
-      console.log(
-        `💾 [DB SAVE SUCCESS] Message saved with ID ${message.id}`,
-      );
+  
 
       // EMIT TO ROOM
       const room = `room_${data.conversationId}`;
-      console.log(`📡 Emitting message to room: ${room}`);
+ 
       this.server.to(room).emit('newMessage', message);
 
-      console.log('🎉 [SEND SUCCESS] Message delivered to all clients');
+   
 
       return { status: 'sent', message };
     } catch (error) {
-      console.error('❌ [SEND ERROR] ', error.message);
+   
       return { status: 'error', message: error.message };
     }
   }

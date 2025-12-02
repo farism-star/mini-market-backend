@@ -125,7 +125,7 @@ model Order {
   deliveryAddress String?
 
   date DateTime?
-  time DateTime?
+  time String?
 
   status    OrderStatus @default(IN_PROGRESS)
   createdAt DateTime    @default(now())
