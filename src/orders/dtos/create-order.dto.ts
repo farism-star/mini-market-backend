@@ -8,7 +8,7 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsString()
-  clientId?: string; // server can set from authenticated user if client
+  clientId?: string; 
 
   @IsOptional()
   @IsString()
@@ -23,7 +23,7 @@ export class CreateOrderDto {
   date?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   time?: string;
 
   @IsOptional()

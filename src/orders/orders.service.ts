@@ -112,9 +112,9 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
     if (!user) throw new ForbiddenException('Unauthorized');
 
-    // if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
-    //   throw new ForbiddenException('Only the owner of the market can modify this order');
-    // }
+    if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
+      throw new ForbiddenException('Only the owner of the market can modify this order');
+    }
 
     try {
       const updated = await this.prisma.order.update({
@@ -163,5 +163,8 @@ export class OrdersService {
     } catch (err) {
       throw new BadRequestException(err?.message || 'Failed to delete order');
     }
+  }
+  async removeAll() {
+     await this.prisma.order.deleteMany({})
   }
 }

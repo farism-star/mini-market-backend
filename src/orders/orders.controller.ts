@@ -60,4 +60,14 @@ export class OrdersController {
     const user = (req as any).user ;
     await this.ordersService.remove(id, user);
   }
+
+
+
+  @Delete('delete-all')
+  async deleteAllOrders(){
+    await this.ordersService.removeAll
+  }
+
+
+
 }

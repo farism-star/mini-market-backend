@@ -31,7 +31,7 @@ var AppModule = /** @class */ (function () {
     AppModule.prototype.configure = function (consumer) {
         consumer
             .apply(UserCheckMiddleware_1.UserCheckMiddleware)
-            .exclude({ path: 'auth/login', method: common_1.RequestMethod.POST }, { path: 'auth/register', method: common_1.RequestMethod.POST }, { path: 'auth/delete-users', method: common_1.RequestMethod.DELETE }, { path: '/messages/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'auth/verify-otp', method: common_1.RequestMethod.POST }, { path: 'twilio/send-sms', method: common_1.RequestMethod.POST })
+            .exclude({ path: 'auth/login', method: common_1.RequestMethod.POST }, { path: 'auth/register', method: common_1.RequestMethod.POST }, { path: 'auth/delete-users', method: common_1.RequestMethod.DELETE }, { path: 'messages/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'orders/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'auth/verify-otp', method: common_1.RequestMethod.POST }, { path: 'twilio/send-sms', method: common_1.RequestMethod.POST })
             .forRoutes('*');
     };
     AppModule = __decorate([
