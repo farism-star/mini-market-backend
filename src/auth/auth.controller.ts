@@ -8,7 +8,10 @@ import { Roles } from './Role.decorator';
 import { Role } from './roles.enum';
 import { Login } from './dtos/login.dto';
 
-@Controller('auth')
+@Controller({
+  path: 'auth',
+  version: '1',
+})
 export class AuthController {
   constructor(private authService: AuthService) { }
 

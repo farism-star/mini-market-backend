@@ -16,7 +16,10 @@ import { Roles } from "src/auth/Role.decorator";
 import { Role } from "src/auth/roles.enum";
 
 
-@Controller("market")
+@Controller({
+    path:'market',
+    version:'1'
+})
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class MarketController {
     constructor(private readonly marketService: MarketService) { }

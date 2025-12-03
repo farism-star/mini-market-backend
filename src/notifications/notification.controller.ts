@@ -6,7 +6,13 @@ import { RolesGuard } from "src/auth/roles.gaurd";
 import { Roles } from "src/auth/Role.decorator";
 import { Role } from "src/auth/roles.enum";
 
-@Controller('notifications')
+@Controller(
+
+  {
+    path:'notifications',
+    version:'1'
+  }
+)
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class NotificationController {
   constructor(private service: NotificationService) {}

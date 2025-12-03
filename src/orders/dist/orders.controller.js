@@ -148,7 +148,10 @@ var OrdersController = /** @class */ (function () {
         common_1.Delete('delete-all')
     ], OrdersController.prototype, "deleteAllOrders");
     OrdersController = __decorate([
-        common_1.Controller('orders'),
+        common_1.Controller({
+            path: 'orders',
+            version: '1'
+        }),
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard)
     ], OrdersController);
     return OrdersController;

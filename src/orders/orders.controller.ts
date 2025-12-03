@@ -20,7 +20,13 @@ import { AuthGuard } from "@nestjs/passport";
 import { RolesGuard } from "src/auth/roles.gaurd";
 import { Roles } from "src/auth/Role.decorator";
 import { Role } from "src/auth/roles.enum";
-@Controller('orders')
+@Controller(
+  {
+    path:'orders',
+    version:'1'
+    
+  }
+)
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

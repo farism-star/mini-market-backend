@@ -4,7 +4,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.gaurd';
 import { Roles } from '../auth/Role.decorator';
 import { Role } from '../auth/roles.enum';
-@Controller('conversations')
+@Controller({
+  path:'conversations',
+  version:'1'
+})
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
 @UseGuards(AuthGuard('jwt'), RolesGuard)

@@ -101,7 +101,10 @@ var MessageController = /** @class */ (function () {
         common_1.Delete('delete-all')
     ], MessageController.prototype, "deleteMessages");
     MessageController = __decorate([
-        common_1.Controller('messages')
+        common_1.Controller({
+            path: 'messages',
+            version: '1'
+        })
     ], MessageController);
     return MessageController;
 }());

@@ -1,7 +1,12 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { TwilioService } from './twilio.service';
 
-@Controller('twilio')
+@Controller(
+  {
+    path:'twilio',
+    version:'1'
+  }
+)
 export class TwilioController {
   constructor(private readonly twilioService: TwilioService) {}
 
