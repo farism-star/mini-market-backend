@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dtos/create-order.dto';
 import { UpdateOrderDto } from './dtos/update-order.dto';
 import { NotificationService } from '../notifications/notification.service';
-import { formatTimeToAMPM } from '../helpers/helper';
+import { formatTimeToAMPM, buildOrderBanarMessage } from '../helpers/helper';
 
 type AuthUser = { id: string; type: string };
 
@@ -36,6 +36,7 @@ export class OrdersService {
         include: { market: true, client: true },
       });
 
+      // إشعارات للمالك والعميل
       if (order.market?.ownerId) {
         await this.notification.create({
           userId: order.market.ownerId,
@@ -49,6 +50,34 @@ export class OrdersService {
           body: `Your order (${order.orderId}) has been created successfully`,
         });
       }
+
+      // إيجاد أو إنشاء Conversation بين العميل وOwner
+      let conversation = await this.prisma.conversation.findFirst({
+        where: {
+          AND: [
+            { users: { has: order.clientId } },
+            { users: { has: order.market?.ownerId } },
+          ],
+        },
+      });
+
+      if (!conversation) {
+        conversation = await this.prisma.conversation.create({
+          data: {
+            users: [order.clientId!, order.market!.ownerId!],
+          },
+        });
+      }
+
+      // إنشاء BANAR message باستخدام الدالة من الـ helper
+      await this.prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: order.market!.ownerId!,
+          type: 'BANAR',
+          text: buildOrderBanarMessage(order),
+        },
+      });
 
       return {
         ...order,
@@ -110,7 +139,7 @@ export class OrdersService {
 
     return {
       ...order,
-      timeFormatted: order.time ? formatTimeToAMPM(order.time) : null,
+      time: order.time ? formatTimeToAMPM(order.time) : null,
     };
   }
 
