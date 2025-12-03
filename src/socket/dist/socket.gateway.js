@@ -54,9 +54,6 @@ var SocketGateway = /** @class */ (function () {
         this.jwt = jwt;
         this.cloudinary = cloudinary;
     }
-    // -----------------------------------
-    // 📌 Client Connected
-    // -----------------------------------
     SocketGateway.prototype.handleConnection = function (client) {
         return __awaiter(this, void 0, void 0, function () {
             var token, payload, err_1;
@@ -78,7 +75,6 @@ var SocketGateway = /** @class */ (function () {
                     case 2:
                         payload = _a.sent();
                         client.data.userId = payload.sub || payload.id;
-                        console.log("\u2705 [AUTH SUCCESS] Client " + client.id + " authenticated as user " + client.data.userId);
                         client.emit('connected', {
                             status: 'success',
                             userId: client.data.userId
@@ -86,7 +82,6 @@ var SocketGateway = /** @class */ (function () {
                         return [3 /*break*/, 4];
                     case 3:
                         err_1 = _a.sent();
-                        console.log("\u274C [AUTH ERROR] Client " + client.id + " | " + err_1.message);
                         client.emit('error', { message: 'Invalid authentication token' });
                         client.disconnect();
                         return [3 /*break*/, 4];
@@ -95,16 +90,10 @@ var SocketGateway = /** @class */ (function () {
             });
         });
     };
-    // -----------------------------------
-    // 📌 Client Disconnected
-    // -----------------------------------
     SocketGateway.prototype.handleDisconnect = function (client) {
         var _a;
         console.log("\uD83D\uDD34 [DISCONNECT] Client disconnected: " + client.id + " | User: " + ((_a = client === null || client === void 0 ? void 0 : client.data) === null || _a === void 0 ? void 0 : _a.userId));
     };
-    // -----------------------------------
-    // 📌 Join Conversation Room
-    // -----------------------------------
     SocketGateway.prototype.joinConversation = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
             var room, err_2;
@@ -112,79 +101,59 @@ var SocketGateway = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 2, , 3]);
-                        console.log("\uD83D\uDCE5 [JOIN REQUEST] User " + client.data.userId + " joining conversation " + data.conversationId);
                         room = "room_" + data.conversationId;
                         return [4 /*yield*/, client.join(room)];
                     case 1:
                         _a.sent();
-                        console.log("\u2705 [JOIN SUCCESS] User " + client.data.userId + " joined room " + room);
                         return [2 /*return*/, { status: 'joined', room: room }];
                     case 2:
                         err_2 = _a.sent();
-                        console.log("\u274C [JOIN ERROR] User " + client.data.userId + " failed to join " + data.conversationId + " | " + err_2.message);
                         return [2 /*return*/, { status: 'error', message: err_2.message }];
                     case 3: return [2 /*return*/];
                 }
             });
         });
     };
-    // -----------------------------------
-    // 📌 Send Message
-    // -----------------------------------
     SocketGateway.prototype.sendMessage = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
             var imageUrl, voiceUrl, message, room, error_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        console.log("\uD83D\uDCE4 [SEND MESSAGE] User " + client.data.userId + " sending message \u2192 conv: " + data.conversationId);
-                        _a.label = 1;
-                    case 1:
-                        _a.trys.push([1, 7, , 8]);
+                        _a.trys.push([0, 6, , 7]);
                         imageUrl = null;
                         voiceUrl = null;
-                        if (!(data.type === send_message_dto_1.MessageType.IMAGE && data.image)) return [3 /*break*/, 3];
-                        console.log('⏳ Uploading image to Cloudinary...');
+                        if (!(data.type === send_message_dto_1.MessageType.IMAGE && data.image)) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.cloudinary.uploadImageFromBase64(data.image, 'chat-images')];
-                    case 2:
+                    case 1:
                         imageUrl = _a.sent();
-                        console.log("\uD83D\uDCF8 Image uploaded: " + imageUrl);
-                        _a.label = 3;
-                    case 3:
-                        if (!(data.type === send_message_dto_1.MessageType.VOICE && data.voice)) return [3 /*break*/, 5];
-                        console.log('⏳ Uploading voice to Cloudinary...');
+                        _a.label = 2;
+                    case 2:
+                        if (!(data.type === send_message_dto_1.MessageType.VOICE && data.voice)) return [3 /*break*/, 4];
                         return [4 /*yield*/, this.cloudinary.uploadVoiceFromBase64(data.voice, 'chat-voices')];
-                    case 4:
+                    case 3:
                         voiceUrl = _a.sent();
-                        console.log("\uD83C\uDFA4 Voice uploaded: " + voiceUrl);
-                        _a.label = 5;
+                        _a.label = 4;
+                    case 4: return [4 /*yield*/, this.prisma.message.create({
+                            data: {
+                                conversationId: data.conversationId,
+                                senderId: data.senderId,
+                                text: data.text || null,
+                                imageUrl: imageUrl,
+                                voice: voiceUrl,
+                                isRead: false,
+                                type: data.type
+                            }
+                        })];
                     case 5:
-                        // SAVE MESSAGE IN DATABASE
-                        console.log('⏳ Saving message to database...');
-                        return [4 /*yield*/, this.prisma.message.create({
-                                data: {
-                                    conversationId: data.conversationId,
-                                    senderId: data.senderId,
-                                    text: data.text || null,
-                                    imageUrl: imageUrl,
-                                    voice: voiceUrl,
-                                    isRead: false,
-                                    type: data.type
-                                }
-                            })];
-                    case 6:
                         message = _a.sent();
-                        console.log("\uD83D\uDCBE [DB SAVE SUCCESS] Message saved with ID " + message.id);
                         room = "room_" + data.conversationId;
-                        console.log("\uD83D\uDCE1 Emitting message to room: " + room);
                         this.server.to(room).emit('newMessage', message);
-                        console.log('🎉 [SEND SUCCESS] Message delivered to all clients');
                         return [2 /*return*/, { status: 'sent', message: message }];
-                    case 7:
+                    case 6:
                         error_1 = _a.sent();
-                        console.error('❌ [SEND ERROR] ', error_1.message);
                         return [2 /*return*/, { status: 'error', message: error_1.message }];
-                    case 8: return [2 /*return*/];
+                    case 7: return [2 /*return*/];
                 }
             });
         });

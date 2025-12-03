@@ -23,7 +23,7 @@ export class CreateOrderDto {
   date?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   time?: string;
 
   @IsOptional()

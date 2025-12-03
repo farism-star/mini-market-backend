@@ -34,7 +34,7 @@ var CreateOrderDto = /** @class */ (function () {
     ], CreateOrderDto.prototype, "date");
     __decorate([
         class_validator_1.IsOptional(),
-        class_validator_1.IsString()
+        class_validator_1.IsDateString()
     ], CreateOrderDto.prototype, "time");
     __decorate([
         class_validator_1.IsOptional(),

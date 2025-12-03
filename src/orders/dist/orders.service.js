@@ -55,6 +55,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 exports.__esModule = true;
 exports.OrdersService = void 0;
 var common_1 = require("@nestjs/common");
+var helper_1 = require("../helpers/helper");
 var OrdersService = /** @class */ (function () {
     function OrdersService(prisma, notification) {
         this.prisma = prisma;
@@ -98,7 +99,7 @@ var OrdersService = /** @class */ (function () {
                     case 4:
                         _d.sent();
                         _d.label = 5;
-                    case 5: return [2 /*return*/, order];
+                    case 5: return [2 /*return*/, __assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })];
                     case 6:
                         err_1 = _d.sent();
                         throw new common_1.BadRequestException((err_1 === null || err_1 === void 0 ? void 0 : err_1.message) || 'Failed to create order');
@@ -109,27 +110,41 @@ var OrdersService = /** @class */ (function () {
     };
     OrdersService.prototype.findAll = function (user) {
         return __awaiter(this, void 0, void 0, function () {
+            var orders;
             return __generator(this, function (_a) {
-                if (!user)
-                    return [2 /*return*/, []];
-                if (user.type === 'CLIENT') {
-                    return [2 /*return*/, this.prisma.order.findMany({
-                            where: { clientId: user.id },
+                switch (_a.label) {
+                    case 0:
+                        if (!user)
+                            return [2 /*return*/, []];
+                        orders = [];
+                        if (!(user.type === 'CLIENT')) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.prisma.order.findMany({
+                                where: { clientId: user.id },
+                                include: { market: true, client: true },
+                                orderBy: { createdAt: 'desc' }
+                            })];
+                    case 1:
+                        orders = _a.sent();
+                        return [3 /*break*/, 6];
+                    case 2:
+                        if (!(user.type === 'OWNER')) return [3 /*break*/, 4];
+                        return [4 /*yield*/, this.prisma.order.findMany({
+                                where: { market: { ownerId: user.id } },
+                                include: { market: true, client: true },
+                                orderBy: { createdAt: 'desc' }
+                            })];
+                    case 3:
+                        orders = _a.sent();
+                        return [3 /*break*/, 6];
+                    case 4: return [4 /*yield*/, this.prisma.order.findMany({
                             include: { market: true, client: true },
                             orderBy: { createdAt: 'desc' }
                         })];
+                    case 5:
+                        orders = _a.sent();
+                        _a.label = 6;
+                    case 6: return [2 /*return*/, orders.map(function (order) { return (__assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })); })];
                 }
-                if (user.type === 'OWNER') {
-                    return [2 /*return*/, this.prisma.order.findMany({
-                            where: { market: { ownerId: user.id } },
-                            include: { market: true, client: true },
-                            orderBy: { createdAt: 'desc' }
-                        })];
-                }
-                return [2 /*return*/, this.prisma.order.findMany({
-                        include: { market: true, client: true },
-                        orderBy: { createdAt: 'desc' }
-                    })];
             });
         });
     };
@@ -156,7 +171,7 @@ var OrdersService = /** @class */ (function () {
                                 throw new common_1.ForbiddenException('You can only view orders for your market');
                             }
                         }
-                        return [2 /*return*/, order];
+                        return [2 /*return*/, __assign(__assign({}, order), { timeFormatted: order.time ? helper_1.formatTimeToAMPM(order.time) : null })];
                 }
             });
         });
@@ -198,7 +213,7 @@ var OrdersService = /** @class */ (function () {
                     case 4:
                         _b.sent();
                         _b.label = 5;
-                    case 5: return [2 /*return*/, updated];
+                    case 5: return [2 /*return*/, __assign(__assign({}, updated), { time: updated.time ? helper_1.formatTimeToAMPM(updated.time) : null })];
                     case 6:
                         err_2 = _b.sent();
                         throw new common_1.BadRequestException((err_2 === null || err_2 === void 0 ? void 0 : err_2.message) || 'Failed to update order');
