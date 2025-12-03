@@ -184,6 +184,7 @@ enum MessageType {
   TEXT
   IMAGE
   VOICE
+  BANAR
   SYSTEM
 }
 

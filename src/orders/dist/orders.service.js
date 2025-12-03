@@ -62,13 +62,13 @@ var OrdersService = /** @class */ (function () {
         this.notification = notification;
     }
     OrdersService.prototype.create = function (createDto, user) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         return __awaiter(this, void 0, void 0, function () {
-            var data, order, err_1;
-            return __generator(this, function (_d) {
-                switch (_d.label) {
+            var data, order, conversation, err_1;
+            return __generator(this, function (_e) {
+                switch (_e.label) {
                     case 0:
-                        _d.trys.push([0, 6, , 7]);
+                        _e.trys.push([0, 10, , 11]);
                         data = __assign({}, createDto);
                         if (user && user.type === 'CLIENT') {
                             data.clientId = user.id;
@@ -81,15 +81,15 @@ var OrdersService = /** @class */ (function () {
                                 include: { market: true, client: true }
                             })];
                     case 1:
-                        order = _d.sent();
+                        order = _e.sent();
                         if (!((_a = order.market) === null || _a === void 0 ? void 0 : _a.ownerId)) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.notification.create({
                                 userId: order.market.ownerId,
                                 body: "New order (" + order.orderId + ") from " + ((_c = (_b = order.client) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : 'a customer')
                             })];
                     case 2:
-                        _d.sent();
-                        _d.label = 3;
+                        _e.sent();
+                        _e.label = 3;
                     case 3:
                         if (!order.clientId) return [3 /*break*/, 5];
                         return [4 /*yield*/, this.notification.create({
@@ -97,13 +97,45 @@ var OrdersService = /** @class */ (function () {
                                 body: "Your order (" + order.orderId + ") has been created successfully"
                             })];
                     case 4:
-                        _d.sent();
-                        _d.label = 5;
-                    case 5: return [2 /*return*/, __assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })];
+                        _e.sent();
+                        _e.label = 5;
+                    case 5: return [4 /*yield*/, this.prisma.conversation.findFirst({
+                            where: {
+                                AND: [
+                                    { users: { has: order.clientId } },
+                                    { users: { has: (_d = order.market) === null || _d === void 0 ? void 0 : _d.ownerId } },
+                                ]
+                            }
+                        })];
                     case 6:
-                        err_1 = _d.sent();
+                        conversation = _e.sent();
+                        if (!!conversation) return [3 /*break*/, 8];
+                        return [4 /*yield*/, this.prisma.conversation.create({
+                                data: {
+                                    users: [order.clientId, order.market.ownerId]
+                                }
+                            })];
+                    case 7:
+                        conversation = _e.sent();
+                        _e.label = 8;
+                    case 8: 
+                    // إنشاء BANAR message باستخدام الدالة من الـ helper
+                    return [4 /*yield*/, this.prisma.message.create({
+                            data: {
+                                conversationId: conversation.id,
+                                senderId: order.market.ownerId,
+                                type: 'BANAR',
+                                text: helper_1.buildOrderBanarMessage(order)
+                            }
+                        })];
+                    case 9:
+                        // إنشاء BANAR message باستخدام الدالة من الـ helper
+                        _e.sent();
+                        return [2 /*return*/, __assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })];
+                    case 10:
+                        err_1 = _e.sent();
                         throw new common_1.BadRequestException((err_1 === null || err_1 === void 0 ? void 0 : err_1.message) || 'Failed to create order');
-                    case 7: return [2 /*return*/];
+                    case 11: return [2 /*return*/];
                 }
             });
         });
@@ -171,7 +203,7 @@ var OrdersService = /** @class */ (function () {
                                 throw new common_1.ForbiddenException('You can only view orders for your market');
                             }
                         }
-                        return [2 /*return*/, __assign(__assign({}, order), { timeFormatted: order.time ? helper_1.formatTimeToAMPM(order.time) : null })];
+                        return [2 /*return*/, __assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })];
                 }
             });
         });
