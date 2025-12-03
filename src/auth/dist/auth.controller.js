@@ -45,68 +45,100 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-exports.ConversationController = void 0;
+exports.AuthController = void 0;
+// auth.controller.ts
 var common_1 = require("@nestjs/common");
 var passport_1 = require("@nestjs/passport");
-var roles_gaurd_1 = require("../auth/roles.gaurd");
-var Role_decorator_1 = require("../auth/Role.decorator");
-var roles_enum_1 = require("../auth/roles.enum");
-var ConversationController = /** @class */ (function () {
-    function ConversationController(conversationService) {
-        this.conversationService = conversationService;
+var roles_gaurd_1 = require("./roles.gaurd");
+var Role_decorator_1 = require("./Role.decorator");
+var roles_enum_1 = require("./roles.enum");
+var AuthController = /** @class */ (function () {
+    function AuthController(authService) {
+        this.authService = authService;
     }
-    ConversationController.prototype.create = function (users) {
+    AuthController.prototype.register = function (authDto) {
+        return this.authService.register(authDto);
+    };
+    AuthController.prototype.login = function (authDto) {
+        return this.authService.login(authDto);
+    };
+    AuthController.prototype.verifyOtp = function (dto) {
+        return this.authService.verifyOtp(dto);
+    };
+    AuthController.prototype.deleteAllData = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var user1, user2;
             return __generator(this, function (_a) {
-                if (!Array.isArray(users) || users.length !== 2) {
-                    throw new common_1.BadRequestException('users must contain exactly 2 user IDs');
-                }
-                user1 = users[0], user2 = users[1];
-                return [2 /*return*/, this.conversationService.createConversation(user1, user2)];
+                return [2 /*return*/, this.authService.deleteAllData()];
             });
         });
     };
-    ConversationController.prototype.getUserConversations = function (req) {
-        return __awaiter(this, void 0, void 0, function () {
-            var userId;
-            return __generator(this, function (_a) {
-                userId = req.user.id;
-                return [2 /*return*/, this.conversationService.getUserConversations(userId)];
-            });
-        });
+    AuthController.prototype.getProfile = function (req) {
+        return req.user;
     };
-    ConversationController.prototype.getConversation = function (id) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/, this.conversationService.getConversationById(id)];
-            });
-        });
+    AuthController.prototype.updateUser = function (userId, dto) {
+        return this.authService.updateUser(userId, dto);
     };
+    AuthController.prototype.createAddress = function (userId, dto) {
+        return this.authService.createAddress(userId, dto);
+    };
+    AuthController.prototype.updateAddress = function (addressId, dto) {
+        return this.authService.updateAddress(addressId, dto);
+    };
+    AuthController.prototype.deleteAddress = function (addressId) {
+        return this.authService.deleteAddress(addressId);
+    };
+    AuthController.prototype.getUserAddresses = function (userId) {
+        return this.authService.getUserAddresses(userId);
+    };
+    __decorate([
+        common_1.Post('register'),
+        __param(0, common_1.Body())
+    ], AuthController.prototype, "register");
+    __decorate([
+        common_1.Post('login'),
+        __param(0, common_1.Body())
+    ], AuthController.prototype, "login");
+    __decorate([
+        common_1.Post('verify-otp'),
+        __param(0, common_1.Body())
+    ], AuthController.prototype, "verifyOtp");
+    __decorate([
+        common_1.Delete('delete-all-data')
+    ], AuthController.prototype, "deleteAllData");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Post(),
-        __param(0, common_1.Body('users'))
-    ], ConversationController.prototype, "create");
-    __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get('/user/'),
+        common_1.Post('me'),
         __param(0, common_1.Req())
-    ], ConversationController.prototype, "getUserConversations");
+    ], AuthController.prototype, "getProfile");
     __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
+        common_1.UseGuards(passport_1.AuthGuard('jwt')),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get('single/:conversationId'),
-        __param(0, common_1.Param('conversationId'))
-    ], ConversationController.prototype, "getConversation");
-    ConversationController = __decorate([
+        common_1.Patch('update-user/:id'),
+        __param(0, common_1.Param('id')), __param(1, common_1.Body())
+    ], AuthController.prototype, "updateUser");
+    __decorate([
+        common_1.Post('address/user/:userId'),
+        __param(0, common_1.Param('userId')), __param(1, common_1.Body())
+    ], AuthController.prototype, "createAddress");
+    __decorate([
+        common_1.Patch('address/update/:addressId'),
+        __param(0, common_1.Param('addressId')), __param(1, common_1.Body())
+    ], AuthController.prototype, "updateAddress");
+    __decorate([
+        common_1.Delete('address/delete/:addressId'),
+        __param(0, common_1.Param('addressId'))
+    ], AuthController.prototype, "deleteAddress");
+    __decorate([
+        common_1.Get('address/user/:userId'),
+        __param(0, common_1.Param('userId'))
+    ], AuthController.prototype, "getUserAddresses");
+    AuthController = __decorate([
         common_1.Controller({
-            path: 'conversations',
+            path: 'auth',
             version: '1'
         })
-    ], ConversationController);
-    return ConversationController;
+    ], AuthController);
+    return AuthController;
 }());
-exports.ConversationController = ConversationController;
+exports.AuthController = AuthController;

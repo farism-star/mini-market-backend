@@ -17,7 +17,10 @@ import { RolesGuard } from '../auth/roles.gaurd';
 import { Roles } from '../auth/Role.decorator';
 import { Role } from '../auth/roles.enum';
 
-@Controller('categories')
+@Controller({
+  path: 'categories',
+  version: '1',
+})
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) { }

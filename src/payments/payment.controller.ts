@@ -2,7 +2,13 @@ import { Controller, Post, Body, Get, Query } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
-@Controller('payment')
+@Controller(
+
+  {
+    path:'payment',
+    version:'1'
+  }
+)
 export class PaymentController {
   constructor(private paymentService: PaymentService) {}
 

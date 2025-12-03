@@ -45,68 +45,37 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-exports.ConversationController = void 0;
+exports.TwilioController = void 0;
 var common_1 = require("@nestjs/common");
-var passport_1 = require("@nestjs/passport");
-var roles_gaurd_1 = require("../auth/roles.gaurd");
-var Role_decorator_1 = require("../auth/Role.decorator");
-var roles_enum_1 = require("../auth/roles.enum");
-var ConversationController = /** @class */ (function () {
-    function ConversationController(conversationService) {
-        this.conversationService = conversationService;
+var TwilioController = /** @class */ (function () {
+    function TwilioController(twilioService) {
+        this.twilioService = twilioService;
     }
-    ConversationController.prototype.create = function (users) {
+    TwilioController.prototype.sendSms = function (body) {
         return __awaiter(this, void 0, void 0, function () {
-            var user1, user2;
+            var to, message;
             return __generator(this, function (_a) {
-                if (!Array.isArray(users) || users.length !== 2) {
-                    throw new common_1.BadRequestException('users must contain exactly 2 user IDs');
+                switch (_a.label) {
+                    case 0:
+                        to = body.to, message = body.message;
+                        return [4 /*yield*/, this.twilioService.sendSms(to, message)];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/, { message: 'SMS sent successfully' }];
                 }
-                user1 = users[0], user2 = users[1];
-                return [2 /*return*/, this.conversationService.createConversation(user1, user2)];
-            });
-        });
-    };
-    ConversationController.prototype.getUserConversations = function (req) {
-        return __awaiter(this, void 0, void 0, function () {
-            var userId;
-            return __generator(this, function (_a) {
-                userId = req.user.id;
-                return [2 /*return*/, this.conversationService.getUserConversations(userId)];
-            });
-        });
-    };
-    ConversationController.prototype.getConversation = function (id) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/, this.conversationService.getConversationById(id)];
             });
         });
     };
     __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Post(),
-        __param(0, common_1.Body('users'))
-    ], ConversationController.prototype, "create");
-    __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get('/user/'),
-        __param(0, common_1.Req())
-    ], ConversationController.prototype, "getUserConversations");
-    __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get('single/:conversationId'),
-        __param(0, common_1.Param('conversationId'))
-    ], ConversationController.prototype, "getConversation");
-    ConversationController = __decorate([
+        common_1.Post('send-sms'),
+        __param(0, common_1.Body())
+    ], TwilioController.prototype, "sendSms");
+    TwilioController = __decorate([
         common_1.Controller({
-            path: 'conversations',
+            path: 'twilio',
             version: '1'
         })
-    ], ConversationController);
-    return ConversationController;
+    ], TwilioController);
+    return TwilioController;
 }());
-exports.ConversationController = ConversationController;
+exports.TwilioController = TwilioController;
