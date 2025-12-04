@@ -154,6 +154,7 @@ var SocketGateway = /** @class */ (function () {
                             })];
                     case 1:
                         message = _a.sent();
+                        console.log(message);
                         room = "room_" + data.conversationId;
                         this.server.to(room).emit('newMessage', message);
                         return [2 /*return*/, { status: 'sent', message: message }];
