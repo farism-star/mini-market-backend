@@ -18,8 +18,21 @@ export function formatDateToReadable(dateInput: string | Date) {
     timeZone: 'Asia/Riyadh',
   });
 }
-
 export function buildOrderBanarMessage(order: any) {
-  return `📦 Order: ${order.orderId}
+  return `📦 Order ${order.orderId}*
+`;
+}
+export function buildOrderMessage(order: any) {
+  return `📦 *New Order Created!*
+
+🆔 *Order ID:* ${order.orderId}
+🏪 *Market:* ${order.market?.name ?? "Unknown"}
+👤 *Client:* ${order.client?.name ?? "Unknown"}
+
+📍 *Delivery Address:* ${order.deliveryAddress ?? "Not provided"}
+🕒 *Time:* ${order.time ? formatTimeToAMPM(order.time) : "N/A"}
+📅 *Date:* ${order.date ? formatDateToReadable(order.date) : "N/A"}
+
+⚡ *Status:* ${order.status}
 `;
 }
