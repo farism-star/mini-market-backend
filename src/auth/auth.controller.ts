@@ -25,7 +25,7 @@ export class AuthController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: AuthDto,
   ) {
-    console.log(file);
+    
 
     const imageUrl = file ? `/uploads/${file.originalname}` : null;
 

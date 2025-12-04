@@ -15,56 +15,56 @@ export class AuthService {
     private jwtService: JwtService,
     private cloudinary: CloudinaryService,
     private mailService: MailService,
-  ) {}
+  ) { }
 
-async register(dto: AuthDto, imageUrl: string | null) {
-  const { email, phone, name, type, zone, district, address, operations, hours } = dto;
-const existingUser = await this.prisma.user.findFirst({
-  where: { OR: [{ email }, { phone }] },
-});
+  async register(dto: AuthDto, imageUrl: string | null) {
+    const { email, phone, name, type, zone, district, address, operations, hours } = dto;
+    const existingUser = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
 
-if (existingUser) {
-  throw new ConflictException('User already exists with this email or phone');
-}
-  const user = await this.prisma.user.create({
-    data: {
-      name,
-      email: email ?? null,
-      phone: phone ?? null,
-      type,
-      image: imageUrl,       // ← الصورة من multer
-      phoneVerified: false,
-      addresses: {
-        create: {
-          type: 'HOME',
-          fullAddress: address ?? '',
-          isSelected: true,
+    if (existingUser) {
+      throw new ConflictException('User already exists with this email or phone');
+    }
+    const user = await this.prisma.user.create({
+      data: {
+        name,
+        email: email ?? null,
+        phone: phone ?? null,
+        type,
+        image: imageUrl,       // ← الصورة من multer
+        phoneVerified: false,
+        addresses: {
+          create: {
+            type: 'HOME',
+            fullAddress: address ?? '',
+            isSelected: true,
+          },
         },
       },
-    },
-    include: { addresses: true },
-  });
-
-  let market = {};
-
-  if (type === 'OWNER') {
-    market = await this.prisma.market.create({
-      data: {
-        name: dto.marketName ?? `${name}'s Market`,
-        ownerId: user.id,
-        zone,
-        district,
-        address,
-        operations: operations ?? [],
-        hours: hours ?? [],
-      },
+      include: { addresses: true },
     });
+
+    let market = {};
+
+    if (type === 'OWNER') {
+      market = await this.prisma.market.create({
+        data: {
+          name: dto.marketName ?? `${name}'s Market`,
+          ownerId: user.id,
+          zone,
+          district,
+          address,
+          operations: operations ?? [],
+          hours: hours ?? [],
+        },
+      });
+    }
+
+    await this.sendOtp({ email, phone });
+
+    return { message: 'User registered successfully', user, market };
   }
-
-  await this.sendOtp({ email, phone });
-
-  return { message: 'User registered successfully', user, market };
-}
 
 
   async login(authDto: Login) {
@@ -109,7 +109,13 @@ if (existingUser) {
     await this.prisma.otp.create({
       data: { code: otpCode, identifier, userId: user ? user.id : null, expiresAt },
     });
-console.log(otpCode);
+
+    if (!user || !user.email) {
+      throw new NotFoundException("You Don't Have Email To Send OTP!")
+    }
+    // await this.mailService.sendOtpMail(user.email, otpCode)
+
+    console.log(otpCode);
 
     return { message: 'OTP sent successfully' };
   }
@@ -159,66 +165,66 @@ console.log(otpCode);
 
     return { token, user };
   }
-async updateUser(
-  userId: string,
-  dto: UpdateUserDto,
-  userImage?: string | null,
-  marketImage?: string | null,
-) {
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-    include: { market: true, addresses: true },
-  });
+  async updateUser(
+    userId: string,
+    dto: UpdateUserDto,
+    userImage?: string | null,
+    marketImage?: string | null,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { market: true, addresses: true },
+    });
 
-  if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException('User not found');
 
-  // صورة اليوزر
-  let finalUserImage = user.image;
-  if (userImage) {
-    finalUserImage = userImage;
-  }
-
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: {
-      name: dto.name ?? user.name,
-      email: dto.email ?? user.email,
-      phone: dto.phone ?? user.phone,
-      image: finalUserImage,
-    }
-  });
-
-  // لو Owner نعدل بيانات الماركت
-  if (user.type === 'OWNER' && user.market) {
-    
-    let finalMarketImage = user.market.image;
-
-    if (marketImage) {
-      finalMarketImage = marketImage;
+    // صورة اليوزر
+    let finalUserImage = user.image;
+    if (userImage) {
+      finalUserImage = userImage;
     }
 
-    await this.prisma.market.update({
-      where: { id: user.market.id },
+    await this.prisma.user.update({
+      where: { id: userId },
       data: {
-        name: dto.market?.name ?? user.market.name,
-        zone: dto.market?.zone ?? user.market.zone,
-        district: dto.market?.district ?? user.market.district,
-        address: dto.market?.address ?? user.market.address,
-        operations: dto.market?.operations ?? user.market.operations,
-        hours: dto.market?.hours ?? user.market.hours,
-        image: finalMarketImage
+        name: dto.name ?? user.name,
+        email: dto.email ?? user.email,
+        phone: dto.phone ?? user.phone,
+        image: finalUserImage,
       }
+    });
+
+    // لو Owner نعدل بيانات الماركت
+    if (user.type === 'OWNER' && user.market) {
+
+      let finalMarketImage = user.market.image;
+
+      if (marketImage) {
+        finalMarketImage = marketImage;
+      }
+
+      await this.prisma.market.update({
+        where: { id: user.market.id },
+        data: {
+          name: dto.market?.name ?? user.market.name,
+          zone: dto.market?.zone ?? user.market.zone,
+          district: dto.market?.district ?? user.market.district,
+          address: dto.market?.address ?? user.market.address,
+          operations: dto.market?.operations ?? user.market.operations,
+          hours: dto.market?.hours ?? user.market.hours,
+          image: finalMarketImage
+        }
+      });
+    }
+
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { market: true, addresses: true },
     });
   }
 
-  return this.prisma.user.findUnique({
-    where: { id: userId },
-    include: { market: true, addresses: true },
-  });
-}
 
-
-async createAddress(userId: string, dto: UpdateAddressDto) {
+  async createAddress(userId: string, dto: UpdateAddressDto) {
     if (!dto.fullAddress) {
       throw new BadRequestException('fullAddress is required');
     }
@@ -282,27 +288,27 @@ async createAddress(userId: string, dto: UpdateAddressDto) {
       orderBy: { createdAt: 'desc' }
     });
   }
-async deleteAllData() {
-  return await this.prisma.$transaction(async (prisma) => {
-    // حذف كل البيانات المرتبطة باليوزر
-    await prisma.order.deleteMany({});
-    await prisma.notification.deleteMany({});
-    await prisma.message.deleteMany({});
-    await prisma.otp.deleteMany({});
+  async deleteAllData() {
+    return await this.prisma.$transaction(async (prisma) => {
+      // حذف كل البيانات المرتبطة باليوزر
+      await prisma.order.deleteMany({});
+      await prisma.notification.deleteMany({});
+      await prisma.message.deleteMany({});
+      await prisma.otp.deleteMany({});
 
-    // أولاً نحذف كل المنتجات المرتبطة بكل market
-    await prisma.product.deleteMany({});
+      // أولاً نحذف كل المنتجات المرتبطة بكل market
+      await prisma.product.deleteMany({});
 
-    // بعد كده نحذف كل الأسواق
-    await prisma.market.deleteMany({});
+      // بعد كده نحذف كل الأسواق
+      await prisma.market.deleteMany({});
 
-    // بعد كده العناوين واليوزر
-    await prisma.address.deleteMany({});
-    await prisma.user.deleteMany({});
+      // بعد كده العناوين واليوزر
+      await prisma.address.deleteMany({});
+      await prisma.user.deleteMany({});
 
-    return { message: 'All user data has been deleted successfully.' };
-  });
-}
+      return { message: 'All user data has been deleted successfully.' };
+    });
+  }
 
 
 }

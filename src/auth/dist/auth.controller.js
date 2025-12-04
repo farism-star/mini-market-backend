@@ -62,7 +62,6 @@ var AuthController = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             var imageUrl;
             return __generator(this, function (_a) {
-                console.log(file);
                 imageUrl = file ? "/uploads/" + file.originalname : null;
                 return [2 /*return*/, this.authService.register(dto, imageUrl)];
             });
