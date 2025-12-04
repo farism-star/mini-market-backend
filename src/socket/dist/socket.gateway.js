@@ -136,7 +136,9 @@ var SocketGateway = /** @class */ (function () {
                             fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
                             filePath = path_1.join(folder, fileName);
                             base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+                            // كتابة الملف فعلياً
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+                            // استخدم URL نسبي للفرونت عشان يشتغل في المتصفح
                             voiceUrl = "/uploads/chat-voices/" + fileName;
                         }
                         return [4 /*yield*/, this.prisma.message.create({

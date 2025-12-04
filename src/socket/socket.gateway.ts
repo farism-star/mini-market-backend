@@ -88,20 +88,28 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       // حفظ الصوت لو موجود
-      if (data.type === MessageType.VOICE && data.voice) {
-        const folder = join(process.cwd(), 'uploads', 'chat-voices');
-        if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+    if (data.type === MessageType.VOICE && data.voice) {
+  // مسار حفظ الملفات
+  const folder = join(process.cwd(), 'uploads', 'chat-voices');
+  if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
 
-        const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
-        const ext = matches ? '.' + matches[1] : '.mp3';
-        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        const filePath = join(folder, fileName);
+  // استخرج امتداد الصوت من Base64 (mp3, wav, ogg)
+  const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+  const ext = matches ? '.' + matches[1] : '.mp3';
 
-        const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
-        writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+  // اسم الملف النهائي
+  const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+  const filePath = join(folder, fileName);
 
-        voiceUrl = `/uploads/chat-voices/${fileName}`;
-      }
+  // إزالة الـ prefix من Base64
+  const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+
+  // كتابة الملف فعلياً
+  writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+
+  // استخدم URL نسبي للفرونت عشان يشتغل في المتصفح
+  voiceUrl = `/uploads/chat-voices/${fileName}`;
+}
 
       // حفظ الرسالة في الداتا بيز
       const message = await this.prisma.message.create({
