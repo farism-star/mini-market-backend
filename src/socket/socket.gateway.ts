@@ -11,7 +11,8 @@ import { Server, Socket } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { SendMessageDto, MessageType } from '../message/dto/send-message.dto';
-import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { extname } from 'path';
 
 @WebSocketGateway({
   cors: {
@@ -24,101 +25,80 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private cloudinary: CloudinaryService,
   ) {}
 
   @WebSocketServer()
   server: Server;
 
-
   async handleConnection(client: Socket) {
-    console.log(`🟢 [CONNECT] Client connected: ${client.id}`);
-
     const token = client.handshake.auth.token as string;
-
-    if (!token) {
-      console.log(`❌ [AUTH FAIL] No token for client ${client.id}`);
-      return client.disconnect();
-    }
+    if (!token) return client.disconnect();
 
     try {
       const payload = await this.jwt.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
-
       client.data.userId = payload.sub || payload.id;
 
-   
-
-      client.emit('connected', {
-        status: 'success',
-        userId: client.data.userId,
-      });
-    } catch (err) {
-   
+      client.emit('connected', { status: 'success', userId: client.data.userId });
+    } catch {
       client.emit('error', { message: 'Invalid authentication token' });
       client.disconnect();
     }
   }
 
   handleDisconnect(client: Socket) {
-    console.log(
-      `🔴 [DISCONNECT] Client disconnected: ${client.id} | User: ${client?.data?.userId}`,
-    );
+    console.log(`🔴 Client disconnected: ${client.id}`);
   }
+
   @SubscribeMessage('joinConversation')
   async joinConversation(
     @MessageBody() data: { conversationId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    try {
-   
-
-      const room = `room_${data.conversationId}`;
-      await client.join(room);
-
-
-      return { status: 'joined', room };
-    } catch (err) {
-   
-      return { status: 'error', message: err.message };
-    }
+    const room = `room_${data.conversationId}`;
+    await client.join(room);
+    return { status: 'joined', room };
   }
 
- 
   @SubscribeMessage('sendMessage')
   async sendMessage(
     @MessageBody() data: SendMessageDto,
     @ConnectedSocket() client: Socket,
   ) {
-  
-
     try {
       let imageUrl: string | null = null;
       let voiceUrl: string | null = null;
 
-      // IMAGE
+      // حفظ الصورة لو موجودة
       if (data.type === MessageType.IMAGE && data.image) {
-    
-        imageUrl = await this.cloudinary.uploadImageFromBase64(
-          data.image,
-          'chat-images',
-        );
+        const folder = './uploads/chat-images';
+        if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
 
+        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(data.image || 'image.png')}`;
+        const filePath = `${folder}/${fileName}`;
+
+        // افترضنا ان البيانات Base64
+        const base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
+        writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        imageUrl = filePath;
       }
 
-      // VOICE
+      // حفظ الصوت لو موجود
       if (data.type === MessageType.VOICE && data.voice) {
-  
-        voiceUrl = await this.cloudinary.uploadVoiceFromBase64(
-          data.voice,
-          'chat-voices',
-        );
-      
+        const folder = './uploads/chat-voices';
+        if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+
+        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(data.voice || 'voice.mp3')}`;
+        const filePath = `${folder}/${fileName}`;
+
+        // افترضنا ان البيانات Base64
+        const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+        writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        voiceUrl = filePath;
       }
 
-      // SAVE MESSAGE IN DATABASE
-
+      // حفظ الرسالة في DB
       const message = await this.prisma.message.create({
         data: {
           conversationId: data.conversationId,
@@ -130,18 +110,13 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
           type: data.type,
         },
       });
-  
 
-      // EMIT TO ROOM
+      // إرسال الرسالة لكل الأعضاء في الغرفة
       const room = `room_${data.conversationId}`;
- 
       this.server.to(room).emit('newMessage', message);
-
-   
 
       return { status: 'sent', message };
     } catch (error) {
-   
       return { status: 'error', message: error.message };
     }
   }

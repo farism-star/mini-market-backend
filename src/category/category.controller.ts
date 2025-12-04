@@ -8,6 +8,8 @@ import {
   Param,
   UseGuards,
   Req,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dtos/create-category.dto';
@@ -16,6 +18,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.gaurd';
 import { Roles } from '../auth/Role.decorator';
 import { Role } from '../auth/roles.enum';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerConfig } from '../upload/multer.config';
 
 @Controller({
   path: 'categories',
@@ -23,14 +27,18 @@ import { Role } from '../auth/roles.enum';
 })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class CategoryController {
-  constructor(private readonly categoryService: CategoryService) { }
+  constructor(private readonly categoryService: CategoryService) {}
 
   @Roles(Role.OWNER)
   @Post()
-  create(@Body() dto: CreateCategoryDto, @Req() req: any) {
-    const user = req.user
- 
-    return this.categoryService.create(dto, user);
+  @UseInterceptors(FileInterceptor('icon', multerConfig)) // ✅
+  create(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: CreateCategoryDto,
+    @Req() req: any,
+  ) {
+    const iconUrl = file ? `/uploads/${file.filename}` : null;
+    return this.categoryService.create(dto, req.user, iconUrl);
   }
 
   @Roles(Role.CLIENT, Role.OWNER)
@@ -47,15 +55,20 @@ export class CategoryController {
 
   @Roles(Role.OWNER)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @Req() req: any) {
-    const user = req.user
-    return this.categoryService.update(id, dto,user);
+  @UseInterceptors(FileInterceptor('icon', multerConfig)) // ✅
+  update(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: UpdateCategoryDto,
+    @Req() req: any,
+  ) {
+    const iconUrl = file ? `/uploads/${file.filename}` : null;
+    return this.categoryService.update(id, dto, req.user, iconUrl);
   }
 
   @Roles(Role.OWNER)
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    
-    return this.categoryService.remove(id,req.user);
+    return this.categoryService.remove(id, req.user);
   }
 }

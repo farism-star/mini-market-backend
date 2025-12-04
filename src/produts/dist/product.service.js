@@ -52,18 +52,16 @@ exports.__esModule = true;
 exports.ProductService = void 0;
 var common_1 = require("@nestjs/common");
 var ProductService = /** @class */ (function () {
-    function ProductService(prisma, cloudinary) {
+    function ProductService(prisma) {
         this.prisma = prisma;
-        this.cloudinary = cloudinary;
     }
-    ProductService.prototype.create = function (ownerId, dto) {
+    ProductService.prototype.create = function (ownerId, dto, imageUrls) {
         return __awaiter(this, void 0, void 0, function () {
-            var user, images, Market, err_1;
-            var _this = this;
+            var user, Market, err_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 5, , 6]);
+                        _a.trys.push([0, 3, , 4]);
                         return [4 /*yield*/, this.prisma.user.findUnique({
                                 where: { id: ownerId }
                             })];
@@ -72,37 +70,30 @@ var ProductService = /** @class */ (function () {
                         if (!user || user.type !== 'OWNER') {
                             throw new common_1.UnauthorizedException('Only OWNER can create products');
                         }
-                        images = [];
-                        if (!(dto.images && Array.isArray(dto.images))) return [3 /*break*/, 3];
-                        return [4 /*yield*/, Promise.all(dto.images.map(function (img) {
-                                return _this.cloudinary.uploadImageFromBase64(img, 'products');
-                            }))];
+                        return [4 /*yield*/, this.prisma.market.findFirst({
+                                where: { ownerId: user.id }
+                            })];
                     case 2:
-                        images = _a.sent();
-                        _a.label = 3;
-                    case 3: return [4 /*yield*/, this.prisma.market.findFirst({
-                            where: { ownerId: user.id }
-                        })];
-                    case 4:
                         Market = _a.sent();
                         if (!Market) {
-                            throw new common_1.BadRequestException("Owner has no market yet");
+                            throw new common_1.BadRequestException('Owner has no market yet');
                         }
+                        // 3) Create Product with uploaded images
                         return [2 /*return*/, this.prisma.product.create({
                                 data: {
                                     titleAr: dto.titleAr,
                                     titleEn: dto.titleEn,
                                     price: dto.price,
-                                    images: images,
+                                    images: imageUrls,
                                     categoryId: dto.categoryId,
                                     marketId: Market.id
                                 }
                             })];
-                    case 5:
+                    case 3:
                         err_1 = _a.sent();
                         console.log(err_1);
                         throw new common_1.InternalServerErrorException(err_1.message || 'Failed to create product');
-                    case 6: return [2 /*return*/];
+                    case 4: return [2 /*return*/];
                 }
             });
         });
@@ -112,14 +103,18 @@ var ProductService = /** @class */ (function () {
             var existeUser, Market;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.prisma.user.findFirst({ where: { id: user.id } })];
+                    case 0: return [4 /*yield*/, this.prisma.user.findFirst({
+                            where: { id: user.id }
+                        })];
                     case 1:
                         existeUser = _a.sent();
                         if (!existeUser) {
                             throw new common_1.UnauthorizedException('User not found');
                         }
                         if (!(user.type === 'OWNER')) return [3 /*break*/, 3];
-                        return [4 /*yield*/, this.prisma.market.findFirst({ where: { ownerId: existeUser.id } })];
+                        return [4 /*yield*/, this.prisma.market.findFirst({
+                                where: { ownerId: existeUser.id }
+                            })];
                     case 2:
                         Market = _a.sent();
                         console.log(Market);
@@ -181,15 +176,14 @@ var ProductService = /** @class */ (function () {
             });
         });
     };
-    ProductService.prototype.update = function (id, dto, user) {
+    ProductService.prototype.update = function (id, dto, user, imageUrls) {
         var _a, _b, _c, _d;
         return __awaiter(this, void 0, void 0, function () {
-            var product, images, newImages, err_2;
-            var _this = this;
+            var product, updatedImages, err_2;
             return __generator(this, function (_e) {
                 switch (_e.label) {
                     case 0:
-                        _e.trys.push([0, 5, , 6]);
+                        _e.trys.push([0, 3, , 4]);
                         if (user.type !== 'OWNER') {
                             throw new common_1.UnauthorizedException('Only OWNER can update products');
                         }
@@ -199,30 +193,23 @@ var ProductService = /** @class */ (function () {
                         if (!product) {
                             throw new common_1.NotFoundException('Product not found');
                         }
-                        images = product.images;
-                        if (!(dto.images && Array.isArray(dto.images))) return [3 /*break*/, 3];
-                        return [4 /*yield*/, Promise.all(dto.images.map(function (img) {
-                                return _this.cloudinary.uploadImageFromBase64(img, 'products');
-                            }))];
-                    case 2:
-                        newImages = _e.sent();
-                        images = __spreadArrays(images, newImages);
-                        _e.label = 3;
-                    case 3: return [4 /*yield*/, this.prisma.product.update({
-                            where: { id: id },
-                            data: {
-                                titleAr: (_a = dto.titleAr) !== null && _a !== void 0 ? _a : product.titleAr,
-                                titleEn: (_b = dto.titleEn) !== null && _b !== void 0 ? _b : product.titleEn,
-                                price: (_c = dto.price) !== null && _c !== void 0 ? _c : product.price,
-                                images: images,
-                                categoryId: (_d = dto.categoryId) !== null && _d !== void 0 ? _d : product.categoryId
-                            }
-                        })];
-                    case 4: return [2 /*return*/, _e.sent()];
-                    case 5:
+                        updatedImages = imageUrls.length > 0
+                            ? __spreadArrays(product.images, imageUrls) : product.images;
+                        return [4 /*yield*/, this.prisma.product.update({
+                                where: { id: id },
+                                data: {
+                                    titleAr: (_a = dto.titleAr) !== null && _a !== void 0 ? _a : product.titleAr,
+                                    titleEn: (_b = dto.titleEn) !== null && _b !== void 0 ? _b : product.titleEn,
+                                    price: (_c = dto.price) !== null && _c !== void 0 ? _c : product.price,
+                                    images: updatedImages,
+                                    categoryId: (_d = dto.categoryId) !== null && _d !== void 0 ? _d : product.categoryId
+                                }
+                            })];
+                    case 2: return [2 /*return*/, _e.sent()];
+                    case 3:
                         err_2 = _e.sent();
                         throw new common_1.InternalServerErrorException(err_2.message || 'Failed to update product');
-                    case 6: return [2 /*return*/];
+                    case 4: return [2 /*return*/];
                 }
             });
         });

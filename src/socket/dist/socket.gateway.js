@@ -48,40 +48,35 @@ exports.__esModule = true;
 exports.SocketGateway = void 0;
 var websockets_1 = require("@nestjs/websockets");
 var send_message_dto_1 = require("../message/dto/send-message.dto");
+var fs_1 = require("fs");
+var path_1 = require("path");
 var SocketGateway = /** @class */ (function () {
-    function SocketGateway(prisma, jwt, cloudinary) {
+    function SocketGateway(prisma, jwt) {
         this.prisma = prisma;
         this.jwt = jwt;
-        this.cloudinary = cloudinary;
     }
     SocketGateway.prototype.handleConnection = function (client) {
         return __awaiter(this, void 0, void 0, function () {
-            var token, payload, err_1;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var token, payload, _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
-                        console.log("\uD83D\uDFE2 [CONNECT] Client connected: " + client.id);
                         token = client.handshake.auth.token;
-                        if (!token) {
-                            console.log("\u274C [AUTH FAIL] No token for client " + client.id);
+                        if (!token)
                             return [2 /*return*/, client.disconnect()];
-                        }
-                        _a.label = 1;
+                        _b.label = 1;
                     case 1:
-                        _a.trys.push([1, 3, , 4]);
+                        _b.trys.push([1, 3, , 4]);
                         return [4 /*yield*/, this.jwt.verifyAsync(token, {
                                 secret: process.env.JWT_SECRET
                             })];
                     case 2:
-                        payload = _a.sent();
+                        payload = _b.sent();
                         client.data.userId = payload.sub || payload.id;
-                        client.emit('connected', {
-                            status: 'success',
-                            userId: client.data.userId
-                        });
+                        client.emit('connected', { status: 'success', userId: client.data.userId });
                         return [3 /*break*/, 4];
                     case 3:
-                        err_1 = _a.sent();
+                        _a = _b.sent();
                         client.emit('error', { message: 'Invalid authentication token' });
                         client.disconnect();
                         return [3 /*break*/, 4];
@@ -91,69 +86,74 @@ var SocketGateway = /** @class */ (function () {
         });
     };
     SocketGateway.prototype.handleDisconnect = function (client) {
-        var _a;
-        console.log("\uD83D\uDD34 [DISCONNECT] Client disconnected: " + client.id + " | User: " + ((_a = client === null || client === void 0 ? void 0 : client.data) === null || _a === void 0 ? void 0 : _a.userId));
+        console.log("\uD83D\uDD34 Client disconnected: " + client.id);
     };
     SocketGateway.prototype.joinConversation = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
-            var room, err_2;
+            var room;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 2, , 3]);
                         room = "room_" + data.conversationId;
                         return [4 /*yield*/, client.join(room)];
                     case 1:
                         _a.sent();
                         return [2 /*return*/, { status: 'joined', room: room }];
-                    case 2:
-                        err_2 = _a.sent();
-                        return [2 /*return*/, { status: 'error', message: err_2.message }];
-                    case 3: return [2 /*return*/];
                 }
             });
         });
     };
     SocketGateway.prototype.sendMessage = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
-            var imageUrl, voiceUrl, message, room, error_1;
+            var imageUrl, voiceUrl, folder, fileName, filePath, base64Data, folder, fileName, filePath, base64Data, message, room, error_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 6, , 7]);
+                        _a.trys.push([0, 2, , 3]);
                         imageUrl = null;
                         voiceUrl = null;
-                        if (!(data.type === send_message_dto_1.MessageType.IMAGE && data.image)) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.cloudinary.uploadImageFromBase64(data.image, 'chat-images')];
+                        // حفظ الصورة لو موجودة
+                        if (data.type === send_message_dto_1.MessageType.IMAGE && data.image) {
+                            folder = './uploads/chat-images';
+                            if (!fs_1.existsSync(folder))
+                                fs_1.mkdirSync(folder, { recursive: true });
+                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + path_1.extname(data.image || 'image.png');
+                            filePath = folder + "/" + fileName;
+                            base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
+                            fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+                            imageUrl = filePath;
+                        }
+                        // حفظ الصوت لو موجود
+                        if (data.type === send_message_dto_1.MessageType.VOICE && data.voice) {
+                            folder = './uploads/chat-voices';
+                            if (!fs_1.existsSync(folder))
+                                fs_1.mkdirSync(folder, { recursive: true });
+                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + path_1.extname(data.voice || 'voice.mp3');
+                            filePath = folder + "/" + fileName;
+                            base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+                            fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+                            voiceUrl = filePath;
+                        }
+                        return [4 /*yield*/, this.prisma.message.create({
+                                data: {
+                                    conversationId: data.conversationId,
+                                    senderId: data.senderId,
+                                    text: data.text || null,
+                                    imageUrl: imageUrl,
+                                    voice: voiceUrl,
+                                    isRead: false,
+                                    type: data.type
+                                }
+                            })];
                     case 1:
-                        imageUrl = _a.sent();
-                        _a.label = 2;
-                    case 2:
-                        if (!(data.type === send_message_dto_1.MessageType.VOICE && data.voice)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, this.cloudinary.uploadVoiceFromBase64(data.voice, 'chat-voices')];
-                    case 3:
-                        voiceUrl = _a.sent();
-                        _a.label = 4;
-                    case 4: return [4 /*yield*/, this.prisma.message.create({
-                            data: {
-                                conversationId: data.conversationId,
-                                senderId: data.senderId,
-                                text: data.text || null,
-                                imageUrl: imageUrl,
-                                voice: voiceUrl,
-                                isRead: false,
-                                type: data.type
-                            }
-                        })];
-                    case 5:
                         message = _a.sent();
                         room = "room_" + data.conversationId;
                         this.server.to(room).emit('newMessage', message);
                         return [2 /*return*/, { status: 'sent', message: message }];
-                    case 6:
+                    case 2:
                         error_1 = _a.sent();
                         return [2 /*return*/, { status: 'error', message: error_1.message }];
-                    case 7: return [2 /*return*/];
+                    case 3: return [2 /*return*/];
                 }
             });
         });

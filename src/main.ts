@@ -3,20 +3,24 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Global Prefix
   app.setGlobalPrefix('api');
 
   // Enable Versioning
   app.enableVersioning({
-    type: VersioningType.URI, 
-    defaultVersion: '1' 
+    type: VersioningType.URI,
+    defaultVersion: '1'
   });
 
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }));
+  
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
@@ -30,5 +34,6 @@ async function bootstrap() {
   );
 
   await app.listen(5000);
+
 }
 bootstrap();
