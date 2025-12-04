@@ -123,6 +123,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
           type: data.type,
         },
       });
+console.log(message);
 
       // إرسال الرسالة لكل الأعضاء في الغرفة
       const room = `room_${data.conversationId}`;
