@@ -8,37 +8,38 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dtos/create-category.dto';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { existsSync } from 'fs';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 
 @Injectable()
 export class CategoryService {
-  constructor(
-    private prisma: PrismaService,
-    private cloudinary: CloudinaryService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-
-  async create(dto: CreateCategoryDto, user: any) {
+  // ============================
+  // 🔥 Create Category
+  // ============================
+  async create(dto: CreateCategoryDto, user: any, iconUrl: string | null) {
     try {
       if (user.type !== 'OWNER') {
         throw new UnauthorizedException('Only OWNER can create categories');
       }
 
-      let imageUrl = '';
+      // ✅ احصل على الـ market الخاص بالـ owner
+      const market = await this.prisma.market.findUnique({
+        where: { ownerId: user.sub || user.id },
+      });
 
-      if (dto.icon) {
-        imageUrl = await this.cloudinary.uploadImageFromBase64(
-          dto.icon,
-          'categories',
-        );
+      if (!market) {
+        throw new NotFoundException('Market not found for this owner');
       }
 
       return await this.prisma.category.create({
         data: {
           nameAr: dto.nameAr,
           nameEn: dto.nameEn,
-          icon: imageUrl,
-          marketId:user.id
+          icon: iconUrl,
+          marketId: market.id, // ✅ استخدم market.id
         },
       });
     } catch (err) {
@@ -55,6 +56,14 @@ export class CategoryService {
   async findAll() {
     return await this.prisma.category.findMany({
       orderBy: { nameAr: 'asc' },
+      include: {
+        market: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 
@@ -62,7 +71,17 @@ export class CategoryService {
   // 🔥 Find One
   // ============================
   async findOne(id: string) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: {
+        market: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
 
     if (!category) {
       throw new NotFoundException('Category not found');
@@ -74,25 +93,36 @@ export class CategoryService {
   // ============================
   // 🔥 Update Category
   // ============================
-  async update(id: string, dto: UpdateCategoryDto, user: any) {
+  async update(
+    id: string,
+    dto: UpdateCategoryDto,
+    user: any,
+    iconUrl: string | null,
+  ) {
     try {
       if (user.type !== 'OWNER') {
         throw new UnauthorizedException('Only OWNER can update categories');
       }
 
-      const category = await this.prisma.category.findUnique({ where: { id } });
+      const category = await this.prisma.category.findUnique({
+        where: { id },
+      });
 
       if (!category) {
         throw new NotFoundException('Category not found');
       }
 
-      let imageUrl = category.icon;
-
-      if (dto.icon) {
-        imageUrl = await this.cloudinary.uploadImageFromBase64(
-          dto.icon,
-          'categories',
-        );
+      // ✅ مسح الصورة القديمة لو في صورة جديدة
+      if (iconUrl && category.icon) {
+        try {
+          const oldIconPath = join(process.cwd(), category.icon);
+          if (existsSync(oldIconPath)) {
+            await unlink(oldIconPath);
+            console.log('Old icon deleted:', category.icon);
+          }
+        } catch (error) {
+          console.log('Failed to delete old icon:', error);
+        }
       }
 
       return await this.prisma.category.update({
@@ -100,7 +130,7 @@ export class CategoryService {
         data: {
           nameAr: dto.nameAr ?? category.nameAr,
           nameEn: dto.nameEn ?? category.nameEn,
-          icon: imageUrl,
+          icon: iconUrl ?? category.icon, // ✅ استخدم الصورة الجديدة أو القديمة
         },
       });
     } catch (err) {
@@ -111,7 +141,7 @@ export class CategoryService {
   }
 
   // ============================
-  // 🔥 Delete Category (Transaction)
+  // 🔥 Delete Category
   // ============================
   async remove(id: string, user: any) {
     try {
@@ -119,15 +149,29 @@ export class CategoryService {
         throw new UnauthorizedException('Only OWNER can delete categories');
       }
 
-      // 🔍 Check if category exists
-      const category = await this.prisma.category.findUnique({ where: { id } });
+      const category = await this.prisma.category.findUnique({
+        where: { id },
+      });
 
       if (!category) {
         throw new NotFoundException('Category not found');
       }
 
       return await this.prisma.$transaction(async (tx) => {
-        // ❗ Delete category only
+        // ✅ مسح الصورة من الديسك
+        if (category.icon) {
+          try {
+            const iconPath = join(process.cwd(), category.icon);
+            if (existsSync(iconPath)) {
+              await unlink(iconPath);
+              console.log('Category icon deleted:', category.icon);
+            }
+          } catch (error) {
+            console.log('Failed to delete category icon:', error);
+          }
+        }
+
+        // ✅ مسح الـ category
         await tx.category.delete({
           where: { id },
         });

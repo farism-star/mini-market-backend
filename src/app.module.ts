@@ -1,5 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -15,12 +17,21 @@ import { SocketModule } from './socket/socket.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notifications/notification.module';
-import { MailerModule } from '@nestjs-modules/mailer';
 import { PaymentModule } from './payments/payment.module';
+import { MulterModule } from '@nestjs/platform-express';
+import { multerConfig } from './upload/multer.config';
+
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'), // ✅ المسار الصحيح
+      serveRoot: '/uploads',
+      serveStaticOptions: {
+        index: false, // ✅ مهم جداً
+      },
+    }),
 
+    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
     TwilioModule,
@@ -28,6 +39,7 @@ import { PaymentModule } from './payments/payment.module';
     CategoryModule,
     MarketModule,
     OrdersModule,
+    MulterModule.register(multerConfig),
     PaymentModule,
     SocketModule,
     ConversationModule,
@@ -43,14 +55,14 @@ export class AppModule implements NestModule {
     consumer
       .apply(UserCheckMiddleware)
       .exclude(
-        { path: 'auth/login', method: RequestMethod.POST },
-        { path: 'auth/register', method: RequestMethod.POST },
-        { path: 'auth/delete-users', method: RequestMethod.DELETE },
-        { path: 'messages/delete-all', method: RequestMethod.DELETE },
-        { path: 'orders/delete-all', method: RequestMethod.DELETE },
-        { path: 'auth/verify-otp', method: RequestMethod.POST },
-        { path: 'twilio/send-sms', method: RequestMethod.POST },
-
+        { path: 'v1/auth/login', method: RequestMethod.POST },
+        { path: 'v1/auth/register', method: RequestMethod.POST },
+        { path: 'v1/auth/delete-users', method: RequestMethod.DELETE },
+        { path: 'v1/messages/delete-all', method: RequestMethod.DELETE },
+        { path: 'v1/orders/delete-all', method: RequestMethod.DELETE },
+        { path: 'v1/auth/verify-otp', method: RequestMethod.POST },
+        { path: 'v1/twilio/send-sms', method: RequestMethod.POST },
+        { path: 'uploads/(.*)', method: RequestMethod.GET }
       )
       .forRoutes('*');
   }

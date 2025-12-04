@@ -9,7 +9,7 @@ export class PaymentService {
   private readonly CLICKPAY_API_URL = 'https://secure.clickpay.com.sa/payment/request';
   private readonly CLICKPAY_QUERY_URL = 'https://secure.clickpay.com.sa/payment/query';
   private readonly PROFILE_ID = process.env.PROFILE_ID;
-  private readonly SERVER_KEY = process.env.CLICKPAY_SERVER_KEY_TEST;
+  private readonly SERVER_KEY = process.env.CLICKPAY_SERVER_KEY;
 
   constructor(private prisma: PrismaService) {}
 

@@ -52,12 +52,21 @@ var passport_1 = require("@nestjs/passport");
 var roles_gaurd_1 = require("./roles.gaurd");
 var Role_decorator_1 = require("./Role.decorator");
 var roles_enum_1 = require("./roles.enum");
+var platform_express_1 = require("@nestjs/platform-express");
+var multer_config_1 = require("../upload/multer.config");
 var AuthController = /** @class */ (function () {
     function AuthController(authService) {
         this.authService = authService;
     }
-    AuthController.prototype.register = function (authDto) {
-        return this.authService.register(authDto);
+    AuthController.prototype.register = function (file, dto) {
+        return __awaiter(this, void 0, void 0, function () {
+            var imageUrl;
+            return __generator(this, function (_a) {
+                console.log(file);
+                imageUrl = file ? "/uploads/" + file.originalname : null;
+                return [2 /*return*/, this.authService.register(dto, imageUrl)];
+            });
+        });
     };
     AuthController.prototype.login = function (authDto) {
         return this.authService.login(authDto);
@@ -75,8 +84,25 @@ var AuthController = /** @class */ (function () {
     AuthController.prototype.getProfile = function (req) {
         return req.user;
     };
-    AuthController.prototype.updateUser = function (userId, dto) {
-        return this.authService.updateUser(userId, dto);
+    AuthController.prototype.updateUser = function (files, dto, req) {
+        return __awaiter(this, void 0, void 0, function () {
+            var userId, userImage, marketImage;
+            return __generator(this, function (_a) {
+                userId = req.user.id;
+                userImage = null;
+                marketImage = null;
+                // Loop files
+                files.forEach(function (file) {
+                    if (file.fieldname === 'image') {
+                        userImage = "/uploads/" + file.filename;
+                    }
+                    if (file.fieldname === 'marketImage') {
+                        marketImage = "/uploads/" + file.filename;
+                    }
+                });
+                return [2 /*return*/, this.authService.updateUser(userId, dto, userImage, marketImage)];
+            });
+        });
     };
     AuthController.prototype.createAddress = function (userId, dto) {
         return this.authService.createAddress(userId, dto);
@@ -92,7 +118,9 @@ var AuthController = /** @class */ (function () {
     };
     __decorate([
         common_1.Post('register'),
-        __param(0, common_1.Body())
+        common_1.UseInterceptors(platform_express_1.FileInterceptor('image', multer_config_1.multerConfig)),
+        __param(0, common_1.UploadedFile()),
+        __param(1, common_1.Body())
     ], AuthController.prototype, "register");
     __decorate([
         common_1.Post('login'),
@@ -112,10 +140,13 @@ var AuthController = /** @class */ (function () {
         __param(0, common_1.Req())
     ], AuthController.prototype, "getProfile");
     __decorate([
-        common_1.UseGuards(passport_1.AuthGuard('jwt')),
+        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Patch('update-user/:id'),
-        __param(0, common_1.Param('id')), __param(1, common_1.Body())
+        common_1.Patch('update'),
+        common_1.UseInterceptors(platform_express_1.AnyFilesInterceptor(multer_config_1.multerConfig)),
+        __param(0, common_1.UploadedFiles()),
+        __param(1, common_1.Body()),
+        __param(2, common_1.Req())
     ], AuthController.prototype, "updateUser");
     __decorate([
         common_1.Post('address/user/:userId'),

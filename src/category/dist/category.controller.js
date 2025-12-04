@@ -15,13 +15,15 @@ var passport_1 = require("@nestjs/passport");
 var roles_gaurd_1 = require("../auth/roles.gaurd");
 var Role_decorator_1 = require("../auth/Role.decorator");
 var roles_enum_1 = require("../auth/roles.enum");
+var platform_express_1 = require("@nestjs/platform-express");
+var multer_config_1 = require("../upload/multer.config");
 var CategoryController = /** @class */ (function () {
     function CategoryController(categoryService) {
         this.categoryService = categoryService;
     }
-    CategoryController.prototype.create = function (dto, req) {
-        var user = req.user;
-        return this.categoryService.create(dto, user);
+    CategoryController.prototype.create = function (file, dto, req) {
+        var iconUrl = file ? "/uploads/" + file.filename : null;
+        return this.categoryService.create(dto, req.user, iconUrl);
     };
     CategoryController.prototype.findAll = function () {
         return this.categoryService.findAll();
@@ -29,9 +31,9 @@ var CategoryController = /** @class */ (function () {
     CategoryController.prototype.findOne = function (id) {
         return this.categoryService.findOne(id);
     };
-    CategoryController.prototype.update = function (id, dto, req) {
-        var user = req.user;
-        return this.categoryService.update(id, dto, user);
+    CategoryController.prototype.update = function (id, file, dto, req) {
+        var iconUrl = file ? "/uploads/" + file.filename : null;
+        return this.categoryService.update(id, dto, req.user, iconUrl);
     };
     CategoryController.prototype.remove = function (id, req) {
         return this.categoryService.remove(id, req.user);
@@ -39,7 +41,11 @@ var CategoryController = /** @class */ (function () {
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Post(),
-        __param(0, common_1.Body()), __param(1, common_1.Req())
+        common_1.UseInterceptors(platform_express_1.FileInterceptor('icon', multer_config_1.multerConfig)) // ✅
+        ,
+        __param(0, common_1.UploadedFile()),
+        __param(1, common_1.Body()),
+        __param(2, common_1.Req())
     ], CategoryController.prototype, "create");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
@@ -53,7 +59,12 @@ var CategoryController = /** @class */ (function () {
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Patch(':id'),
-        __param(0, common_1.Param('id')), __param(1, common_1.Body()), __param(2, common_1.Req())
+        common_1.UseInterceptors(platform_express_1.FileInterceptor('icon', multer_config_1.multerConfig)) // ✅
+        ,
+        __param(0, common_1.Param('id')),
+        __param(1, common_1.UploadedFile()),
+        __param(2, common_1.Body()),
+        __param(3, common_1.Req())
     ], CategoryController.prototype, "update");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),

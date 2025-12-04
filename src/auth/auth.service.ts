@@ -17,66 +17,55 @@ export class AuthService {
     private mailService: MailService,
   ) {}
 
-  async register(authDto: AuthDto) {
-    const { email, phone, name, type, zone, district, address, operations, hours, image } = authDto;
+async register(dto: AuthDto, imageUrl: string | null) {
+  const { email, phone, name, type, zone, district, address, operations, hours } = dto;
+const existingUser = await this.prisma.user.findFirst({
+  where: { OR: [{ email }, { phone }] },
+});
 
-    if (!email && !phone) {
-      throw new BadRequestException('Email or phone is required');
-    }
-
-    const existingUser = await this.prisma.user.findFirst({
-      where: { OR: [{ email }, { phone }] },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('User already exists');
-    }
-
-    let uploadedImageUrl: string | null = null;
-
-    if (image) {
-      uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(image, 'users');
-    }
-
-    const defaultAddress = {
-      type: 'HOME' as const,
-      fullAddress: address ?? '',
-      isSelected: true,
-    };
-
-    const user = await this.prisma.user.create({
-      data: {
-        name,
-        email: email ?? null,
-        phone: phone ?? null,
-        type,
-        image: uploadedImageUrl,
-        phoneVerified: false,
-        addresses: { create: defaultAddress },
-      },
-      include: { addresses: true },
-    });
-
-    let market = {};
-
-    if (type === 'OWNER') {
-      market = await this.prisma.market.create({
-        data: {
-          name: authDto.marketName ?? `${name}'s Market`,
-          ownerId: user.id,
-          zone: zone ?? null,
-          district: district ?? null,
-          address: address ?? null,
-          operations: operations ?? [],
-          hours: hours ?? [],
+if (existingUser) {
+  throw new ConflictException('User already exists with this email or phone');
+}
+  const user = await this.prisma.user.create({
+    data: {
+      name,
+      email: email ?? null,
+      phone: phone ?? null,
+      type,
+      image: imageUrl,       // ← الصورة من multer
+      phoneVerified: false,
+      addresses: {
+        create: {
+          type: 'HOME',
+          fullAddress: address ?? '',
+          isSelected: true,
         },
-      });
-    }
+      },
+    },
+    include: { addresses: true },
+  });
 
-    await this.sendOtp({ email, phone });
+  let market = {};
 
-    return { message: 'User registered successfully', user, market };
+  if (type === 'OWNER') {
+    market = await this.prisma.market.create({
+      data: {
+        name: dto.marketName ?? `${name}'s Market`,
+        ownerId: user.id,
+        zone,
+        district,
+        address,
+        operations: operations ?? [],
+        hours: hours ?? [],
+      },
+    });
   }
+
+  await this.sendOtp({ email, phone });
+
+  return { message: 'User registered successfully', user, market };
+}
+
 
   async login(authDto: Login) {
     const { email, phone } = authDto;
@@ -170,21 +159,23 @@ console.log(otpCode);
 
     return { token, user };
   }
-
-async updateUser(userId: string, dto: UpdateUserDto) {
+async updateUser(
+  userId: string,
+  dto: UpdateUserDto,
+  userImage?: string | null,
+  marketImage?: string | null,
+) {
   const user = await this.prisma.user.findUnique({
     where: { id: userId },
-    include: { market: true } // لاحظ أننا شلنا addresses
+    include: { market: true, addresses: true },
   });
 
   if (!user) throw new NotFoundException('User not found');
-  let uploadedImageUrl = user.image;
 
-  if (dto.image) {
-    uploadedImageUrl = await this.cloudinary.uploadImageFromBase64(
-      dto.image,
-      'users'
-    );
+  // صورة اليوزر
+  let finalUserImage = user.image;
+  if (userImage) {
+    finalUserImage = userImage;
   }
 
   await this.prisma.user.update({
@@ -193,51 +184,37 @@ async updateUser(userId: string, dto: UpdateUserDto) {
       name: dto.name ?? user.name,
       email: dto.email ?? user.email,
       phone: dto.phone ?? user.phone,
-      image: uploadedImageUrl
+      image: finalUserImage,
     }
   });
 
-  // =====================================================
-  // 2) Update Market (ONLY if user.type === OWNER)
-  // =====================================================
-  if (user.type === 'OWNER') {
-    if (user.market && dto.market) {
-      let uploadedMarketImage = user.market.image;
+  // لو Owner نعدل بيانات الماركت
+  if (user.type === 'OWNER' && user.market) {
+    
+    let finalMarketImage = user.market.image;
 
-      if (dto.market.image) {
-        uploadedMarketImage = await this.cloudinary.uploadImageFromBase64(
-          dto.market.image,
-          'markets'
-        );
-      }
-
-      await this.prisma.market.update({
-        where: { id: user.market.id },
-        data: {
-          name: dto.market.name ?? user.market.name,
-          zone: dto.market.zone ?? user.market.zone,
-          district: dto.market.district ?? user.market.district,
-          address: dto.market.address ?? user.market.address,
-          operations: dto.market.operations ?? user.market.operations,
-          hours: dto.market.hours ?? user.market.hours,
-          image: uploadedMarketImage
-        }
-      });
+    if (marketImage) {
+      finalMarketImage = marketImage;
     }
-  } else {
-    // 🚫 منع أي تعديل على الماركت لو مش Owner
-    delete dto.market;
+
+    await this.prisma.market.update({
+      where: { id: user.market.id },
+      data: {
+        name: dto.market?.name ?? user.market.name,
+        zone: dto.market?.zone ?? user.market.zone,
+        district: dto.market?.district ?? user.market.district,
+        address: dto.market?.address ?? user.market.address,
+        operations: dto.market?.operations ?? user.market.operations,
+        hours: dto.market?.hours ?? user.market.hours,
+        image: finalMarketImage
+      }
+    });
   }
 
-  // ================================
-  // 3) Return updated user
-  // ================================
-  const updatedUser = await this.prisma.user.findUnique({
+  return this.prisma.user.findUnique({
     where: { id: userId },
-    include: { market: true,addresses:true } // شلنا addresses
+    include: { market: true, addresses: true },
   });
-
-  return updatedUser;
 }
 
 

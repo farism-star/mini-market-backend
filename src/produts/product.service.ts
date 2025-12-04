@@ -8,16 +8,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { UpdateProductDto } from './dtos/update-product.dto';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ProductService {
-  constructor(
-    private prisma: PrismaService,
-    private cloudinary: CloudinaryService,
-  ) { }
+  constructor(private prisma: PrismaService) {}
 
-  async create(ownerId: string, dto: CreateProductDto) {
+  async create(ownerId: string, dto: CreateProductDto, imageUrls: string[]) {
     try {
       // 1) Check Role
       const user = await this.prisma.user.findUnique({
@@ -28,35 +24,26 @@ export class ProductService {
         throw new UnauthorizedException('Only OWNER can create products');
       }
 
-      // 2) Upload images (if exists)
-      let images: string[] = [];
+      // 2) Get Market
+      const Market = await this.prisma.market.findFirst({
+        where: { ownerId: user.id },
+      });
 
-      if (dto.images && Array.isArray(dto.images)) {
-        images = await Promise.all(
-          dto.images.map((img) =>
-            this.cloudinary.uploadImageFromBase64(img, 'products'),
-          ),
-        );
+      if (!Market) {
+        throw new BadRequestException('Owner has no market yet');
       }
 
-const Market = await this.prisma.market.findFirst({
-  where: { ownerId: user.id },
-});
-
-if (!Market) {
-  throw new BadRequestException("Owner has no market yet");
-}
-
-return this.prisma.product.create({
-  data: {
-    titleAr: dto.titleAr!,
-    titleEn: dto.titleEn!,
-    price: dto.price!,
-    images,
-    categoryId: dto.categoryId!,
-    marketId: Market.id,  // ← مش undefined
-  },
-});
+      // 3) Create Product with uploaded images
+      return this.prisma.product.create({
+        data: {
+          titleAr: dto.titleAr!,
+          titleEn: dto.titleEn!,
+          price: dto.price!,
+          images: imageUrls, // ✅ استخدام الصور المرفوعة من Multer
+          categoryId: dto.categoryId!,
+          marketId: Market.id,
+        },
+      });
     } catch (err) {
       console.log(err);
       throw new InternalServerErrorException(
@@ -65,19 +52,21 @@ return this.prisma.product.create({
     }
   }
 
-
   async findAll(user: any) {
-    const existeUser = await this.prisma.user.findFirst({ where: { id: user.id } })
+    const existeUser = await this.prisma.user.findFirst({
+      where: { id: user.id },
+    });
     if (!existeUser) {
       throw new UnauthorizedException('User not found');
     }
 
-
     // لو Owner يرجع بس منتجاته
     if (user.type === 'OWNER') {
-      const Market = await this.prisma.market.findFirst({ where: { ownerId: existeUser.id } })
+      const Market = await this.prisma.market.findFirst({
+        where: { ownerId: existeUser.id },
+      });
       console.log(Market);
-      
+
       return this.prisma.product.findMany({
         where: { marketId: Market?.id },
         include: {
@@ -97,7 +86,6 @@ return this.prisma.product.create({
       orderBy: { titleAr: 'asc' },
     });
   }
-
 
   async findByOwner(ownerId: string) {
     return await this.prisma.product.findMany({
@@ -124,8 +112,7 @@ return this.prisma.product.create({
     return product;
   }
 
-
-  async update(id: string, dto: UpdateProductDto, user: any) {
+  async update(id: string, dto: UpdateProductDto, user: any, imageUrls: string[]) {
     try {
       if (user.type !== 'OWNER') {
         throw new UnauthorizedException('Only OWNER can update products');
@@ -137,18 +124,10 @@ return this.prisma.product.create({
         throw new NotFoundException('Product not found');
       }
 
-      // Upload new images if exists
-      let images = product.images;
-
-      if (dto.images && Array.isArray(dto.images)) {
-        const newImages = await Promise.all(
-          dto.images.map((img) =>
-            this.cloudinary.uploadImageFromBase64(img, 'products'),
-          ),
-        );
-
-        images = [...images, ...newImages];
-      }
+      // ✅ إضافة الصور الجديدة للصور القديمة
+      const updatedImages = imageUrls.length > 0 
+        ? [...product.images, ...imageUrls] 
+        : product.images;
 
       return await this.prisma.product.update({
         where: { id },
@@ -156,7 +135,7 @@ return this.prisma.product.create({
           titleAr: dto.titleAr ?? product.titleAr,
           titleEn: dto.titleEn ?? product.titleEn,
           price: dto.price ?? product.price,
-          images,
+          images: updatedImages,
           categoryId: dto.categoryId ?? product.categoryId,
         },
       });
@@ -166,7 +145,6 @@ return this.prisma.product.create({
       );
     }
   }
-
 
   async remove(id: string, user: any) {
     try {

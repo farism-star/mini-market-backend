@@ -15,13 +15,16 @@ var passport_1 = require("@nestjs/passport");
 var roles_gaurd_1 = require("../auth/roles.gaurd");
 var Role_decorator_1 = require("../auth/Role.decorator");
 var roles_enum_1 = require("../auth/roles.enum");
+var platform_express_1 = require("@nestjs/platform-express");
+var multer_config_1 = require("../upload/multer.config");
 var ProductController = /** @class */ (function () {
     function ProductController(productService) {
         this.productService = productService;
     }
-    ProductController.prototype.create = function (req, dto) {
+    ProductController.prototype.create = function (files, dto, req) {
         var ownerId = req.user.id;
-        return this.productService.create(ownerId, dto);
+        var imageUrls = (files === null || files === void 0 ? void 0 : files.map(function (file) { return "/uploads/" + file.filename; })) || [];
+        return this.productService.create(ownerId, dto, imageUrls);
     };
     ProductController.prototype.findAll = function (req) {
         return this.productService.findAll(req.user);
@@ -32,9 +35,10 @@ var ProductController = /** @class */ (function () {
     ProductController.prototype.findOne = function (id) {
         return this.productService.findOne(id);
     };
-    ProductController.prototype.update = function (id, dto, req) {
+    ProductController.prototype.update = function (id, files, dto, req) {
         var user = req.user;
-        return this.productService.update(id, dto, user);
+        var imageUrls = (files === null || files === void 0 ? void 0 : files.map(function (file) { return "/uploads/" + file.filename; })) || [];
+        return this.productService.update(id, dto, user, imageUrls);
     };
     ProductController.prototype.remove = function (id, req) {
         var user = req.user;
@@ -43,7 +47,11 @@ var ProductController = /** @class */ (function () {
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Post(),
-        __param(0, common_1.Req()), __param(1, common_1.Body())
+        common_1.UseInterceptors(platform_express_1.FilesInterceptor('images', 10, multer_config_1.multerConfig)) // ✅ رفع 10 صور كحد أقصى
+        ,
+        __param(0, common_1.UploadedFiles()),
+        __param(1, common_1.Body()),
+        __param(2, common_1.Req())
     ], ProductController.prototype, "create");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
@@ -63,7 +71,12 @@ var ProductController = /** @class */ (function () {
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Patch(':id'),
-        __param(0, common_1.Param('id')), __param(1, common_1.Body()), __param(2, common_1.Req())
+        common_1.UseInterceptors(platform_express_1.FilesInterceptor('images', 10, multer_config_1.multerConfig)) // ✅ رفع 10 صور كحد أقصى
+        ,
+        __param(0, common_1.Param('id')),
+        __param(1, common_1.UploadedFiles()),
+        __param(2, common_1.Body()),
+        __param(3, common_1.Req())
     ], ProductController.prototype, "update");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
