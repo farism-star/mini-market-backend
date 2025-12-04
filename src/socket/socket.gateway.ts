@@ -12,7 +12,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { SendMessageDto, MessageType } from '../message/dto/send-message.dto';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { extname } from 'path';
+import { join, extname } from 'path';
 
 @WebSocketGateway({
   cors: {
@@ -71,42 +71,39 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       let voiceUrl: string | null = null;
 
       // حفظ الصورة لو موجودة
-   if (data.type === MessageType.IMAGE && data.image) {
-  const folder = '/uploads/chat-images';
-  if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+      if (data.type === MessageType.IMAGE && data.image) {
+        const folder = join(process.cwd(), 'uploads', 'chat-images');
+        if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
 
-  const matches = data.image.match(/^data:(image\/\w+);base64,/);
-  const ext = matches ? '.' + matches[1].split('/')[1] : '.png';
-  const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-  const filePath = `${folder}/${fileName}`;
+        const matches = data.image.match(/^data:(image\/\w+);base64,/);
+        const ext = matches ? '.' + matches[1].split('/')[1] : '.png';
+        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        const filePath = join(folder, fileName);
 
-  const base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
-  writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-  imageUrl = filePath;
-}
+        const base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
+        writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
 
+        // URL نسبي للفرونت
+        imageUrl = `/uploads/chat-images/${fileName}`;
+      }
 
       // حفظ الصوت لو موجود
-    if (data.type === MessageType.VOICE && data.voice) {
-  const folder = '/uploads/chat-voices';
-  if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+      if (data.type === MessageType.VOICE && data.voice) {
+        const folder = join(process.cwd(), 'uploads', 'chat-voices');
+        if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
 
-  // استخرج الامتداد من Base64
-  const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
-  const ext = matches ? '.' + matches[1] : '.mp3';
+        const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+        const ext = matches ? '.' + matches[1] : '.mp3';
+        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        const filePath = join(folder, fileName);
 
-  const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-  const filePath = `${folder}/${fileName}`;
+        const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+        writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
 
-  // احذف الـ prefix من Base64
-  const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
-  writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        voiceUrl = `/uploads/chat-voices/${fileName}`;
+      }
 
-  voiceUrl = filePath; // ممكن بعدين تعدل للـ URL للفرونت
-}
-
-
-     
+      // حفظ الرسالة في الداتا بيز
       const message = await this.prisma.message.create({
         data: {
           conversationId: data.conversationId,
@@ -119,7 +116,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
         },
       });
 
-     
+      // إرسال الرسالة لكل الأعضاء في الغرفة
       const room = `room_${data.conversationId}`;
       this.server.to(room).emit('newMessage', message);
 
