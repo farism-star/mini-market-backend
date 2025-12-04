@@ -105,7 +105,7 @@ var SocketGateway = /** @class */ (function () {
     };
     SocketGateway.prototype.sendMessage = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
-            var imageUrl, voiceUrl, folder, matches, ext, fileName, filePath, base64Data, folder, matches, ext, fileName, filePath, base64Data, message, room, error_1;
+            var imageUrl, voiceUrl, folder, matches, ext, mime, rawExt, fileName, filePath, base64Data, folder, matches, ext, fileName, filePath, base64Data, message, room, error_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -117,13 +117,26 @@ var SocketGateway = /** @class */ (function () {
                             folder = path_1.join(process.cwd(), 'uploads', 'chat-images');
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
-                            matches = data.image.match(/^data:(image\/\w+);base64,/);
-                            ext = matches ? '.' + matches[1].split('/')[1] : '.png';
+                            matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
+                            ext = '.png';
+                            if (matches) {
+                                mime = matches[1];
+                                // التعامل مع svg+xml
+                                if (mime.includes('svg')) {
+                                    ext = '.svg';
+                                }
+                                else {
+                                    rawExt = mime.split('/')[1];
+                                    // لو الامتداد فيه +xml
+                                    rawExt = rawExt.replace(/\+xml$/, '');
+                                    // الامتداد الصحيح
+                                    ext = '.' + rawExt;
+                                }
+                            }
                             fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
                             filePath = path_1.join(folder, fileName);
-                            base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
+                            base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            // URL نسبي للفرونت
                             imageUrl = "/uploads/chat-images/" + fileName;
                         }
                         // حفظ الصوت لو موجود
