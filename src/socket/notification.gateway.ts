@@ -14,7 +14,7 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
   @WebSocketServer()
   server: Server;
 
-  // Map <userId, socketId>
+
   private connectedUsers = new Map<string, string>();
 
   constructor(private jwt: JwtService) {}
