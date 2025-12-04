@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dtos/create-order.dto';
 import { UpdateOrderDto } from './dtos/update-order.dto';
 import { NotificationService } from '../notifications/notification.service';
-import { formatTimeToAMPM, buildOrderBanarMessage } from '../helpers/helper';
+import { formatTimeToAMPM, buildOrderBanarMessage,buildOrderMessage } from '../helpers/helper';
 
 type AuthUser = { id: string; type: string };
 
@@ -76,6 +76,15 @@ export class OrdersService {
           senderId: order.market!.ownerId!,
           type: 'BANAR',
           text: buildOrderBanarMessage(order),
+        },
+      });
+
+      await this.prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: order.market!.ownerId!,
+          type: 'TEXT',
+          text: buildOrderMessage(order),
         },
       });
 
