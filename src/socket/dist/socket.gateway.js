@@ -49,6 +49,7 @@ exports.SocketGateway = void 0;
 var websockets_1 = require("@nestjs/websockets");
 var send_message_dto_1 = require("../message/dto/send-message.dto");
 var fs_1 = require("fs");
+var path_1 = require("path");
 var SocketGateway = /** @class */ (function () {
     function SocketGateway(prisma, jwt) {
         this.prisma = prisma;
@@ -113,29 +114,30 @@ var SocketGateway = /** @class */ (function () {
                         voiceUrl = null;
                         // حفظ الصورة لو موجودة
                         if (data.type === send_message_dto_1.MessageType.IMAGE && data.image) {
-                            folder = '/uploads/chat-images';
+                            folder = path_1.join(process.cwd(), 'uploads', 'chat-images');
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
                             matches = data.image.match(/^data:(image\/\w+);base64,/);
                             ext = matches ? '.' + matches[1].split('/')[1] : '.png';
                             fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
-                            filePath = folder + "/" + fileName;
+                            filePath = path_1.join(folder, fileName);
                             base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            imageUrl = filePath;
+                            // URL نسبي للفرونت
+                            imageUrl = "/uploads/chat-images/" + fileName;
                         }
                         // حفظ الصوت لو موجود
                         if (data.type === send_message_dto_1.MessageType.VOICE && data.voice) {
-                            folder = '/uploads/chat-voices';
+                            folder = path_1.join(process.cwd(), 'uploads', 'chat-voices');
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
                             matches = data.voice.match(/^data:audio\/(\w+);base64,/);
                             ext = matches ? '.' + matches[1] : '.mp3';
                             fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
-                            filePath = folder + "/" + fileName;
+                            filePath = path_1.join(folder, fileName);
                             base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            voiceUrl = filePath; // ممكن بعدين تعدل للـ URL للفرونت
+                            voiceUrl = "/uploads/chat-voices/" + fileName;
                         }
                         return [4 /*yield*/, this.prisma.message.create({
                                 data: {
