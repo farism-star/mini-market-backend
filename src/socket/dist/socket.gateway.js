@@ -49,7 +49,6 @@ exports.SocketGateway = void 0;
 var websockets_1 = require("@nestjs/websockets");
 var send_message_dto_1 = require("../message/dto/send-message.dto");
 var fs_1 = require("fs");
-var path_1 = require("path");
 var SocketGateway = /** @class */ (function () {
     function SocketGateway(prisma, jwt) {
         this.prisma = prisma;
@@ -105,7 +104,7 @@ var SocketGateway = /** @class */ (function () {
     };
     SocketGateway.prototype.sendMessage = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
-            var imageUrl, voiceUrl, folder, fileName, filePath, base64Data, folder, fileName, filePath, base64Data, message, room, error_1;
+            var imageUrl, voiceUrl, folder, matches, ext, fileName, filePath, base64Data, folder, matches, ext, fileName, filePath, base64Data, message, room, error_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -114,10 +113,12 @@ var SocketGateway = /** @class */ (function () {
                         voiceUrl = null;
                         // حفظ الصورة لو موجودة
                         if (data.type === send_message_dto_1.MessageType.IMAGE && data.image) {
-                            folder = './uploads/chat-images';
+                            folder = '/uploads/chat-images';
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
-                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + path_1.extname(data.image || 'image.png');
+                            matches = data.image.match(/^data:(image\/\w+);base64,/);
+                            ext = matches ? '.' + matches[1].split('/')[1] : '.png';
+                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
                             filePath = folder + "/" + fileName;
                             base64Data = data.image.replace(/^data:image\/\w+;base64,/, '');
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
@@ -125,14 +126,16 @@ var SocketGateway = /** @class */ (function () {
                         }
                         // حفظ الصوت لو موجود
                         if (data.type === send_message_dto_1.MessageType.VOICE && data.voice) {
-                            folder = './uploads/chat-voices';
+                            folder = '/uploads/chat-voices';
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
-                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + path_1.extname(data.voice || 'voice.mp3');
+                            matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+                            ext = matches ? '.' + matches[1] : '.mp3';
+                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
                             filePath = folder + "/" + fileName;
                             base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            voiceUrl = filePath;
+                            voiceUrl = filePath; // ممكن بعدين تعدل للـ URL للفرونت
                         }
                         return [4 /*yield*/, this.prisma.message.create({
                                 data: {
