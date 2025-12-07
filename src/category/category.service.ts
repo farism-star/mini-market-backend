@@ -53,19 +53,30 @@ export class CategoryService {
   // ============================
   // 🔥 Find All
   // ============================
-  async findAll() {
-    return await this.prisma.category.findMany({
+ async findAll(user: any) {
+
+  if (user.role === 'OWNER') {
+    // Owner -> رجّع بس ال categories بتاعت الماركت بتاعه
+    return this.prisma.category.findMany({
+      where: {
+        marketId: user.marketId,
+      },
       orderBy: { nameAr: 'asc' },
       include: {
-        market: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        market: true
       },
     });
   }
+
+  // Client -> رجّع كل المنتجات
+  return this.prisma.category.findMany({
+    orderBy: { nameAr: 'asc' },
+    include: {
+      market: true
+    },
+  });
+}
+
 
   // ============================
   // 🔥 Find One

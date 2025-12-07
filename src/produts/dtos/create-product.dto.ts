@@ -1,4 +1,5 @@
 import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateProductDto {
   @IsOptional()
@@ -10,6 +11,7 @@ export class CreateProductDto {
   titleEn?: string;
 
   @IsOptional()
+  @Type(() => Number)   // ← ده اللي بيحول من text → number
   @IsNumber()
   price?: number;
 

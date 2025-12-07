@@ -43,8 +43,8 @@ export class CategoryController {
 
   @Roles(Role.CLIENT, Role.OWNER)
   @Get()
-  findAll() {
-    return this.categoryService.findAll();
+  findAll(@Req() req) {
+    return this.categoryService.findAll(req.user);
   }
 
   @Roles(Role.CLIENT, Role.OWNER)

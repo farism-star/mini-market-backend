@@ -93,23 +93,28 @@ var CategoryService = /** @class */ (function () {
     // ============================
     // 🔥 Find All
     // ============================
-    CategoryService.prototype.findAll = function () {
+    CategoryService.prototype.findAll = function (user) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.prisma.category.findMany({
+                if (user.role === 'OWNER') {
+                    // Owner -> رجّع بس ال categories بتاعت الماركت بتاعه
+                    return [2 /*return*/, this.prisma.category.findMany({
+                            where: {
+                                marketId: user.marketId
+                            },
                             orderBy: { nameAr: 'asc' },
                             include: {
-                                market: {
-                                    select: {
-                                        id: true,
-                                        name: true
-                                    }
-                                }
+                                market: true
                             }
                         })];
-                    case 1: return [2 /*return*/, _a.sent()];
                 }
+                // Client -> رجّع كل المنتجات
+                return [2 /*return*/, this.prisma.category.findMany({
+                        orderBy: { nameAr: 'asc' },
+                        include: {
+                            market: true
+                        }
+                    })];
             });
         });
     };

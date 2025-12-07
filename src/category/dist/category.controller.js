@@ -25,8 +25,8 @@ var CategoryController = /** @class */ (function () {
         var iconUrl = file ? "/uploads/" + file.filename : null;
         return this.categoryService.create(dto, req.user, iconUrl);
     };
-    CategoryController.prototype.findAll = function () {
-        return this.categoryService.findAll();
+    CategoryController.prototype.findAll = function (req) {
+        return this.categoryService.findAll(req.user);
     };
     CategoryController.prototype.findOne = function (id) {
         return this.categoryService.findOne(id);
@@ -49,7 +49,8 @@ var CategoryController = /** @class */ (function () {
     ], CategoryController.prototype, "create");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get()
+        common_1.Get(),
+        __param(0, common_1.Req())
     ], CategoryController.prototype, "findAll");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
