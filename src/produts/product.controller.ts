@@ -10,6 +10,7 @@ import {
   Req,
   UseInterceptors,
   UploadedFiles,
+  Query
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dtos/create-product.dto';
@@ -42,11 +43,12 @@ export class ProductController {
     return this.productService.create(ownerId, dto, imageUrls);
   }
 
-  @Roles(Role.CLIENT, Role.OWNER)
-  @Get()
-  findAll(@Req() req) {
-    return this.productService.findAll(req.user);
-  }
+ @Roles(Role.CLIENT, Role.OWNER)
+@Get()
+findAll(@Req() req, @Query() query) {
+  return this.productService.findAll(req.user, query);
+}
+
 
   @Roles(Role.OWNER)
   @Get('owner/me')
