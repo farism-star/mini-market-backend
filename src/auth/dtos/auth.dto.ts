@@ -20,7 +20,7 @@ export class AuthDto {
   @IsString()
   name: string;
 
-  @IsOptional()
+   @IsNotEmpty()
   @IsString()
   email?: string;
 
