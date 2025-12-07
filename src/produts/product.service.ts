@@ -52,40 +52,79 @@ export class ProductService {
     }
   }
 
-  async findAll(user: any) {
-    const existeUser = await this.prisma.user.findFirst({
-      where: { id: user.id },
-    });
-    if (!existeUser) {
-      throw new UnauthorizedException('User not found');
-    }
+async findAll(user: any, query: any) {
+  const { page = 1, limit = 10, search = '', categoryId, categoryName } = query;
 
-    // لو Owner يرجع بس منتجاته
-    if (user.type === 'OWNER') {
-      const Market = await this.prisma.market.findFirst({
-        where: { ownerId: existeUser.id },
-      });
-      console.log(Market);
+  const skip = (page - 1) * limit;
+  const take = Number(limit);
 
-      return this.prisma.product.findMany({
-        where: { marketId: Market?.id },
-        include: {
-          category: true,
-          market: true,
-        },
-        orderBy: { titleAr: 'asc' },
-      });
-    }
+  // تأكيد وجود المستخدم
+  const existeUser = await this.prisma.user.findFirst({
+    where: { id: user.id },
+  });
 
-    // لو Client يرجع كل المنتجات
-    return this.prisma.product.findMany({
-      include: {
-        category: true,
-        market: true,
-      },
-      orderBy: { titleAr: 'asc' },
-    });
+  if (!existeUser) {
+    throw new UnauthorizedException('User not found');
   }
+
+  // فلتر الاساس
+  const filters: any = {};
+
+  // لو Owner يعرض منتجاته فقط
+  if (user.type === 'OWNER') {
+    const market = await this.prisma.market.findFirst({
+      where: { ownerId: existeUser.id },
+    });
+
+    filters.marketId = market?.id;
+  }
+
+  // فلترة حسب Category ID
+  if (categoryId) {
+    filters.categoryId = categoryId;
+  }
+
+  // فلترة حسب Category Name
+  if (categoryName) {
+    filters.category = {
+      nameAr: { contains: categoryName, mode: 'insensitive' },
+    };
+  }
+
+  // البحث (search)
+  if (search) {
+    filters.OR = [
+      { titleAr: { contains: search, mode: 'insensitive' } },
+      { titleEn: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  // عدد النتائج الكلي
+  const total = await this.prisma.product.count({
+    where: filters,
+  });
+
+  // البيانات مع pagination
+  const data = await this.prisma.product.findMany({
+    where: filters,
+    include: {
+      category: true,
+      market: true,
+    },
+    orderBy: { titleAr: 'asc' },
+    skip,
+    take,
+  });
+
+  return {
+    page: Number(page),
+    limit: Number(limit),
+    total,
+    totalPages: Math.ceil(total / limit),
+    data,
+  };
+}
+
 
   async findByOwner(ownerId: string) {
     return await this.prisma.product.findMany({

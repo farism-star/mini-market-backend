@@ -26,8 +26,8 @@ var ProductController = /** @class */ (function () {
         var imageUrls = (files === null || files === void 0 ? void 0 : files.map(function (file) { return "/uploads/" + file.filename; })) || [];
         return this.productService.create(ownerId, dto, imageUrls);
     };
-    ProductController.prototype.findAll = function (req) {
-        return this.productService.findAll(req.user);
+    ProductController.prototype.findAll = function (req, query) {
+        return this.productService.findAll(req.user, query);
     };
     ProductController.prototype.findMyProducts = function (req) {
         return this.productService.findByOwner(req.user.id);
@@ -56,7 +56,7 @@ var ProductController = /** @class */ (function () {
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
         common_1.Get(),
-        __param(0, common_1.Req())
+        __param(0, common_1.Req()), __param(1, common_1.Query())
     ], ProductController.prototype, "findAll");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
