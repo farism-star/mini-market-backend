@@ -46,6 +46,7 @@ exports.AuthService = void 0;
 // auth.service.ts
 var common_1 = require("@nestjs/common");
 var crypto_1 = require("crypto");
+var bcrypt = require("bcrypt");
 var AuthService = /** @class */ (function () {
     function AuthService(prisma, jwtService, cloudinary, mailService) {
         this.prisma = prisma;
@@ -109,6 +110,78 @@ var AuthService = /** @class */ (function () {
                     case 5:
                         _b.sent();
                         return [2 /*return*/, { message: 'User registered successfully', user: user, market: market }];
+                }
+            });
+        });
+    };
+    AuthService.prototype.addAdmin = function (dto) {
+        return __awaiter(this, void 0, void 0, function () {
+            var email, name, password, existingAdmin, existingUser, hashedPassword, admin, admin_token;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        email = dto.email, name = dto.name, password = dto.password;
+                        if (!email || !password) {
+                            throw new common_1.BadRequestException('Email and password are required');
+                        }
+                        return [4 /*yield*/, this.prisma.userDashboard.findFirst({
+                                where: { type: 'ADMIN' }
+                            })];
+                    case 1:
+                        existingAdmin = _a.sent();
+                        if (existingAdmin) {
+                            throw new common_1.ConflictException('Admin already exists');
+                        }
+                        return [4 /*yield*/, this.prisma.userDashboard.findFirst({
+                                where: { email: email }
+                            })];
+                    case 2:
+                        existingUser = _a.sent();
+                        if (existingUser) {
+                            throw new common_1.ConflictException('Email or phone already in use');
+                        }
+                        return [4 /*yield*/, bcrypt.hash(password, 10)];
+                    case 3:
+                        hashedPassword = _a.sent();
+                        return [4 /*yield*/, this.prisma.userDashboard.create({
+                                data: {
+                                    name: name,
+                                    email: email,
+                                    password: hashedPassword,
+                                    type: 'ADMIN'
+                                }
+                            })];
+                    case 4:
+                        admin = _a.sent();
+                        admin_token = this.jwtService.sign({ sub: admin.id, type: admin.type });
+                        return [2 /*return*/, { message: 'Admin created successfully', admin: admin, admin_token: admin_token }];
+                }
+            });
+        });
+    };
+    AuthService.prototype.adminLogin = function (authDto) {
+        return __awaiter(this, void 0, void 0, function () {
+            var email, phone, password, admin, isPasswordValid, admin_token;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        email = authDto.email, phone = authDto.phone, password = authDto.password;
+                        if (!email && !phone)
+                            throw new common_1.BadRequestException('Email or phone is required');
+                        return [4 /*yield*/, this.prisma.userDashboard.findFirst({
+                                where: { email: email, type: 'ADMIN' }
+                            })];
+                    case 1:
+                        admin = _a.sent();
+                        if (!admin)
+                            throw new common_1.UnauthorizedException('Admin not found');
+                        return [4 /*yield*/, bcrypt.compare(password, admin.password)];
+                    case 2:
+                        isPasswordValid = _a.sent();
+                        if (!isPasswordValid)
+                            throw new common_1.UnauthorizedException('Invalid credentials');
+                        admin_token = this.jwtService.sign({ sub: admin.id, type: admin.type });
+                        return [2 /*return*/, { admin_token: admin_token, admin: admin }];
                 }
             });
         });

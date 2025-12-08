@@ -98,43 +98,76 @@ var ProductService = /** @class */ (function () {
             });
         });
     };
-    ProductService.prototype.findAll = function (user) {
+    ProductService.prototype.findAll = function (user, query) {
         return __awaiter(this, void 0, void 0, function () {
-            var existeUser, Market;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.prisma.user.findFirst({
-                            where: { id: user.id }
-                        })];
+            var _a, page, _b, limit, _c, search, categoryId, categoryName, skip, take, existeUser, filters, market, total, data;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
+                    case 0:
+                        _a = query.page, page = _a === void 0 ? 1 : _a, _b = query.limit, limit = _b === void 0 ? 10 : _b, _c = query.search, search = _c === void 0 ? '' : _c, categoryId = query.categoryId, categoryName = query.categoryName;
+                        skip = (page - 1) * limit;
+                        take = Number(limit);
+                        return [4 /*yield*/, this.prisma.user.findFirst({
+                                where: { id: user.id }
+                            })];
                     case 1:
-                        existeUser = _a.sent();
+                        existeUser = _d.sent();
                         if (!existeUser) {
                             throw new common_1.UnauthorizedException('User not found');
                         }
+                        filters = {};
                         if (!(user.type === 'OWNER')) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.prisma.market.findFirst({
                                 where: { ownerId: existeUser.id }
                             })];
                     case 2:
-                        Market = _a.sent();
-                        console.log(Market);
-                        return [2 /*return*/, this.prisma.product.findMany({
-                                where: { marketId: Market === null || Market === void 0 ? void 0 : Market.id },
+                        market = _d.sent();
+                        filters.marketId = market === null || market === void 0 ? void 0 : market.id;
+                        _d.label = 3;
+                    case 3:
+                        // فلترة حسب Category ID
+                        if (categoryId) {
+                            filters.categoryId = categoryId;
+                        }
+                        // فلترة حسب Category Name
+                        if (categoryName) {
+                            filters.category = {
+                                nameAr: { contains: categoryName, mode: 'insensitive' }
+                            };
+                        }
+                        // البحث (search)
+                        if (search) {
+                            filters.OR = [
+                                { titleAr: { contains: search, mode: 'insensitive' } },
+                                { titleEn: { contains: search, mode: 'insensitive' } },
+                            ];
+                        }
+                        return [4 /*yield*/, this.prisma.product.count({
+                                where: filters
+                            })];
+                    case 4:
+                        total = _d.sent();
+                        return [4 /*yield*/, this.prisma.product.findMany({
+                                where: filters,
                                 include: {
                                     category: true,
                                     market: true
                                 },
-                                orderBy: { titleAr: 'asc' }
+                                orderBy: { titleAr: 'asc' },
+                                skip: skip,
+                                take: take
                             })];
-                    case 3: 
-                    // لو Client يرجع كل المنتجات
-                    return [2 /*return*/, this.prisma.product.findMany({
-                            include: {
-                                category: true,
-                                market: true
-                            },
-                            orderBy: { titleAr: 'asc' }
-                        })];
+                    case 5:
+                        data = _d.sent();
+                        return [2 /*return*/, {
+                                pagination: {
+                                    page: Number(page),
+                                    limit: Number(limit),
+                                    total: total,
+                                    totalPages: Math.ceil(total / limit)
+                                },
+                                data: data
+                            }];
                 }
             });
         });

@@ -117,10 +117,12 @@ async findAll(user: any, query: any) {
   });
 
   return {
-    page: Number(page),
+   pagination:{
+     page: Number(page),
     limit: Number(limit),
     total,
     totalPages: Math.ceil(total / limit),
+   },
     data,
   };
 }

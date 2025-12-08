@@ -41,6 +41,10 @@ var AuthDto = /** @class */ (function () {
     __decorate([
         class_validator_1.IsOptional(),
         class_validator_1.IsString()
+    ], AuthDto.prototype, "password");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsString()
     ], AuthDto.prototype, "marketName");
     __decorate([
         class_validator_1.IsNotEmpty(),

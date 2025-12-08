@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
+import { AddAdminDto } from './dtos/add-admin.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from './roles.gaurd';
 import { Roles } from './Role.decorator';
@@ -25,10 +26,7 @@ export class AuthController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: AuthDto,
   ) {
-    
-
     const imageUrl = file ? `/uploads/${file.originalname}` : null;
-
     return this.authService.register(dto, imageUrl);
   }
   @Post('login')
@@ -105,8 +103,14 @@ export class AuthController {
     return this.authService.getUserAddresses(userId);
   }
 
-
-
+@Post('admin/login')
+  async adminLogin(@Body() authDto: Login) {
+    return this.authService.adminLogin(authDto);
+  }
+ @Post('add-admin')
+  async addAdmin(@Body() dto: AddAdminDto, @Req() req: any) {
+    return this.authService.addAdmin(dto);
+  }
 
 
 
