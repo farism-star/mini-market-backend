@@ -3,11 +3,12 @@ import { Injectable, UnauthorizedException, BadRequestException, ConflictExcepti
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { randomInt } from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
 import { Login } from './dtos/login.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { MailService } from 'src/mail/mail.service';
-
+import { AddAdminDto } from './dtos/add-admin.dto';
 @Injectable()
 export class AuthService {
   constructor(
@@ -65,7 +66,66 @@ export class AuthService {
 
     return { message: 'User registered successfully', user, market };
   }
+  async addAdmin(dto: AddAdminDto) {
+    const { email, name, password } = dto;
 
+    if (!email || !password) {
+      throw new BadRequestException('Email and password are required');
+    }
+
+    // تأكد إن ما فيش Admin أصلاً
+    const existingAdmin = await this.prisma.userDashboard.findFirst({
+      where: { type: 'ADMIN' },
+    });
+
+    if (existingAdmin) {
+      throw new ConflictException('Admin already exists');
+    }
+
+    // تأكد إن البريد أو التليفون مش مستخدم
+    const existingUser = await this.prisma.userDashboard.findFirst({
+      where: {email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email or phone already in use');
+    }
+
+    // تشفير كلمة المرور
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const admin = await this.prisma.userDashboard.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        type: 'ADMIN',
+      },
+    });
+
+    const admin_token = this.jwtService.sign({ sub: admin.id, type: admin.type });
+
+    return { message: 'Admin created successfully', admin, admin_token };
+  }
+async adminLogin(authDto: Login) {
+    const { email, phone, password } = authDto;
+
+    if (!email && !phone) throw new BadRequestException('Email or phone is required');
+
+    const admin = await this.prisma.userDashboard.findFirst({
+      where: { email, type: 'ADMIN' }, // فقط admins
+    });
+
+    if (!admin) throw new UnauthorizedException('Admin not found');
+
+    // تحقق من كلمة المرور (افترض أنها مخزنة بشكل مشفر)
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
+
+    const admin_token = this.jwtService.sign({ sub: admin.id, type: admin.type });
+
+    return { admin_token, admin };
+  }
 
   async login(authDto: Login) {
     const { email, phone } = authDto;

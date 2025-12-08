@@ -32,7 +32,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
+app.enableCors({
+    origin: '*', 
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+    credentials: true, 
+  });
   await app.listen(5000);
 
 }

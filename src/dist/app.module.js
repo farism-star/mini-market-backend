@@ -13,6 +13,7 @@ var serve_static_1 = require("@nestjs/serve-static");
 var path_1 = require("path");
 var prisma_module_1 = require("./prisma/prisma.module");
 var app_controller_1 = require("./app.controller");
+var loader_controller_1 = require("./loader.controller");
 var app_service_1 = require("./app.service");
 var auth_module_1 = require("./auth/auth.module");
 var twilio_module_1 = require("./twilio/twilio.module");
@@ -35,7 +36,7 @@ var AppModule = /** @class */ (function () {
     AppModule.prototype.configure = function (consumer) {
         consumer
             .apply(UserCheckMiddleware_1.UserCheckMiddleware)
-            .exclude({ path: 'v1/auth/login', method: common_1.RequestMethod.POST }, { path: 'v1/auth/register', method: common_1.RequestMethod.POST }, { path: 'v1/auth/delete-users', method: common_1.RequestMethod.DELETE }, { path: 'v1/messages/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'v1/orders/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'v1/auth/verify-otp', method: common_1.RequestMethod.POST }, { path: 'v1/twilio/send-sms', method: common_1.RequestMethod.POST }, { path: 'uploads/(.*)', method: common_1.RequestMethod.GET })
+            .exclude({ path: 'v1/auth/login', method: common_1.RequestMethod.POST }, { path: 'v1/auth/register', method: common_1.RequestMethod.POST }, { path: 'v1/auth/admin/login', method: common_1.RequestMethod.POST }, { path: 'v1/auth/add-admin', method: common_1.RequestMethod.POST }, { path: 'v1/auth/delete-users', method: common_1.RequestMethod.DELETE }, { path: 'v1/messages/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'v1/orders/delete-all', method: common_1.RequestMethod.DELETE }, { path: 'v1/auth/verify-otp', method: common_1.RequestMethod.POST }, { path: 'v1/twilio/send-sms', method: common_1.RequestMethod.POST }, { path: 'uploads/(.*)', method: common_1.RequestMethod.GET })
             .forRoutes('*');
     };
     AppModule = __decorate([
@@ -64,7 +65,7 @@ var AppModule = /** @class */ (function () {
                 message_module_1.MessageModule,
                 jwt_1.JwtModule.register({ secret: process.env.JWT_SECRET }),
             ],
-            controllers: [app_controller_1.AppController],
+            controllers: [app_controller_1.AppController, loader_controller_1.LoaderController],
             providers: [app_service_1.AppService]
         })
     ], AppModule);

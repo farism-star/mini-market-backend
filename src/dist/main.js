@@ -67,6 +67,12 @@ function bootstrap() {
                         forbidNonWhitelisted: true,
                         transform: true
                     }));
+                    app.enableCors({
+                        origin: '*',
+                        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+                        allowedHeaders: 'Content-Type, Accept, Authorization',
+                        credentials: true
+                    });
                     return [4 /*yield*/, app.listen(5000)];
                 case 2:
                     _a.sent();

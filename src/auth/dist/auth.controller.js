@@ -115,6 +115,20 @@ var AuthController = /** @class */ (function () {
     AuthController.prototype.getUserAddresses = function (userId) {
         return this.authService.getUserAddresses(userId);
     };
+    AuthController.prototype.adminLogin = function (authDto) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.authService.adminLogin(authDto)];
+            });
+        });
+    };
+    AuthController.prototype.addAdmin = function (dto, req) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.authService.addAdmin(dto)];
+            });
+        });
+    };
     __decorate([
         common_1.Post('register'),
         common_1.UseInterceptors(platform_express_1.FileInterceptor('image', multer_config_1.multerConfig)),
@@ -163,6 +177,14 @@ var AuthController = /** @class */ (function () {
         common_1.Get('address/user/:userId'),
         __param(0, common_1.Param('userId'))
     ], AuthController.prototype, "getUserAddresses");
+    __decorate([
+        common_1.Post('admin/login'),
+        __param(0, common_1.Body())
+    ], AuthController.prototype, "adminLogin");
+    __decorate([
+        common_1.Post('add-admin'),
+        __param(0, common_1.Body()), __param(1, common_1.Req())
+    ], AuthController.prototype, "addAdmin");
     AuthController = __decorate([
         common_1.Controller({
             path: 'auth',

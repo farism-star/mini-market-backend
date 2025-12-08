@@ -4,6 +4,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
+import { LoaderController } from './loader.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { TwilioModule } from './twilio/twilio.module';
@@ -24,10 +25,10 @@ import { multerConfig } from './upload/multer.config';
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), 'uploads'), // ✅ المسار الصحيح
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
       serveStaticOptions: {
-        index: false, // ✅ مهم جداً
+        index: false, 
       },
     }),
 
@@ -47,7 +48,7 @@ import { multerConfig } from './upload/multer.config';
     MessageModule,
     JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],
-  controllers: [AppController],
+  controllers: [AppController,LoaderController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
@@ -57,6 +58,8 @@ export class AppModule implements NestModule {
       .exclude(
         { path: 'v1/auth/login', method: RequestMethod.POST },
         { path: 'v1/auth/register', method: RequestMethod.POST },
+        { path: 'v1/auth/admin/login', method: RequestMethod.POST },
+        { path: 'v1/auth/add-admin', method: RequestMethod.POST },
         { path: 'v1/auth/delete-users', method: RequestMethod.DELETE },
         { path: 'v1/messages/delete-all', method: RequestMethod.DELETE },
         { path: 'v1/orders/delete-all', method: RequestMethod.DELETE },
