@@ -56,17 +56,18 @@ var ProductService = /** @class */ (function () {
         this.prisma = prisma;
     }
     ProductService.prototype.create = function (ownerId, dto, imageUrls) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function () {
             var user, Market, err_1;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            return __generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a.trys.push([0, 3, , 4]);
+                        _c.trys.push([0, 3, , 4]);
                         return [4 /*yield*/, this.prisma.user.findUnique({
                                 where: { id: ownerId }
                             })];
                     case 1:
-                        user = _a.sent();
+                        user = _c.sent();
                         if (!user || user.type !== 'OWNER') {
                             throw new common_1.UnauthorizedException('Only OWNER can create products');
                         }
@@ -74,7 +75,7 @@ var ProductService = /** @class */ (function () {
                                 where: { ownerId: user.id }
                             })];
                     case 2:
-                        Market = _a.sent();
+                        Market = _c.sent();
                         if (!Market) {
                             throw new common_1.BadRequestException('Owner has no market yet');
                         }
@@ -83,8 +84,8 @@ var ProductService = /** @class */ (function () {
                                 data: {
                                     titleAr: dto.titleAr,
                                     titleEn: dto.titleEn,
-                                    descreptionAr: dto.descreptionAr,
-                                    descriptionEn: dto.descriptionEn,
+                                    descreptionAr: (_a = dto.descreptionAr) !== null && _a !== void 0 ? _a : "",
+                                    descriptionEn: (_b = dto.descriptionEn) !== null && _b !== void 0 ? _b : "",
                                     price: dto.price,
                                     images: imageUrls,
                                     categoryId: dto.categoryId,
@@ -92,7 +93,7 @@ var ProductService = /** @class */ (function () {
                                 }
                             })];
                     case 3:
-                        err_1 = _a.sent();
+                        err_1 = _c.sent();
                         console.log(err_1);
                         throw new common_1.InternalServerErrorException(err_1.message || 'Failed to create product');
                     case 4: return [2 /*return*/];
