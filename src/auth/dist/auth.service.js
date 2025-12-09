@@ -186,6 +186,40 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
+    // جلب كل الـ Clients
+    AuthService.prototype.getAllClients = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var clients;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.user.findMany({
+                            where: { type: 'CLIENT' },
+                            include: { addresses: true, market: true }
+                        })];
+                    case 1:
+                        clients = _a.sent();
+                        return [2 /*return*/, clients];
+                }
+            });
+        });
+    };
+    // جلب كل الـ Owners
+    AuthService.prototype.getAllOwners = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var owners;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.user.findMany({
+                            where: { type: 'OWNER' },
+                            include: { addresses: true, market: true }
+                        })];
+                    case 1:
+                        owners = _a.sent();
+                        return [2 /*return*/, owners];
+                }
+            });
+        });
+    };
     AuthService.prototype.login = function (authDto) {
         return __awaiter(this, void 0, void 0, function () {
             var email, phone, user;

@@ -172,6 +172,8 @@ model Product {
   id      String   @id @default(auto()) @map("_id") @db.ObjectId
   titleAr String?
   titleEn String?
+  descreptionAr String?
+  descriptionEn String?
   price   Float?
   images  String[] @default([])
 

@@ -9,6 +9,12 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   titleEn?: string;
+  @IsOptional()
+  @IsString()
+  descreptionAr?: string;
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
 
   @IsOptional()
   @Type(() => Number)   // ← ده اللي بيحول من text → number

@@ -111,7 +111,22 @@ export class AuthController {
   async addAdmin(@Body() dto: AddAdminDto, @Req() req: any) {
     return this.authService.addAdmin(dto);
   }
+ @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/clients')
+  async getAllClients( @Req() req: any) {
+    const user = req.user
+    console.log("user",user)
+    return this.authService.getAllClients();
+  }
 
+  // جلب كل الـ Owners - Admin فقط
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/owners')
+  async getAllOwners() {
+    return this.authService.getAllOwners();
+  }
 
 
 }
