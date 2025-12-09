@@ -220,6 +220,19 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
+    // auth.service.ts
+    AuthService.prototype.getMarkets = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.prisma.market.findMany({
+                        include: {
+                            owner: true,
+                            products: true
+                        }
+                    })];
+            });
+        });
+    };
     AuthService.prototype.login = function (authDto) {
         return __awaiter(this, void 0, void 0, function () {
             var email, phone, user;

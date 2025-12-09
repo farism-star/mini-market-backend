@@ -22,6 +22,7 @@ var ProductController = /** @class */ (function () {
         this.productService = productService;
     }
     ProductController.prototype.create = function (files, dto, req) {
+        console.log("This is The Images For Products images", files);
         var ownerId = req.user.id;
         var imageUrls = (files === null || files === void 0 ? void 0 : files.map(function (file) { return "/uploads/" + file.filename; })) || [];
         return this.productService.create(ownerId, dto, imageUrls);

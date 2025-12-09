@@ -147,6 +147,13 @@ var AuthController = /** @class */ (function () {
             });
         });
     };
+    AuthController.prototype.getAllMarkets = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.authService.getMarkets()];
+            });
+        });
+    };
     __decorate([
         common_1.Post('register'),
         common_1.UseInterceptors(platform_express_1.FileInterceptor('image', multer_config_1.multerConfig)),
@@ -214,6 +221,11 @@ var AuthController = /** @class */ (function () {
         Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
         common_1.Get('admin/owners')
     ], AuthController.prototype, "getAllOwners");
+    __decorate([
+        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
+        Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
+        common_1.Get('admin/markets')
+    ], AuthController.prototype, "getAllMarkets");
     AuthController = __decorate([
         common_1.Controller({
             path: 'auth',

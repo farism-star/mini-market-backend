@@ -143,6 +143,15 @@ async getAllOwners() {
   });
   return  owners ;
 }
+// auth.service.ts
+async getMarkets() {
+  return this.prisma.market.findMany({
+    include: {
+      owner: true, // لو عايز تجيب بيانات الـ Owner لكل Market
+      products: true, // لو حابب تجيب المنتجات المرتبطة
+    },
+  });
+}
 
 
   async login(authDto: Login) {
