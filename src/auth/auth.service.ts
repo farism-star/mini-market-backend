@@ -347,63 +347,79 @@ async getDashboardData(userId: string, type: string) {
 
     return { token, user };
   }
-  async updateUser(
-    userId: string,
-    dto: UpdateUserDto,
-    userImage?: string | null,
-    marketImage?: string | null,
-  ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { market: true, addresses: true },
+ async updateUser(
+  userId: string,
+  dto: UpdateUserDto,
+  userImage?: string | null,
+  marketImage?: string | null,
+) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { market: true, addresses: true },
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  // تحقق من الرقم قبل التحديث
+  if (dto.phone && dto.phone !== user.phone) {
+    const existingPhone = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
     });
-
-    if (!user) throw new NotFoundException('User not found');
-
-    // صورة اليوزر
-    let finalUserImage = user.image;
-    if (userImage) {
-      finalUserImage = userImage;
+    if (existingPhone) {
+      throw new BadRequestException('Phone number is already in use by another user.');
     }
+  }
 
-    await this.prisma.user.update({
-      where: { id: userId },
+  // تحقق من الايميل قبل التحديث لو عندك unique
+  if (dto.email && dto.email !== user.email) {
+    const existingEmail = await this.prisma.user.findFirst({
+      where: { email: dto.email },
+    });
+    if (existingEmail) {
+      throw new BadRequestException('Email is already in use by another user.');
+    }
+  }
+
+  // صورة اليوزر
+  let finalUserImage = user.image;
+  if (userImage) finalUserImage = userImage;
+
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: dto.name ?? user.name,
+      email: dto.email ?? user.email,
+      isAproved: dto.isAproved ??false,
+      phone: dto.phone ?? user.phone,
+      image: finalUserImage,
+    }
+  });
+
+  // لو Owner نعدل بيانات الماركت
+  if (user.type === 'OWNER' && user.market) {
+    let finalMarketImage = user.market.image;
+    if (marketImage) finalMarketImage = marketImage;
+
+    await this.prisma.market.update({
+      where: { id: user.market.id },
       data: {
-        name: dto.name ?? user.name,
-        email: dto.email ?? user.email,
-        phone: dto.phone ?? user.phone,
-        image: finalUserImage,
+        name: dto.market?.name ?? user.market.name,
+        zone: dto.market?.zone ?? user.market.zone,
+        district: dto.market?.district ?? user.market.district,
+        address: dto.market?.address ?? user.market.address,
+        operations: dto.market?.operations ?? user.market.operations,
+        hours: dto.market?.hours ?? user.market.hours,
+        image: finalMarketImage,
       }
-    });
-
-    // لو Owner نعدل بيانات الماركت
-    if (user.type === 'OWNER' && user.market) {
-
-      let finalMarketImage = user.market.image;
-
-      if (marketImage) {
-        finalMarketImage = marketImage;
-      }
-
-      await this.prisma.market.update({
-        where: { id: user.market.id },
-        data: {
-          name: dto.market?.name ?? user.market.name,
-          zone: dto.market?.zone ?? user.market.zone,
-          district: dto.market?.district ?? user.market.district,
-          address: dto.market?.address ?? user.market.address,
-          operations: dto.market?.operations ?? user.market.operations,
-          hours: dto.market?.hours ?? user.market.hours,
-          image: finalMarketImage
-        }
-      });
-    }
-
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { market: true, addresses: true },
     });
   }
+
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { market: true, addresses: true },
+  });
+}
+
 
 
   async createAddress(userId: string, dto: UpdateAddressDto) {
@@ -492,5 +508,37 @@ async getDashboardData(userId: string, type: string) {
     });
   }
 
+async deleteUser(userId: string) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { market: true },
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  return await this.prisma.$transaction(async (prisma) => {
+    // حذف الرسائل والإشعارات والـ OTP الخاصة بالمستخدم
+    await prisma.message.deleteMany({ where: { senderId: userId } });
+    await prisma.notification.deleteMany({ where: { userId } });
+    await prisma.otp.deleteMany({ where: { userId } });
+
+    // حذف العناوين
+    await prisma.address.deleteMany({ where: { userId } });
+
+    // لو Owner → حذف الماركت والمنتجات والطلبات
+    if (user.type === 'OWNER' && user.market) {
+      const marketId = user.market.id;
+
+      await prisma.order.deleteMany({ where: { marketId } });
+      await prisma.product.deleteMany({ where: { marketId } });
+      await prisma.market.delete({ where: { id: marketId } });
+    }
+
+    // حذف المستخدم نفسه
+    await prisma.user.delete({ where: { id: userId } });
+
+    return { message: `User ${user.name} has been deleted successfully.` };
+  });
+}
 
 }

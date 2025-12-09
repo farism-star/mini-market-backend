@@ -451,55 +451,76 @@ var AuthService = /** @class */ (function () {
         });
     };
     AuthService.prototype.updateUser = function (userId, dto, userImage, marketImage) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         return __awaiter(this, void 0, void 0, function () {
-            var user, finalUserImage, finalMarketImage;
-            return __generator(this, function (_r) {
-                switch (_r.label) {
+            var user, existingPhone, existingEmail, finalUserImage, finalMarketImage;
+            return __generator(this, function (_s) {
+                switch (_s.label) {
                     case 0: return [4 /*yield*/, this.prisma.user.findUnique({
                             where: { id: userId },
                             include: { market: true, addresses: true }
                         })];
                     case 1:
-                        user = _r.sent();
+                        user = _s.sent();
                         if (!user)
                             throw new common_1.NotFoundException('User not found');
-                        finalUserImage = user.image;
-                        if (userImage) {
-                            finalUserImage = userImage;
+                        if (!(dto.phone && dto.phone !== user.phone)) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.prisma.user.findFirst({
+                                where: { phone: dto.phone }
+                            })];
+                    case 2:
+                        existingPhone = _s.sent();
+                        if (existingPhone) {
+                            throw new common_1.BadRequestException('Phone number is already in use by another user.');
                         }
+                        _s.label = 3;
+                    case 3:
+                        if (!(dto.email && dto.email !== user.email)) return [3 /*break*/, 5];
+                        return [4 /*yield*/, this.prisma.user.findFirst({
+                                where: { email: dto.email }
+                            })];
+                    case 4:
+                        existingEmail = _s.sent();
+                        if (existingEmail) {
+                            throw new common_1.BadRequestException('Email is already in use by another user.');
+                        }
+                        _s.label = 5;
+                    case 5:
+                        finalUserImage = user.image;
+                        if (userImage)
+                            finalUserImage = userImage;
                         return [4 /*yield*/, this.prisma.user.update({
                                 where: { id: userId },
                                 data: {
                                     name: (_a = dto.name) !== null && _a !== void 0 ? _a : user.name,
                                     email: (_b = dto.email) !== null && _b !== void 0 ? _b : user.email,
-                                    phone: (_c = dto.phone) !== null && _c !== void 0 ? _c : user.phone,
+                                    isAproved: (_c = dto.isAproved) !== null && _c !== void 0 ? _c : false,
+                                    phone: (_d = dto.phone) !== null && _d !== void 0 ? _d : user.phone,
                                     image: finalUserImage
                                 }
                             })];
-                    case 2:
-                        _r.sent();
-                        if (!(user.type === 'OWNER' && user.market)) return [3 /*break*/, 4];
+                    case 6:
+                        _s.sent();
+                        if (!(user.type === 'OWNER' && user.market)) return [3 /*break*/, 8];
                         finalMarketImage = user.market.image;
-                        if (marketImage) {
+                        if (marketImage)
                             finalMarketImage = marketImage;
-                        }
                         return [4 /*yield*/, this.prisma.market.update({
                                 where: { id: user.market.id },
                                 data: {
-                                    name: (_e = (_d = dto.market) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : user.market.name,
-                                    zone: (_g = (_f = dto.market) === null || _f === void 0 ? void 0 : _f.zone) !== null && _g !== void 0 ? _g : user.market.zone,
-                                    district: (_j = (_h = dto.market) === null || _h === void 0 ? void 0 : _h.district) !== null && _j !== void 0 ? _j : user.market.district,
-                                    address: (_l = (_k = dto.market) === null || _k === void 0 ? void 0 : _k.address) !== null && _l !== void 0 ? _l : user.market.address,
-                                    operations: (_o = (_m = dto.market) === null || _m === void 0 ? void 0 : _m.operations) !== null && _o !== void 0 ? _o : user.market.operations,
-                                    hours: (_q = (_p = dto.market) === null || _p === void 0 ? void 0 : _p.hours) !== null && _q !== void 0 ? _q : user.market.hours,
+                                    name: (_f = (_e = dto.market) === null || _e === void 0 ? void 0 : _e.name) !== null && _f !== void 0 ? _f : user.market.name,
+                                    zone: (_h = (_g = dto.market) === null || _g === void 0 ? void 0 : _g.zone) !== null && _h !== void 0 ? _h : user.market.zone,
+                                    district: (_k = (_j = dto.market) === null || _j === void 0 ? void 0 : _j.district) !== null && _k !== void 0 ? _k : user.market.district,
+                                    address: (_m = (_l = dto.market) === null || _l === void 0 ? void 0 : _l.address) !== null && _m !== void 0 ? _m : user.market.address,
+                                    operations: (_p = (_o = dto.market) === null || _o === void 0 ? void 0 : _o.operations) !== null && _p !== void 0 ? _p : user.market.operations,
+                                    hours: (_r = (_q = dto.market) === null || _q === void 0 ? void 0 : _q.hours) !== null && _r !== void 0 ? _r : user.market.hours,
                                     image: finalMarketImage
                                 }
                             })];
-                    case 3:
-                        _r.sent();
-                        _r.label = 4;
-                    case 4: return [2 /*return*/, this.prisma.user.findUnique({
+                    case 7:
+                        _s.sent();
+                        _s.label = 8;
+                    case 8: return [2 /*return*/, this.prisma.user.findUnique({
                             where: { id: userId },
                             include: { market: true, addresses: true }
                         })];
@@ -651,6 +672,68 @@ var AuthService = /** @class */ (function () {
                             });
                         }); })];
                     case 1: return [2 /*return*/, _a.sent()];
+                }
+            });
+        });
+    };
+    AuthService.prototype.deleteUser = function (userId) {
+        return __awaiter(this, void 0, void 0, function () {
+            var user;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.user.findUnique({
+                            where: { id: userId },
+                            include: { market: true }
+                        })];
+                    case 1:
+                        user = _a.sent();
+                        if (!user)
+                            throw new common_1.NotFoundException('User not found');
+                        return [4 /*yield*/, this.prisma.$transaction(function (prisma) { return __awaiter(_this, void 0, void 0, function () {
+                                var marketId;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0: 
+                                        // حذف الرسائل والإشعارات والـ OTP الخاصة بالمستخدم
+                                        return [4 /*yield*/, prisma.message.deleteMany({ where: { senderId: userId } })];
+                                        case 1:
+                                            // حذف الرسائل والإشعارات والـ OTP الخاصة بالمستخدم
+                                            _a.sent();
+                                            return [4 /*yield*/, prisma.notification.deleteMany({ where: { userId: userId } })];
+                                        case 2:
+                                            _a.sent();
+                                            return [4 /*yield*/, prisma.otp.deleteMany({ where: { userId: userId } })];
+                                        case 3:
+                                            _a.sent();
+                                            // حذف العناوين
+                                            return [4 /*yield*/, prisma.address.deleteMany({ where: { userId: userId } })];
+                                        case 4:
+                                            // حذف العناوين
+                                            _a.sent();
+                                            if (!(user.type === 'OWNER' && user.market)) return [3 /*break*/, 8];
+                                            marketId = user.market.id;
+                                            return [4 /*yield*/, prisma.order.deleteMany({ where: { marketId: marketId } })];
+                                        case 5:
+                                            _a.sent();
+                                            return [4 /*yield*/, prisma.product.deleteMany({ where: { marketId: marketId } })];
+                                        case 6:
+                                            _a.sent();
+                                            return [4 /*yield*/, prisma.market["delete"]({ where: { id: marketId } })];
+                                        case 7:
+                                            _a.sent();
+                                            _a.label = 8;
+                                        case 8: 
+                                        // حذف المستخدم نفسه
+                                        return [4 /*yield*/, prisma.user["delete"]({ where: { id: userId } })];
+                                        case 9:
+                                            // حذف المستخدم نفسه
+                                            _a.sent();
+                                            return [2 /*return*/, { message: "User " + user.name + " has been deleted successfully." }];
+                                    }
+                                });
+                            }); })];
+                    case 2: return [2 /*return*/, _a.sent()];
                 }
             });
         });

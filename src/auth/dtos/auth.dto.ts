@@ -139,6 +139,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   image?: string;
+  @IsOptional()
+  @IsBoolean()
+  isAproved?: boolean;
 
   @IsOptional()
   address?: UpdateAddressDto;
