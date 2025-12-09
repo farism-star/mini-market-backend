@@ -233,6 +233,97 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
+    // داخل AuthService
+    AuthService.prototype.getDashboardData = function (userId, type) {
+        return __awaiter(this, void 0, void 0, function () {
+            var lastConversation, formattedConversation, otherUserId, otherUser, lastMsg, lastProducts, conversations, lastSentMessages;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!(type === 'OWNER')) return [3 /*break*/, 5];
+                        return [4 /*yield*/, this.prisma.conversation.findFirst({
+                                where: { users: { has: userId } },
+                                orderBy: { updatedAt: 'desc' },
+                                include: {
+                                    messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+                                    _count: {
+                                        select: {
+                                            messages: {
+                                                where: { senderId: { not: userId }, isRead: false }
+                                            }
+                                        }
+                                    }
+                                }
+                            })];
+                    case 1:
+                        lastConversation = _a.sent();
+                        formattedConversation = void 0;
+                        if (!lastConversation) return [3 /*break*/, 3];
+                        otherUserId = lastConversation.users.find(function (uid) { return uid !== userId; });
+                        return [4 /*yield*/, this.prisma.user.findUnique({
+                                where: { id: otherUserId },
+                                select: { id: true, name: true, image: true }
+                            })];
+                    case 2:
+                        otherUser = _a.sent();
+                        lastMsg = lastConversation.messages[0];
+                        formattedConversation = {
+                            id: lastConversation.id,
+                            user: otherUser,
+                            lastMessage: lastMsg
+                                ? {
+                                    id: lastMsg.id,
+                                    type: lastMsg.type,
+                                    senderId: lastMsg.senderId,
+                                    text: lastMsg.text,
+                                    image: lastMsg.imageUrl,
+                                    voice: lastMsg.voice,
+                                    createdAt: lastMsg.createdAt
+                                }
+                                : null,
+                            unreadMessages: lastConversation._count.messages
+                        };
+                        _a.label = 3;
+                    case 3: return [4 /*yield*/, this.prisma.product.findMany({
+                            orderBy: { createdAt: 'desc' },
+                            take: 5
+                        })];
+                    case 4:
+                        lastProducts = _a.sent();
+                        return [2 /*return*/, { lastConversation: formattedConversation, lastProducts: lastProducts }];
+                    case 5: return [4 /*yield*/, this.prisma.conversation.findMany({
+                            where: { users: { has: userId } },
+                            include: {
+                                messages: {
+                                    orderBy: { createdAt: 'desc' },
+                                    where: { senderId: userId },
+                                    take: 1
+                                }
+                            }
+                        })];
+                    case 6:
+                        conversations = _a.sent();
+                        lastSentMessages = conversations.map(function (conv) {
+                            var msg = conv.messages[0];
+                            return {
+                                conversationId: conv.id,
+                                lastMessage: msg
+                                    ? {
+                                        id: msg.id,
+                                        type: msg.type,
+                                        text: msg.text,
+                                        image: msg.imageUrl,
+                                        voice: msg.voice,
+                                        createdAt: msg.createdAt
+                                    }
+                                    : null
+                            };
+                        });
+                        return [2 /*return*/, { lastSentMessages: lastSentMessages }];
+                }
+            });
+        });
+    };
     AuthService.prototype.login = function (authDto) {
         return __awaiter(this, void 0, void 0, function () {
             var email, phone, user;

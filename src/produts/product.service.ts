@@ -113,7 +113,7 @@ async findAll(user: any, query: any) {
       category: true,
       market: true,
     },
-    orderBy: { titleAr: 'asc' },
+    orderBy: { createdAt: 'desc' },
     skip,
     take,
   });

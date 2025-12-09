@@ -156,7 +156,7 @@ var ProductService = /** @class */ (function () {
                                     category: true,
                                     market: true
                                 },
-                                orderBy: { titleAr: 'asc' },
+                                orderBy: { createdAt: 'desc' },
                                 skip: skip,
                                 take: take
                             })];
