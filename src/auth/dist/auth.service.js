@@ -236,16 +236,18 @@ var AuthService = /** @class */ (function () {
     // داخل AuthService
     AuthService.prototype.getDashboardData = function (userId, type) {
         return __awaiter(this, void 0, void 0, function () {
-            var lastConversation, formattedConversation, otherUserId, otherUser, lastMsg, lastProducts, conversations, lastSentMessages;
+            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, conversations, lastSentMessages;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!(type === 'OWNER')) return [3 /*break*/, 5];
-                        return [4 /*yield*/, this.prisma.conversation.findFirst({
+                        return [4 /*yield*/, this.prisma.conversation.findMany({
                                 where: { users: { has: userId } },
-                                orderBy: { updatedAt: 'desc' },
                                 include: {
-                                    messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+                                    messages: {
+                                        orderBy: { createdAt: 'desc' },
+                                        take: 1
+                                    },
                                     _count: {
                                         select: {
                                             messages: {
@@ -253,12 +255,15 @@ var AuthService = /** @class */ (function () {
                                             }
                                         }
                                     }
-                                }
+                                },
+                                orderBy: { updatedAt: 'desc' },
+                                take: 1
                             })];
                     case 1:
-                        lastConversation = _a.sent();
+                        conversations = _a.sent();
                         formattedConversation = void 0;
-                        if (!lastConversation) return [3 /*break*/, 3];
+                        if (!(conversations.length > 0)) return [3 /*break*/, 3];
+                        lastConversation = conversations[0];
                         otherUserId = lastConversation.users.find(function (uid) { return uid !== userId; });
                         return [4 /*yield*/, this.prisma.user.findUnique({
                                 where: { id: otherUserId },
@@ -286,7 +291,8 @@ var AuthService = /** @class */ (function () {
                         _a.label = 3;
                     case 3: return [4 /*yield*/, this.prisma.product.findMany({
                             orderBy: { createdAt: 'desc' },
-                            take: 5
+                            take: 5,
+                            include: { category: true, market: true }
                         })];
                     case 4:
                         lastProducts = _a.sent();
@@ -299,7 +305,9 @@ var AuthService = /** @class */ (function () {
                                     where: { senderId: userId },
                                     take: 1
                                 }
-                            }
+                            },
+                            orderBy: { updatedAt: 'desc' },
+                            take: 1
                         })];
                     case 6:
                         conversations = _a.sent();
