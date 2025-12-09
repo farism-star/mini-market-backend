@@ -22,6 +22,14 @@ var CreateProductDto = /** @class */ (function () {
     ], CreateProductDto.prototype, "titleEn");
     __decorate([
         class_validator_1.IsOptional(),
+        class_validator_1.IsString()
+    ], CreateProductDto.prototype, "descreptionAr");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsString()
+    ], CreateProductDto.prototype, "descriptionEn");
+    __decorate([
+        class_validator_1.IsOptional(),
         class_transformer_1.Type(function () { return Number; }) // ← ده اللي بيحول من text → number
         ,
         class_validator_1.IsNumber()

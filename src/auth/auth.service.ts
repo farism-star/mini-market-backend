@@ -126,6 +126,24 @@ async adminLogin(authDto: Login) {
 
     return { admin_token, admin };
   }
+  // جلب كل الـ Clients
+async getAllClients() {
+  const clients = await this.prisma.user.findMany({
+    where: { type: 'CLIENT' },
+    include: { addresses: true, market: true },
+  });
+  return clients ;
+}
+
+// جلب كل الـ Owners
+async getAllOwners() {
+  const owners = await this.prisma.user.findMany({
+    where: { type: 'OWNER' },
+    include: { addresses: true, market: true },
+  });
+  return  owners ;
+}
+
 
   async login(authDto: Login) {
     const { email, phone } = authDto;
