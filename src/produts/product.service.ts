@@ -38,8 +38,8 @@ export class ProductService {
         data: {
           titleAr: dto.titleAr!,
           titleEn: dto.titleEn!,
-          descreptionAr: dto.descreptionAr,
-          descriptionEn: dto.descriptionEn!,
+          descreptionAr: dto.descreptionAr?? "",
+          descriptionEn: dto.descriptionEn?? "",
           price: dto.price!,
           images: imageUrls, // ✅ استخدام الصور المرفوعة من Multer
           categoryId: dto.categoryId!,

@@ -84,7 +84,7 @@ var ProductService = /** @class */ (function () {
                                     titleAr: dto.titleAr,
                                     titleEn: dto.titleEn,
                                     descreptionAr: dto.descreptionAr,
-                                    descriptionEn: dto.descriptionEى,
+                                    descriptionEn: dto.descriptionEn,
                                     price: dto.price,
                                     images: imageUrls,
                                     categoryId: dto.categoryId,
