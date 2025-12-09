@@ -53,33 +53,33 @@ export class AuthController {
     return req.user;
   }
 
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.CLIENT, Role.OWNER)
-  @Patch('update')
-  @UseInterceptors(AnyFilesInterceptor(multerConfig))
-  async updateUser(
-    @UploadedFiles() files: Array<Express.Multer.File>,
-    @Body() dto: UpdateUserDto,
-    @Req() req: any,
-  ) {
-    // console.log(req.user)
-    const userId = req.user.id;
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(Role.CLIENT, Role.OWNER, Role.ADMIN)
+@Patch('update')
+@UseInterceptors(AnyFilesInterceptor(multerConfig))
+async updateUser(
+  @UploadedFiles() files: Array<Express.Multer.File>,
+  @Body() dto: UpdateUserDto & { userId?: string }, // ممكن يبقى فيه userId في البادي
+  @Req() req: any,
+) {
+  // ناخد الـ userId من البادي لو موجود، وإلا ناخده من الـ JWT
+  const userId = dto.userId || req.user.id;
 
-    let userImage: string | null = null;
-    let marketImage: string | null = null;
+  let userImage: string | null = null;
+  let marketImage: string | null = null;
 
-    // Loop files
-    files.forEach((file) => {
-      if (file.fieldname === 'image') {
-        userImage = `/uploads/${file.filename}`;
-      }
-      if (file.fieldname === 'marketImage') {
-        marketImage = `/uploads/${file.filename}`;
-      }
-    });
+  // Loop files
+ if (files && files.length > 0) {
+  files.forEach(file => {
+    if (file.fieldname === 'image') userImage = `/uploads/${file.filename}`;
+    if (file.fieldname === 'marketImage') marketImage = `/uploads/${file.filename}`;
+  });
+}
 
-    return this.authService.updateUser(userId, dto, userImage, marketImage);
-  }
+
+  return this.authService.updateUser(userId, dto, userImage, marketImage);
+}
+
 
 
 
@@ -92,6 +92,12 @@ export class AuthController {
   updateAddress(@Param('addressId') addressId: string, @Body() dto: UpdateAddressDto) {
     return this.authService.updateAddress(addressId, dto);
   }
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(Role.ADMIN)
+@Delete('user/:userId')
+async deleteUser(@Param('userId') userId: string) {
+  return this.authService.deleteUser(userId);
+}
 
   @Delete('address/delete/:addressId')
   deleteAddress(@Param('addressId') addressId: string) {

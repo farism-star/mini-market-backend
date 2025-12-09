@@ -168,6 +168,10 @@ var UpdateUserDto = /** @class */ (function () {
         class_validator_1.IsString()
     ], UpdateUserDto.prototype, "image");
     __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsBoolean()
+    ], UpdateUserDto.prototype, "isAproved");
+    __decorate([
         class_validator_1.IsOptional()
     ], UpdateUserDto.prototype, "address");
     __decorate([

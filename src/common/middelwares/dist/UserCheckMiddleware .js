@@ -46,8 +46,7 @@ exports.UserCheckMiddleware = void 0;
 // src/common/middleware/user-check.middleware.ts
 var common_1 = require("@nestjs/common");
 var UserCheckMiddleware = /** @class */ (function () {
-    function UserCheckMiddleware(prisma, configService, jwtService // ✅ inject JwtService
-    ) {
+    function UserCheckMiddleware(prisma, configService, jwtService) {
         this.prisma = prisma;
         this.configService = configService;
         this.jwtService = jwtService;
@@ -65,32 +64,40 @@ var UserCheckMiddleware = /** @class */ (function () {
                         token = authHeader.split(' ')[1];
                         _a.label = 1;
                     case 1:
-                        _a.trys.push([1, 4, , 5]);
-                        secret = this.configService.get('SECERT_JWT_ACCESS') || 'default_secret';
-                        return [4 /*yield*/, this.jwtService.verifyAsync(token, {
-                                secret: secret
-                            })];
+                        _a.trys.push([1, 7, , 8]);
+                        secret = this.configService.get('JWT_SECRET') || 'default_secret';
+                        return [4 /*yield*/, this.jwtService.verifyAsync(token, { secret: secret })];
                     case 2:
                         decoded = _a.sent();
                         if (!decoded || typeof decoded !== 'object' || !('sub' in decoded)) {
                             return [2 /*return*/, res.status(401).json({ message: 'Invalid token payload' })];
                         }
                         userId = decoded.sub;
-                        return [4 /*yield*/, this.prisma.user.findUnique({
+                        user = void 0;
+                        if (!(decoded.type === 'ADMIN')) return [3 /*break*/, 4];
+                        return [4 /*yield*/, this.prisma.userDashboard.findUnique({
                                 where: { id: userId }
                             })];
                     case 3:
                         user = _a.sent();
+                        return [3 /*break*/, 6];
+                    case 4: return [4 /*yield*/, this.prisma.user.findUnique({
+                            where: { id: userId }
+                        })];
+                    case 5:
+                        user = _a.sent();
+                        _a.label = 6;
+                    case 6:
                         if (!user) {
                             return [2 /*return*/, res.status(401).json({ message: 'User no longer exists' })];
                         }
                         req['user'] = user;
                         next();
-                        return [3 /*break*/, 5];
-                    case 4:
+                        return [3 /*break*/, 8];
+                    case 7:
                         err_1 = _a.sent();
                         return [2 /*return*/, res.status(401).json({ message: 'Invalid or expired token' })];
-                    case 5: return [2 /*return*/];
+                    case 8: return [2 /*return*/];
                 }
             });
         });

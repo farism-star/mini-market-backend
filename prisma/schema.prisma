@@ -63,34 +63,35 @@ model Payment {
 }
 
 model User {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   type          UserType
   name          String
-  email         String?  @unique
-  emailVerified Boolean  @default(false)
-  phone         String?  @unique
-  phoneVerified Boolean  @default(false)
+  email         String?        @unique
+  emailVerified Boolean        @default(false)
+  phone         String?        @unique
+  phoneVerified Boolean        @default(false)
   image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  isAproved     Boolean        @default(false)
   messages      Message[]      @relation("UserMessages")
   otps          Otp[]
   market        Market?
   orders        Order[]
   notifications Notification[]
+  addresses     Address[]
 
-  addresses Address[]
+  location      Float[]   @default([]) // [latitude, longitude]
 }
 
 model UserDashboard {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String?  @default("admin")
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String?   @default("admin")
   email     String
   password  String
-  type      UserType?   @default(ADMIN)     
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  type      UserType? @default(ADMIN)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Address {
@@ -105,8 +106,8 @@ model Address {
 }
 
 model Market {
-  id   String @id @default(auto()) @map("_id") @db.ObjectId
-  name String
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  name   String
 
   ownerId String @unique @db.ObjectId
   owner   User   @relation(fields: [ownerId], references: [id])
@@ -123,7 +124,11 @@ model Market {
   image      String?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
+
+  commissionFee Float @default(5) 
+  location      Float[] @default([]) // [latitude, longitude]
 }
+
 
 model Order {
   id      String @id @default(auto()) @map("_id") @db.ObjectId
@@ -139,9 +144,13 @@ model Order {
 
   status    OrderStatus @default(IN_PROGRESS)
   createdAt DateTime    @default(now())
+
   // relations
   market    Market?     @relation(fields: [marketId], references: [id])
   client    User?       @relation(fields: [clientId], references: [id])
+
+  totalPrice      Float @default(0)
+  commissionValue Float @default(0) 
 }
 
 model Otp {
@@ -161,7 +170,7 @@ model Category {
   icon   String?
 
   marketId String @db.ObjectId
-  market   Market @relation(fields: [marketId], references: [id])
+  market   Market @relation(fields: [marketId], references: [id],onDelete: Cascade)
 
   products Product[]
 
@@ -169,13 +178,13 @@ model Category {
 }
 
 model Product {
-  id      String   @id @default(auto()) @map("_id") @db.ObjectId
-  titleAr String?
-  titleEn String?
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  titleAr       String?
+  titleEn       String?
   descreptionAr String?
   descriptionEn String?
-  price   Float?
-  images  String[] @default([])
+  price         Float?
+  images        String[] @default([])
 
   marketId String @db.ObjectId
   market   Market @relation(fields: [marketId], references: [id])

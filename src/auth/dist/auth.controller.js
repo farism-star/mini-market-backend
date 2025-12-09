@@ -83,22 +83,23 @@ var AuthController = /** @class */ (function () {
     AuthController.prototype.getProfile = function (req) {
         return req.user;
     };
-    AuthController.prototype.updateUser = function (files, dto, req) {
+    AuthController.prototype.updateUser = function (files, dto, // ممكن يبقى فيه userId في البادي
+    req) {
         return __awaiter(this, void 0, void 0, function () {
             var userId, userImage, marketImage;
             return __generator(this, function (_a) {
-                userId = req.user.id;
+                userId = dto.userId || req.user.id;
                 userImage = null;
                 marketImage = null;
                 // Loop files
-                files.forEach(function (file) {
-                    if (file.fieldname === 'image') {
-                        userImage = "/uploads/" + file.filename;
-                    }
-                    if (file.fieldname === 'marketImage') {
-                        marketImage = "/uploads/" + file.filename;
-                    }
-                });
+                if (files && files.length > 0) {
+                    files.forEach(function (file) {
+                        if (file.fieldname === 'image')
+                            userImage = "/uploads/" + file.filename;
+                        if (file.fieldname === 'marketImage')
+                            marketImage = "/uploads/" + file.filename;
+                    });
+                }
                 return [2 /*return*/, this.authService.updateUser(userId, dto, userImage, marketImage)];
             });
         });
@@ -108,6 +109,13 @@ var AuthController = /** @class */ (function () {
     };
     AuthController.prototype.updateAddress = function (addressId, dto) {
         return this.authService.updateAddress(addressId, dto);
+    };
+    AuthController.prototype.deleteUser = function (userId) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.authService.deleteUser(userId)];
+            });
+        });
     };
     AuthController.prototype.deleteAddress = function (addressId) {
         return this.authService.deleteAddress(addressId);
@@ -188,7 +196,7 @@ var AuthController = /** @class */ (function () {
     ], AuthController.prototype, "getProfile");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
-        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
+        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER, roles_enum_1.Role.ADMIN),
         common_1.Patch('update'),
         common_1.UseInterceptors(platform_express_1.AnyFilesInterceptor(multer_config_1.multerConfig)),
         __param(0, common_1.UploadedFiles()),
@@ -203,6 +211,12 @@ var AuthController = /** @class */ (function () {
         common_1.Patch('address/update/:addressId'),
         __param(0, common_1.Param('addressId')), __param(1, common_1.Body())
     ], AuthController.prototype, "updateAddress");
+    __decorate([
+        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
+        Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
+        common_1.Delete('user/:userId'),
+        __param(0, common_1.Param('userId'))
+    ], AuthController.prototype, "deleteUser");
     __decorate([
         common_1.Delete('address/delete/:addressId'),
         __param(0, common_1.Param('addressId'))

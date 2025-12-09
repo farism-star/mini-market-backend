@@ -5,15 +5,16 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpdateMarketDto } from "./dtos/market.dto";
+import { getDistance } from "src/helpers/distance";
 
 @Injectable()
 export class MarketService {
   constructor(private prisma: PrismaService) {}
 
   // OWNER: Get only his market
-  async getMyMarket(userId: string, userType: string) {
-    if (userType === "OWNER") {
-       const market = await this.prisma.market.findUnique({
+async getMyMarket(userId: string, userType: string, userLocation?: [number, number]) {
+  if (userType === "OWNER") {
+    const market = await this.prisma.market.findUnique({
       where: { ownerId: userId },
     });
 
@@ -22,19 +23,27 @@ export class MarketService {
     }
 
     return { message: "Market loaded successfully", market };
-    }else{
-         const markets = await this.prisma.market.findMany({include:{owner:true}
+  } else {
+    const markets = await this.prisma.market.findMany({
+      include: { owner: true },
     });
 
-    if (!markets) {
-      throw new NotFoundException("No markets found for You");
+    if (!markets || markets.length === 0) {
+      throw new NotFoundException("No markets found for you");
     }
 
-    return { message: "Markets For Client loaded successfully", markets };
+    // لو المستخدم أرسل location، نرتب الماركت حسب الأقرب
+    if (userLocation) {
+      markets.sort((a, b) => {
+        const distA = a.location ? getDistance(userLocation[0], userLocation[1], a.location[0], a.location[1]) : Infinity;
+        const distB = b.location ? getDistance(userLocation[0], userLocation[1], b.location[0], b.location[1]) : Infinity;
+        return distA - distB;
+      });
     }
 
-   
+    return { message: "Markets for client loaded successfully", markets };
   }
+}
 
   // OWNER: Update only his market
   async updateMyMarket(
