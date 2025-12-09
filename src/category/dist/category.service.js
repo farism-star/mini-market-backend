@@ -102,7 +102,7 @@ var CategoryService = /** @class */ (function () {
                             where: {
                                 marketId: user.marketId
                             },
-                            orderBy: { nameAr: 'asc' },
+                            orderBy: { createdAt: 'desc' },
                             include: {
                                 market: true
                             }

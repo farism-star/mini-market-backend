@@ -157,11 +157,13 @@ async getMarkets() {
 async getDashboardData(userId: string, type: string) {
   if (type === 'OWNER') {
     // آخر محادثة
-    const lastConversation = await this.prisma.conversation.findFirst({
+    const conversations = await this.prisma.conversation.findMany({
       where: { users: { has: userId } },
-      orderBy: { updatedAt: 'desc' },
       include: {
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
         _count: {
           select: {
             messages: {
@@ -170,10 +172,14 @@ async getDashboardData(userId: string, type: string) {
           },
         },
       },
+      orderBy: { updatedAt: 'desc' }, // أحدث conversation أولًا
+      take: 1,
     });
 
     let formattedConversation ;
-    if (lastConversation) {
+
+    if (conversations.length > 0) {
+      const lastConversation = conversations[0];
       const otherUserId = lastConversation.users.find((uid) => uid !== userId);
       const otherUser = await this.prisma.user.findUnique({
         where: { id: otherUserId },
@@ -202,6 +208,7 @@ async getDashboardData(userId: string, type: string) {
     const lastProducts = await this.prisma.product.findMany({
       orderBy: { createdAt: 'desc' },
       take: 5,
+      include: { category: true, market: true },
     });
 
     return { lastConversation: formattedConversation, lastProducts };
@@ -216,6 +223,8 @@ async getDashboardData(userId: string, type: string) {
           take: 1,
         },
       },
+      orderBy: { updatedAt: 'desc' },
+      take: 1,
     });
 
     const lastSentMessages = conversations.map((conv) => {
@@ -238,6 +247,7 @@ async getDashboardData(userId: string, type: string) {
     return { lastSentMessages };
   }
 }
+
 
   async login(authDto: Login) {
     const { email, phone } = authDto;
