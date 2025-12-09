@@ -129,4 +129,13 @@ export class AuthController {
   }
 
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/markets')
+  async getAllMarkets() {
+    return this.authService.getMarkets();
+  }
+
+
+
 }

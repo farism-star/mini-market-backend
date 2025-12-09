@@ -38,6 +38,7 @@ export class ProductController {
     @Body() dto: CreateProductDto,
     @Req() req: any
   ) {
+    console.log("This is The Images For Products images",files)
     const ownerId = req.user.id;
     const imageUrls = files?.map(file => `/uploads/${file.filename}`) || [];
     return this.productService.create(ownerId, dto, imageUrls);
