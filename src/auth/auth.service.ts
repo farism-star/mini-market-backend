@@ -153,6 +153,91 @@ async getMarkets() {
   });
 }
 
+// داخل AuthService
+async getDashboardData(userId: string, type: string) {
+  if (type === 'OWNER') {
+    // آخر محادثة
+    const lastConversation = await this.prisma.conversation.findFirst({
+      where: { users: { has: userId } },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        _count: {
+          select: {
+            messages: {
+              where: { senderId: { not: userId }, isRead: false },
+            },
+          },
+        },
+      },
+    });
+
+    let formattedConversation ;
+    if (lastConversation) {
+      const otherUserId = lastConversation.users.find((uid) => uid !== userId);
+      const otherUser = await this.prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: { id: true, name: true, image: true },
+      });
+      const lastMsg = lastConversation.messages[0];
+      formattedConversation = {
+        id: lastConversation.id,
+        user: otherUser,
+        lastMessage: lastMsg
+          ? {
+              id: lastMsg.id,
+              type: lastMsg.type,
+              senderId: lastMsg.senderId,
+              text: lastMsg.text,
+              image: lastMsg.imageUrl,
+              voice: lastMsg.voice,
+              createdAt: lastMsg.createdAt,
+            }
+          : null,
+        unreadMessages: lastConversation._count.messages,
+      };
+    }
+
+    // آخر 5 منتجات
+    const lastProducts = await this.prisma.product.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    return { lastConversation: formattedConversation, lastProducts };
+  } else {
+    // Client: آخر رسالة أرسلها هو فقط
+    const conversations = await this.prisma.conversation.findMany({
+      where: { users: { has: userId } },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          where: { senderId: userId },
+          take: 1,
+        },
+      },
+    });
+
+    const lastSentMessages = conversations.map((conv) => {
+      const msg = conv.messages[0];
+      return {
+        conversationId: conv.id,
+        lastMessage: msg
+          ? {
+              id: msg.id,
+              type: msg.type,
+              text: msg.text,
+              image: msg.imageUrl,
+              voice: msg.voice,
+              createdAt: msg.createdAt,
+            }
+          : null,
+      };
+    });
+
+    return { lastSentMessages };
+  }
+}
 
   async login(authDto: Login) {
     const { email, phone } = authDto;

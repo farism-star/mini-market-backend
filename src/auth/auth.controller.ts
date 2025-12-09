@@ -137,5 +137,12 @@ export class AuthController {
   }
 
 
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(Role.CLIENT, Role.OWNER)
+@Get('home-data')
+async getDashboardData(@Req() req: any) {
+  const user = req.user;
+  return this.authService.getDashboardData(user.id, user.type);
+}
 
 }

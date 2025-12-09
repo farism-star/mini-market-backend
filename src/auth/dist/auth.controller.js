@@ -154,6 +154,15 @@ var AuthController = /** @class */ (function () {
             });
         });
     };
+    AuthController.prototype.getDashboardData = function (req) {
+        return __awaiter(this, void 0, void 0, function () {
+            var user;
+            return __generator(this, function (_a) {
+                user = req.user;
+                return [2 /*return*/, this.authService.getDashboardData(user.id, user.type)];
+            });
+        });
+    };
     __decorate([
         common_1.Post('register'),
         common_1.UseInterceptors(platform_express_1.FileInterceptor('image', multer_config_1.multerConfig)),
@@ -226,6 +235,12 @@ var AuthController = /** @class */ (function () {
         Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
         common_1.Get('admin/markets')
     ], AuthController.prototype, "getAllMarkets");
+    __decorate([
+        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
+        Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
+        common_1.Get('home-data'),
+        __param(0, common_1.Req())
+    ], AuthController.prototype, "getDashboardData");
     AuthController = __decorate([
         common_1.Controller({
             path: 'auth',
