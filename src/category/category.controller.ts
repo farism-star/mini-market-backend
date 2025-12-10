@@ -31,20 +31,19 @@ export class CategoryController {
 
   @Roles(Role.OWNER)
   @Post()
-  @UseInterceptors(FileInterceptor('icon', multerConfig)) // ✅
+  @UseInterceptors(FileInterceptor('icon', multerConfig))
   create(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: CreateCategoryDto,
-    @Req() req: any,
   ) {
     const iconUrl = file ? `/uploads/${file.filename}` : null;
-    return this.categoryService.create(dto, req.user, iconUrl);
+    return this.categoryService.create(dto, iconUrl);
   }
 
   @Roles(Role.CLIENT, Role.OWNER)
   @Get()
-  findAll(@Req() req) {
-    return this.categoryService.findAll(req.user);
+  findAll() {
+    return this.categoryService.findAll();
   }
 
   @Roles(Role.CLIENT, Role.OWNER)
@@ -55,20 +54,20 @@ export class CategoryController {
 
   @Roles(Role.OWNER)
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('icon', multerConfig)) // ✅
+  @UseInterceptors(FileInterceptor('icon', multerConfig))
   update(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UpdateCategoryDto,
-    @Req() req: any,
   ) {
     const iconUrl = file ? `/uploads/${file.filename}` : null;
-    return this.categoryService.update(id, dto, req.user, iconUrl);
+    return this.categoryService.update(id, dto, iconUrl);
   }
 
   @Roles(Role.OWNER)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: any) {
-    return this.categoryService.remove(id, req.user);
+  remove(@Param('id') id: string) {
+    return this.categoryService.remove(id);
   }
 }
+

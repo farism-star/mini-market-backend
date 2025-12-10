@@ -60,7 +60,49 @@ var MarketService = /** @class */ (function () {
     function MarketService(prisma) {
         this.prisma = prisma;
     }
-    // OWNER: Get only his market
+    MarketService.prototype.createMarket = function (dto) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+        return __awaiter(this, void 0, void 0, function () {
+            var owner, market, marketCategories;
+            return __generator(this, function (_m) {
+                switch (_m.label) {
+                    case 0: return [4 /*yield*/, this.prisma.user.findUnique({ where: { id: dto.ownerId } })];
+                    case 1:
+                        owner = _m.sent();
+                        if (!owner)
+                            throw new common_1.NotFoundException("Owner not found");
+                        return [4 /*yield*/, this.prisma.market.create({
+                                data: {
+                                    nameAr: (_a = dto.nameAr) !== null && _a !== void 0 ? _a : "",
+                                    nameEn: (_b = dto.nameEn) !== null && _b !== void 0 ? _b : "",
+                                    descriptionAr: (_c = dto.descriptionAr) !== null && _c !== void 0 ? _c : "",
+                                    descriptionEn: (_d = dto.descriptionEn) !== null && _d !== void 0 ? _d : "",
+                                    ownerId: dto.ownerId,
+                                    zone: (_e = dto.zone) !== null && _e !== void 0 ? _e : "",
+                                    district: (_f = dto.district) !== null && _f !== void 0 ? _f : "",
+                                    address: (_g = dto.address) !== null && _g !== void 0 ? _g : "",
+                                    operations: (_h = dto.operations) !== null && _h !== void 0 ? _h : [],
+                                    hours: (_j = dto.hours) !== null && _j !== void 0 ? _j : [],
+                                    commissionFee: (_k = dto.commissionFee) !== null && _k !== void 0 ? _k : 5,
+                                    location: (_l = dto.location) !== null && _l !== void 0 ? _l : []
+                                }
+                            })];
+                    case 2:
+                        market = _m.sent();
+                        if (!(Array.isArray(dto.categoryIds) && dto.categoryIds.length > 0)) return [3 /*break*/, 4];
+                        marketCategories = dto.categoryIds.map(function (catId) { return ({
+                            marketId: market.id,
+                            categoryId: catId
+                        }); });
+                        return [4 /*yield*/, this.prisma.marketCategory.createMany({ data: marketCategories })];
+                    case 3:
+                        _m.sent();
+                        _m.label = 4;
+                    case 4: return [2 /*return*/, { message: "Market created", market: market }];
+                }
+            });
+        });
+    };
     MarketService.prototype.getMyMarket = function (userId, userType, userLocation) {
         return __awaiter(this, void 0, void 0, function () {
             var market, markets;
@@ -69,36 +111,53 @@ var MarketService = /** @class */ (function () {
                     case 0:
                         if (!(userType === "OWNER")) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.prisma.market.findUnique({
-                                where: { ownerId: userId }
+                                where: { ownerId: userId },
+                                include: {
+                                    categories: { include: { category: true } },
+                                    products: true
+                                }
                             })];
                     case 1:
                         market = _a.sent();
                         if (!market) {
                             throw new common_1.NotFoundException("No market found for this user");
                         }
-                        return [2 /*return*/, { message: "Market loaded successfully", market: market }];
+                        return [2 /*return*/, {
+                                message: "Market loaded successfully",
+                                market: market
+                            }];
                     case 2: return [4 /*yield*/, this.prisma.market.findMany({
-                            include: { owner: true }
+                            include: {
+                                owner: true,
+                                categories: { include: { category: true } },
+                                products: true
+                            }
                         })];
                     case 3:
                         markets = _a.sent();
                         if (!markets || markets.length === 0) {
                             throw new common_1.NotFoundException("No markets found for you");
                         }
-                        // لو المستخدم أرسل location، نرتب الماركت حسب الأقرب
                         if (userLocation) {
-                            markets.sort(function (a, b) {
-                                var distA = a.location ? distance_1.getDistance(userLocation[0], userLocation[1], a.location[0], a.location[1]) : Infinity;
-                                var distB = b.location ? distance_1.getDistance(userLocation[0], userLocation[1], b.location[0], b.location[1]) : Infinity;
-                                return distA - distB;
+                            markets.forEach(function (m) {
+                                var _a;
+                                if (((_a = m.location) === null || _a === void 0 ? void 0 : _a.length) === 2) {
+                                    m["distanceInKm"] = distance_1.getDistance(userLocation[0], userLocation[1], m.location[0], m.location[1]);
+                                }
+                                else {
+                                    m["distanceInKm"] = null;
+                                }
                             });
+                            markets.sort(function (a, b) { return (a["distanceInKm"] || Infinity) - (b["distanceInKm"] || Infinity); });
                         }
-                        return [2 /*return*/, { message: "Markets for client loaded successfully", markets: markets }];
+                        return [2 /*return*/, {
+                                message: "Markets for client loaded successfully",
+                                markets: markets
+                            }];
                 }
             });
         });
     };
-    // OWNER: Update only his market
     MarketService.prototype.updateMyMarket = function (userId, userType, dto) {
         return __awaiter(this, void 0, void 0, function () {
             var market, updated, err_1;

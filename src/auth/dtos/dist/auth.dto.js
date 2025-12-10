@@ -31,7 +31,7 @@ var AuthDto = /** @class */ (function () {
         class_validator_1.IsString()
     ], AuthDto.prototype, "name");
     __decorate([
-        class_validator_1.IsNotEmpty(),
+        class_validator_1.IsOptional(),
         class_validator_1.IsString()
     ], AuthDto.prototype, "email");
     __decorate([
@@ -70,9 +70,13 @@ var AuthDto = /** @class */ (function () {
     ], AuthDto.prototype, "hours");
     __decorate([
         class_validator_1.IsOptional(),
-        class_validator_1.IsArray(),
-        Arr(2)
+        class_validator_1.IsArray()
     ], AuthDto.prototype, "location");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsArray(),
+        class_validator_1.IsString({ each: true })
+    ], AuthDto.prototype, "categoryIds");
     return AuthDto;
 }());
 exports.AuthDto = AuthDto;

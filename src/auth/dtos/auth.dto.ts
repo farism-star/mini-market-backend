@@ -20,13 +20,14 @@ export class AuthDto {
   @IsString()
   name: string;
 
-   @IsNotEmpty()
+  @IsOptional()
   @IsString()
   email?: string;
 
   @IsOptional()
   @IsString()
   image?: string;
+
   @IsOptional()
   @IsString()
   password?: string;
@@ -57,10 +58,17 @@ export class AuthDto {
   @IsOptional()
   hours?: string[];
 
-    @IsOptional()
+  @IsOptional()
   @IsArray()
   location?: number[];
+
+  // ⬅ إضافة categoryIds للماركت
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }
+
 
 export class VerifyOtpDto {
   @IsNotEmpty()

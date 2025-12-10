@@ -55,6 +55,14 @@ var MarketController = /** @class */ (function () {
     function MarketController(marketService) {
         this.marketService = marketService;
     }
+    MarketController.prototype.create = function (dto, req) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                dto.ownerId = req.user.id; // تأكد من ربط الماركت بالـ Owner الحالي
+                return [2 /*return*/, this.marketService.createMarket(dto)];
+            });
+        });
+    };
     // Get my market (OWNER only)
     MarketController.prototype.getMyMarket = function (req) {
         return __awaiter(this, void 0, void 0, function () {
@@ -71,6 +79,11 @@ var MarketController = /** @class */ (function () {
             });
         });
     };
+    __decorate([
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
+        common_1.Post("create"),
+        __param(0, common_1.Body()), __param(1, common_1.Req())
+    ], MarketController.prototype, "create");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
         common_1.Get(""),

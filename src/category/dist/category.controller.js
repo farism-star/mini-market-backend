@@ -21,36 +21,33 @@ var CategoryController = /** @class */ (function () {
     function CategoryController(categoryService) {
         this.categoryService = categoryService;
     }
-    CategoryController.prototype.create = function (file, dto, req) {
+    CategoryController.prototype.create = function (file, dto) {
         var iconUrl = file ? "/uploads/" + file.filename : null;
-        return this.categoryService.create(dto, req.user, iconUrl);
+        return this.categoryService.create(dto, iconUrl);
     };
-    CategoryController.prototype.findAll = function (req) {
-        return this.categoryService.findAll(req.user);
+    CategoryController.prototype.findAll = function () {
+        return this.categoryService.findAll();
     };
     CategoryController.prototype.findOne = function (id) {
         return this.categoryService.findOne(id);
     };
-    CategoryController.prototype.update = function (id, file, dto, req) {
+    CategoryController.prototype.update = function (id, file, dto) {
         var iconUrl = file ? "/uploads/" + file.filename : null;
-        return this.categoryService.update(id, dto, req.user, iconUrl);
+        return this.categoryService.update(id, dto, iconUrl);
     };
-    CategoryController.prototype.remove = function (id, req) {
-        return this.categoryService.remove(id, req.user);
+    CategoryController.prototype.remove = function (id) {
+        return this.categoryService.remove(id);
     };
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Post(),
-        common_1.UseInterceptors(platform_express_1.FileInterceptor('icon', multer_config_1.multerConfig)) // ✅
-        ,
+        common_1.UseInterceptors(platform_express_1.FileInterceptor('icon', multer_config_1.multerConfig)),
         __param(0, common_1.UploadedFile()),
-        __param(1, common_1.Body()),
-        __param(2, common_1.Req())
+        __param(1, common_1.Body())
     ], CategoryController.prototype, "create");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
-        common_1.Get(),
-        __param(0, common_1.Req())
+        common_1.Get()
     ], CategoryController.prototype, "findAll");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
@@ -60,17 +57,15 @@ var CategoryController = /** @class */ (function () {
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Patch(':id'),
-        common_1.UseInterceptors(platform_express_1.FileInterceptor('icon', multer_config_1.multerConfig)) // ✅
-        ,
+        common_1.UseInterceptors(platform_express_1.FileInterceptor('icon', multer_config_1.multerConfig)),
         __param(0, common_1.Param('id')),
         __param(1, common_1.UploadedFile()),
-        __param(2, common_1.Body()),
-        __param(3, common_1.Req())
+        __param(2, common_1.Body())
     ], CategoryController.prototype, "update");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Delete(':id'),
-        __param(0, common_1.Param('id')), __param(1, common_1.Req())
+        __param(0, common_1.Param('id'))
     ], CategoryController.prototype, "remove");
     CategoryController = __decorate([
         common_1.Controller({

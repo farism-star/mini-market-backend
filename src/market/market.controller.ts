@@ -5,6 +5,8 @@ import {
     Body,
     UseGuards,
     Req,
+    Post
+    ,
     NotFoundException,
     ForbiddenException,
 } from "@nestjs/common";
@@ -14,6 +16,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { RolesGuard } from "src/auth/roles.gaurd";
 import { Roles } from "src/auth/Role.decorator";
 import { Role } from "src/auth/roles.enum";
+import { CreateMarketDto } from "./dtos/create-market.dto";
 
 
 @Controller({
@@ -23,7 +26,12 @@ import { Role } from "src/auth/roles.enum";
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class MarketController {
     constructor(private readonly marketService: MarketService) { }
-
+@Roles(Role.OWNER)
+@Post("create")
+async create(@Body() dto: CreateMarketDto, @Req() req: any) {
+  dto.ownerId = req.user.id; // تأكد من ربط الماركت بالـ Owner الحالي
+  return this.marketService.createMarket(dto);
+}
     // Get my market (OWNER only)
     @Roles(Role.OWNER,Role.CLIENT)
     @Get("")

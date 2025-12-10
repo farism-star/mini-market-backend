@@ -55,18 +55,17 @@ var AuthService = /** @class */ (function () {
         this.mailService = mailService;
     }
     AuthService.prototype.register = function (dto, imageUrl) {
-        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var email, phone, name, type, zone, district, address, operations, hours, location, existingUser, user, market;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var email, phone, name, type, zone, district, address, operations, hours, location, marketName, categoryIds, existingUser, user, market, marketCategories;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
-                        email = dto.email, phone = dto.phone, name = dto.name, type = dto.type, zone = dto.zone, district = dto.district, address = dto.address, operations = dto.operations, hours = dto.hours, location = dto.location;
+                        email = dto.email, phone = dto.phone, name = dto.name, type = dto.type, zone = dto.zone, district = dto.district, address = dto.address, operations = dto.operations, hours = dto.hours, location = dto.location, marketName = dto.marketName, categoryIds = dto.categoryIds;
                         return [4 /*yield*/, this.prisma.user.findFirst({
                                 where: { OR: [{ email: email }, { phone: phone }] }
                             })];
                     case 1:
-                        existingUser = _b.sent();
+                        existingUser = _a.sent();
                         if (existingUser) {
                             throw new common_1.ConflictException('User already exists with this email or phone');
                         }
@@ -74,12 +73,11 @@ var AuthService = /** @class */ (function () {
                                 data: {
                                     name: name,
                                     email: email !== null && email !== void 0 ? email : null,
-                                    phone: phone !== null && phone !== void 0 ? phone : null,
+                                    phone: phone,
                                     type: type,
                                     image: imageUrl,
                                     phoneVerified: false,
-                                    // ⬅ ال location لو مش OWNER
-                                    location: type !== "OWNER" ? (location !== null && location !== void 0 ? location : []) : [],
+                                    location: type !== 'OWNER' ? (location !== null && location !== void 0 ? location : []) : [],
                                     addresses: {
                                         create: {
                                             type: 'HOME',
@@ -91,28 +89,38 @@ var AuthService = /** @class */ (function () {
                                 include: { addresses: true }
                             })];
                     case 2:
-                        user = _b.sent();
-                        market = {};
-                        if (!(type === 'OWNER')) return [3 /*break*/, 4];
+                        user = _a.sent();
+                        market = null;
+                        if (!(type === 'OWNER')) return [3 /*break*/, 5];
                         return [4 /*yield*/, this.prisma.market.create({
                                 data: {
-                                    name: (_a = dto.marketName) !== null && _a !== void 0 ? _a : name + "'s Market",
+                                    nameAr: marketName !== null && marketName !== void 0 ? marketName : name + "'s Market",
                                     ownerId: user.id,
-                                    zone: zone,
-                                    district: district,
-                                    address: address,
+                                    zone: zone !== null && zone !== void 0 ? zone : '',
+                                    district: district !== null && district !== void 0 ? district : '',
+                                    address: address !== null && address !== void 0 ? address : '',
                                     operations: operations !== null && operations !== void 0 ? operations : [],
                                     hours: hours !== null && hours !== void 0 ? hours : [],
-                                    // ⬅ حفظ ال location هنا لو OWNER
                                     location: location !== null && location !== void 0 ? location : []
                                 }
                             })];
                     case 3:
-                        market = _b.sent();
-                        _b.label = 4;
-                    case 4: return [4 /*yield*/, this.sendOtp({ email: email, phone: phone })];
-                    case 5:
-                        _b.sent();
+                        market = _a.sent();
+                        if (!(Array.isArray(dto.categoryIds) && dto.categoryIds.length > 0)) return [3 /*break*/, 5];
+                        marketCategories = dto.categoryIds.map(function (catId) { return ({
+                            marketId: market.id,
+                            categoryId: catId
+                        }); });
+                        return [4 /*yield*/, this.prisma.marketCategory.createMany({ data: marketCategories })];
+                    case 4:
+                        _a.sent();
+                        _a.label = 5;
+                    case 5: 
+                    // إرسال OTP (مثال)
+                    return [4 /*yield*/, this.sendOtp({ email: email, phone: phone })];
+                    case 6:
+                        // إرسال OTP (مثال)
+                        _a.sent();
                         return [2 /*return*/, { message: 'User registered successfully', user: user, market: market }];
                 }
             });
@@ -317,7 +325,7 @@ var AuthService = /** @class */ (function () {
                     case 3: return [4 /*yield*/, this.prisma.product.findMany({
                             orderBy: { createdAt: 'desc' },
                             take: 5,
-                            include: { category: true, market: true }
+                            include: { market: true }
                         })];
                     case 4:
                         lastProducts = _a.sent();
@@ -533,7 +541,7 @@ var AuthService = /** @class */ (function () {
                         return [4 /*yield*/, this.prisma.market.update({
                                 where: { id: user.market.id },
                                 data: {
-                                    name: (_f = (_e = dto.market) === null || _e === void 0 ? void 0 : _e.name) !== null && _f !== void 0 ? _f : user.market.name,
+                                    nameAr: (_f = (_e = dto.market) === null || _e === void 0 ? void 0 : _e.name) !== null && _f !== void 0 ? _f : user.market.nameAr,
                                     zone: (_h = (_g = dto.market) === null || _g === void 0 ? void 0 : _g.zone) !== null && _h !== void 0 ? _h : user.market.zone,
                                     district: (_k = (_j = dto.market) === null || _j === void 0 ? void 0 : _j.district) !== null && _k !== void 0 ? _k : user.market.district,
                                     address: (_m = (_l = dto.market) === null || _l === void 0 ? void 0 : _l.address) !== null && _m !== void 0 ? _m : user.market.address,
