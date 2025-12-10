@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -44,224 +55,118 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 exports.__esModule = true;
 exports.CategoryService = void 0;
 var common_1 = require("@nestjs/common");
-var fs_1 = require("fs");
-var promises_1 = require("fs/promises");
-var path_1 = require("path");
 var CategoryService = /** @class */ (function () {
     function CategoryService(prisma) {
         this.prisma = prisma;
     }
-    // ============================
-    // 🔥 Create Category
-    // ============================
-    CategoryService.prototype.create = function (dto, user, iconUrl) {
-        return __awaiter(this, void 0, void 0, function () {
-            var market, err_1;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        _a.trys.push([0, 3, , 4]);
-                        if (user.type !== 'OWNER') {
-                            throw new common_1.UnauthorizedException('Only OWNER can create categories');
-                        }
-                        return [4 /*yield*/, this.prisma.market.findUnique({
-                                where: { ownerId: user.sub || user.id }
-                            })];
-                    case 1:
-                        market = _a.sent();
-                        if (!market) {
-                            throw new common_1.NotFoundException('Market not found for this owner');
-                        }
-                        return [4 /*yield*/, this.prisma.category.create({
-                                data: {
-                                    nameAr: dto.nameAr,
-                                    nameEn: dto.nameEn,
-                                    icon: iconUrl,
-                                    marketId: market.id
-                                }
-                            })];
-                    case 2: return [2 /*return*/, _a.sent()];
-                    case 3:
-                        err_1 = _a.sent();
-                        console.log(err_1);
-                        throw new common_1.InternalServerErrorException(err_1.message || 'Failed to create category');
-                    case 4: return [2 /*return*/];
-                }
-            });
-        });
-    };
-    // ============================
-    // 🔥 Find All
-    // ============================
-    CategoryService.prototype.findAll = function (user) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                if (user.role === 'OWNER') {
-                    // Owner -> رجّع بس ال categories بتاعت الماركت بتاعه
-                    return [2 /*return*/, this.prisma.category.findMany({
-                            where: {
-                                marketId: user.marketId
-                            },
-                            orderBy: { createdAt: 'desc' },
-                            include: {
-                                market: true
-                            }
-                        })];
-                }
-                // Client -> رجّع كل المنتجات
-                return [2 /*return*/, this.prisma.category.findMany({
-                        orderBy: { nameAr: 'asc' },
-                        include: {
-                            market: true
-                        }
-                    })];
-            });
-        });
-    };
-    // ============================
-    // 🔥 Find One
-    // ============================
-    CategoryService.prototype.findOne = function (id) {
+    // إنشاء Category بدون ربطها بأي Market
+    CategoryService.prototype.create = function (dto, iconUrl) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function () {
             var category;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0: return [4 /*yield*/, this.prisma.category.create({
+                            data: {
+                                nameAr: (_a = dto.nameAr) !== null && _a !== void 0 ? _a : '',
+                                nameEn: (_b = dto.nameEn) !== null && _b !== void 0 ? _b : '',
+                                icon: iconUrl !== null && iconUrl !== void 0 ? iconUrl : ''
+                            }
+                        })];
+                    case 1:
+                        category = _c.sent();
+                        return [2 /*return*/, { message: 'Category created', category: category }];
+                }
+            });
+        });
+    };
+    CategoryService.prototype.findAll = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var categories, formattedCategories;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.category.findMany({
+                            include: {
+                                markets: {
+                                    include: {
+                                        market: true
+                                    }
+                                }
+                            }
+                        })];
+                    case 1:
+                        categories = _a.sent();
+                        formattedCategories = categories.map(function (category) { return (__assign(__assign({}, category), { markets: category.markets.map(function (mc) { return mc.market; }) })); });
+                        return [2 /*return*/, { categories: formattedCategories }];
+                }
+            });
+        });
+    };
+    CategoryService.prototype.findOne = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var category, formattedCategory;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.category.findUnique({
                             where: { id: id },
                             include: {
-                                market: {
-                                    select: {
-                                        id: true,
-                                        name: true
+                                markets: {
+                                    include: {
+                                        market: true
                                     }
                                 }
                             }
                         })];
                     case 1:
                         category = _a.sent();
-                        if (!category) {
+                        if (!category)
                             throw new common_1.NotFoundException('Category not found');
-                        }
-                        return [2 /*return*/, category];
+                        formattedCategory = __assign(__assign({}, category), { markets: category.markets.map(function (mc) { return mc.market; }) });
+                        return [2 /*return*/, { category: formattedCategory }];
                 }
             });
         });
     };
-    // ============================
-    // 🔥 Update Category
-    // ============================
-    CategoryService.prototype.update = function (id, dto, user, iconUrl) {
+    CategoryService.prototype.update = function (id, dto, iconUrl) {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function () {
-            var category, oldIconPath, error_1, err_2;
+            var category, updated;
             return __generator(this, function (_c) {
                 switch (_c.label) {
-                    case 0:
-                        _c.trys.push([0, 8, , 9]);
-                        if (user.type !== 'OWNER') {
-                            throw new common_1.UnauthorizedException('Only OWNER can update categories');
-                        }
-                        return [4 /*yield*/, this.prisma.category.findUnique({
-                                where: { id: id }
-                            })];
+                    case 0: return [4 /*yield*/, this.prisma.category.findUnique({ where: { id: id } })];
                     case 1:
                         category = _c.sent();
-                        if (!category) {
+                        if (!category)
                             throw new common_1.NotFoundException('Category not found');
-                        }
-                        if (!(iconUrl && category.icon)) return [3 /*break*/, 6];
-                        _c.label = 2;
+                        return [4 /*yield*/, this.prisma.category.update({
+                                where: { id: id },
+                                data: {
+                                    nameAr: (_a = dto.nameAr) !== null && _a !== void 0 ? _a : category.nameAr,
+                                    nameEn: (_b = dto.nameEn) !== null && _b !== void 0 ? _b : category.nameEn,
+                                    icon: iconUrl !== null && iconUrl !== void 0 ? iconUrl : category.icon
+                                }
+                            })];
                     case 2:
-                        _c.trys.push([2, 5, , 6]);
-                        oldIconPath = path_1.join(process.cwd(), category.icon);
-                        if (!fs_1.existsSync(oldIconPath)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, promises_1.unlink(oldIconPath)];
-                    case 3:
-                        _c.sent();
-                        console.log('Old icon deleted:', category.icon);
-                        _c.label = 4;
-                    case 4: return [3 /*break*/, 6];
-                    case 5:
-                        error_1 = _c.sent();
-                        console.log('Failed to delete old icon:', error_1);
-                        return [3 /*break*/, 6];
-                    case 6: return [4 /*yield*/, this.prisma.category.update({
-                            where: { id: id },
-                            data: {
-                                nameAr: (_a = dto.nameAr) !== null && _a !== void 0 ? _a : category.nameAr,
-                                nameEn: (_b = dto.nameEn) !== null && _b !== void 0 ? _b : category.nameEn,
-                                icon: iconUrl !== null && iconUrl !== void 0 ? iconUrl : category.icon
-                            }
-                        })];
-                    case 7: return [2 /*return*/, _c.sent()];
-                    case 8:
-                        err_2 = _c.sent();
-                        throw new common_1.InternalServerErrorException(err_2.message || 'Failed to update category');
-                    case 9: return [2 /*return*/];
+                        updated = _c.sent();
+                        return [2 /*return*/, { message: 'Category updated', updated: updated }];
                 }
             });
         });
     };
-    // ============================
-    // 🔥 Delete Category
-    // ============================
-    CategoryService.prototype.remove = function (id, user) {
+    CategoryService.prototype.remove = function (id) {
         return __awaiter(this, void 0, void 0, function () {
-            var category_1, err_3;
-            var _this = this;
+            var category;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0:
-                        _a.trys.push([0, 3, , 4]);
-                        if (user.type !== 'OWNER') {
-                            throw new common_1.UnauthorizedException('Only OWNER can delete categories');
-                        }
-                        return [4 /*yield*/, this.prisma.category.findUnique({
-                                where: { id: id }
-                            })];
+                    case 0: return [4 /*yield*/, this.prisma.category.findUnique({ where: { id: id } })];
                     case 1:
-                        category_1 = _a.sent();
-                        if (!category_1) {
+                        category = _a.sent();
+                        if (!category)
                             throw new common_1.NotFoundException('Category not found');
-                        }
-                        return [4 /*yield*/, this.prisma.$transaction(function (tx) { return __awaiter(_this, void 0, void 0, function () {
-                                var iconPath, error_2;
-                                return __generator(this, function (_a) {
-                                    switch (_a.label) {
-                                        case 0:
-                                            if (!category_1.icon) return [3 /*break*/, 5];
-                                            _a.label = 1;
-                                        case 1:
-                                            _a.trys.push([1, 4, , 5]);
-                                            iconPath = path_1.join(process.cwd(), category_1.icon);
-                                            if (!fs_1.existsSync(iconPath)) return [3 /*break*/, 3];
-                                            return [4 /*yield*/, promises_1.unlink(iconPath)];
-                                        case 2:
-                                            _a.sent();
-                                            console.log('Category icon deleted:', category_1.icon);
-                                            _a.label = 3;
-                                        case 3: return [3 /*break*/, 5];
-                                        case 4:
-                                            error_2 = _a.sent();
-                                            console.log('Failed to delete category icon:', error_2);
-                                            return [3 /*break*/, 5];
-                                        case 5: 
-                                        // ✅ مسح الـ category
-                                        return [4 /*yield*/, tx.category["delete"]({
-                                                where: { id: id }
-                                            })];
-                                        case 6:
-                                            // ✅ مسح الـ category
-                                            _a.sent();
-                                            return [2 /*return*/, { message: 'Category deleted successfully' }];
-                                    }
-                                });
-                            }); })];
-                    case 2: return [2 /*return*/, _a.sent()];
-                    case 3:
-                        err_3 = _a.sent();
-                        throw new common_1.InternalServerErrorException(err_3.message || 'Failed to delete category');
-                    case 4: return [2 /*return*/];
+                        return [4 /*yield*/, this.prisma.category["delete"]({ where: { id: id } })];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/, { message: 'Category deleted' }];
                 }
             });
         });

@@ -69,7 +69,7 @@ var ProductService = /** @class */ (function () {
     ProductService.prototype.create = function (ownerId, dto, imageUrls) {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function () {
-            var user, Market, err_1;
+            var user, market, err_1;
             return __generator(this, function (_c) {
                 switch (_c.label) {
                     case 0:
@@ -86,26 +86,23 @@ var ProductService = /** @class */ (function () {
                                 where: { ownerId: user.id }
                             })];
                     case 2:
-                        Market = _c.sent();
-                        if (!Market) {
+                        market = _c.sent();
+                        if (!market) {
                             throw new common_1.BadRequestException('Owner has no market yet');
                         }
-                        // 3) Create Product with uploaded images
                         return [2 /*return*/, this.prisma.product.create({
                                 data: {
                                     titleAr: dto.titleAr,
                                     titleEn: dto.titleEn,
-                                    descreptionAr: (_a = dto.descreptionAr) !== null && _a !== void 0 ? _a : "",
+                                    descriptionAr: (_a = dto.descreptionAr) !== null && _a !== void 0 ? _a : "",
                                     descriptionEn: (_b = dto.descriptionEn) !== null && _b !== void 0 ? _b : "",
                                     price: dto.price,
                                     images: imageUrls,
-                                    categoryId: dto.categoryId,
-                                    marketId: Market.id
+                                    marketId: market.id
                                 }
                             })];
                     case 3:
                         err_1 = _c.sent();
-                        console.log(err_1);
                         throw new common_1.InternalServerErrorException(err_1.message || 'Failed to create product');
                     case 4: return [2 /*return*/];
                 }
@@ -114,11 +111,11 @@ var ProductService = /** @class */ (function () {
     };
     ProductService.prototype.findAll = function (user, query) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, page, _b, limit, _c, search, categoryId, categoryName, skip, take, existeUser, filters, market, total, data, formattedData;
+            var _a, page, _b, limit, _c, search, skip, take, existeUser, filters, market, total, data, formattedData;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
-                        _a = query.page, page = _a === void 0 ? 1 : _a, _b = query.limit, limit = _b === void 0 ? 10 : _b, _c = query.search, search = _c === void 0 ? '' : _c, categoryId = query.categoryId, categoryName = query.categoryName;
+                        _a = query.page, page = _a === void 0 ? 1 : _a, _b = query.limit, limit = _b === void 0 ? 10 : _b, _c = query.search, search = _c === void 0 ? '' : _c;
                         skip = (page - 1) * limit;
                         take = Number(limit);
                         return [4 /*yield*/, this.prisma.user.findFirst({
@@ -139,34 +136,18 @@ var ProductService = /** @class */ (function () {
                         filters.marketId = market === null || market === void 0 ? void 0 : market.id;
                         _d.label = 3;
                     case 3:
-                        // فلترة حسب Category ID
-                        if (categoryId) {
-                            filters.categoryId = categoryId;
-                        }
-                        // فلترة حسب Category Name
-                        if (categoryName) {
-                            filters.category = {
-                                nameAr: { contains: categoryName, mode: 'insensitive' }
-                            };
-                        }
-                        // البحث (search)
                         if (search) {
                             filters.OR = [
                                 { titleAr: { contains: search, mode: 'insensitive' } },
                                 { titleEn: { contains: search, mode: 'insensitive' } },
                             ];
                         }
-                        return [4 /*yield*/, this.prisma.product.count({
-                                where: filters
-                            })];
+                        return [4 /*yield*/, this.prisma.product.count({ where: filters })];
                     case 4:
                         total = _d.sent();
                         return [4 /*yield*/, this.prisma.product.findMany({
                                 where: filters,
-                                include: {
-                                    category: true,
-                                    market: true
-                                },
+                                include: { market: true },
                                 orderBy: { createdAt: 'desc' },
                                 skip: skip,
                                 take: take
@@ -193,9 +174,7 @@ var ProductService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.product.findMany({
                             where: { marketId: ownerId },
-                            include: {
-                                category: true
-                            }
+                            include: { market: true }
                         })];
                     case 1: return [2 /*return*/, _a.sent()];
                 }
@@ -209,10 +188,7 @@ var ProductService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.product.findUnique({
                             where: { id: id },
-                            include: {
-                                category: true,
-                                market: true
-                            }
+                            include: { market: true }
                         })];
                     case 1:
                         product = _a.sent();
@@ -225,19 +201,19 @@ var ProductService = /** @class */ (function () {
         });
     };
     ProductService.prototype.update = function (id, dto, user, imageUrls) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c;
         return __awaiter(this, void 0, void 0, function () {
             var product, updatedImages, err_2;
-            return __generator(this, function (_e) {
-                switch (_e.label) {
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
-                        _e.trys.push([0, 3, , 4]);
+                        _d.trys.push([0, 3, , 4]);
                         if (user.type !== 'OWNER') {
                             throw new common_1.UnauthorizedException('Only OWNER can update products');
                         }
                         return [4 /*yield*/, this.prisma.product.findUnique({ where: { id: id } })];
                     case 1:
-                        product = _e.sent();
+                        product = _d.sent();
                         if (!product) {
                             throw new common_1.NotFoundException('Product not found');
                         }
@@ -249,13 +225,12 @@ var ProductService = /** @class */ (function () {
                                     titleAr: (_a = dto.titleAr) !== null && _a !== void 0 ? _a : product.titleAr,
                                     titleEn: (_b = dto.titleEn) !== null && _b !== void 0 ? _b : product.titleEn,
                                     price: (_c = dto.price) !== null && _c !== void 0 ? _c : product.price,
-                                    images: updatedImages,
-                                    categoryId: (_d = dto.categoryId) !== null && _d !== void 0 ? _d : product.categoryId
+                                    images: updatedImages
                                 }
                             })];
-                    case 2: return [2 /*return*/, _e.sent()];
+                    case 2: return [2 /*return*/, _d.sent()];
                     case 3:
-                        err_2 = _e.sent();
+                        err_2 = _d.sent();
                         throw new common_1.InternalServerErrorException(err_2.message || 'Failed to update product');
                     case 4: return [2 /*return*/];
                 }

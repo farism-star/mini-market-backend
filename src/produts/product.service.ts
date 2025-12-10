@@ -15,7 +15,6 @@ export class ProductService {
 
   async create(ownerId: string, dto: CreateProductDto, imageUrls: string[]) {
     try {
-      // 1) Check Role
       const user = await this.prisma.user.findUnique({
         where: { id: ownerId },
       });
@@ -24,135 +23,100 @@ export class ProductService {
         throw new UnauthorizedException('Only OWNER can create products');
       }
 
-      // 2) Get Market
-      const Market = await this.prisma.market.findFirst({
+      const market = await this.prisma.market.findFirst({
         where: { ownerId: user.id },
       });
 
-      if (!Market) {
+      if (!market) {
         throw new BadRequestException('Owner has no market yet');
       }
 
-      // 3) Create Product with uploaded images
       return this.prisma.product.create({
         data: {
           titleAr: dto.titleAr!,
           titleEn: dto.titleEn!,
-          descreptionAr: dto.descreptionAr?? "",
-          descriptionEn: dto.descriptionEn?? "",
+          descriptionAr: dto.descreptionAr ?? "",
+          descriptionEn: dto.descriptionEn ?? "",
           price: dto.price!,
-          images: imageUrls, // ✅ استخدام الصور المرفوعة من Multer
-          categoryId: dto.categoryId!,
-          marketId: Market.id,
+          images: imageUrls,
+          marketId: market.id,
         },
       });
     } catch (err) {
-      console.log(err);
       throw new InternalServerErrorException(
         err.message || 'Failed to create product',
       );
     }
   }
 
-async findAll(user: any, query: any) {
-  const { page = 1, limit = 10, search = '', categoryId, categoryName } = query;
+  async findAll(user: any, query: any) {
+    const { page = 1, limit = 10, search = '' } = query;
 
-  const skip = (page - 1) * limit;
-  const take = Number(limit);
+    const skip = (page - 1) * limit;
+    const take = Number(limit);
 
- 
-  const existeUser = await this.prisma.user.findFirst({
-    where: { id: user.id },
-  });
-
-  if (!existeUser) {
-    throw new UnauthorizedException('User not found');
-  }
-
-  
-  const filters: any = {};
-
- 
-  if (user.type === 'OWNER') {
-    const market = await this.prisma.market.findFirst({
-      where: { ownerId: existeUser.id },
+    const existeUser = await this.prisma.user.findFirst({
+      where: { id: user.id },
     });
 
-    filters.marketId = market?.id;
-  }
+    if (!existeUser) {
+      throw new UnauthorizedException('User not found');
+    }
 
-  // فلترة حسب Category ID
-  if (categoryId) {
-    filters.categoryId = categoryId;
-  }
+    const filters: any = {};
 
-  // فلترة حسب Category Name
-  if (categoryName) {
-    filters.category = {
-      nameAr: { contains: categoryName, mode: 'insensitive' },
+    if (user.type === 'OWNER') {
+      const market = await this.prisma.market.findFirst({
+        where: { ownerId: existeUser.id },
+      });
+
+      filters.marketId = market?.id;
+    }
+
+    if (search) {
+      filters.OR = [
+        { titleAr: { contains: search, mode: 'insensitive' } },
+        { titleEn: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const total = await this.prisma.product.count({ where: filters });
+
+    const data = await this.prisma.product.findMany({
+      where: filters,
+      include: { market: true },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    });
+
+    const formattedData = data.map(p => ({
+      ...p,
+      price: parseFloat(Number(p.price).toFixed(2)),
+    }));
+
+    return {
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      data: formattedData,
     };
   }
-
-  // البحث (search)
-  if (search) {
-    filters.OR = [
-      { titleAr: { contains: search, mode: 'insensitive' } },
-      { titleEn: { contains: search, mode: 'insensitive' } },
-    ];
-  }
-
-  // عدد النتائج الكلي
-  const total = await this.prisma.product.count({
-    where: filters,
-  });
-
-  // البيانات مع pagination
- const data = await this.prisma.product.findMany({
-  where: filters,
-  include: {
-    category: true,
-    market: true,
-  },
-  orderBy: { createdAt: 'desc' },
-  skip,
-  take,
-});
-
-// Format price to 2 decimal places
-const formattedData = data.map(p => ({
-  ...p,
-  price: parseFloat(Number(p.price).toFixed(2)),
-}));
-
-return {
-  pagination: {
-    page: Number(page),
-    limit: Number(limit),
-    total,
-    totalPages: Math.ceil(total / limit),
-  },
-  data: formattedData,
-};
-
-}
-
 
   async findByOwner(ownerId: string) {
     return await this.prisma.product.findMany({
       where: { marketId: ownerId },
-      include: {
-        category: true,
-      },
+      include: { market: true },
     });
   }
 
   async findOne(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: {
-        category: true,
-        market: true,
-      },
+      include: { market: true },
     });
 
     if (!product) {
@@ -174,7 +138,6 @@ return {
         throw new NotFoundException('Product not found');
       }
 
-      // ✅ إضافة الصور الجديدة للصور القديمة
       const updatedImages = imageUrls.length > 0 
         ? [...product.images, ...imageUrls] 
         : product.images;
@@ -186,7 +149,6 @@ return {
           titleEn: dto.titleEn ?? product.titleEn,
           price: dto.price ?? product.price,
           images: updatedImages,
-          categoryId: dto.categoryId ?? product.categoryId,
         },
       });
     } catch (err) {

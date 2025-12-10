@@ -18,30 +18,27 @@ export class AuthService {
     private mailService: MailService,
   ) { }
 
-  async register(dto: AuthDto, imageUrl: string | null) {
-    const { email, phone, name, type, zone, district, address, operations, hours, location } = dto;
+async register(dto: AuthDto, imageUrl: string | null) {
+    const { email, phone, name, type, zone, district, address, operations, hours, location, marketName, categoryIds } = dto;
 
+    // تحقق إن المستخدم موجود بالفعل
     const existingUser = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
     });
-
     if (existingUser) {
       throw new ConflictException('User already exists with this email or phone');
     }
 
-    // ⬅ إنشاء اليوزر
+    // إنشاء المستخدم
     const user = await this.prisma.user.create({
       data: {
         name,
         email: email ?? null,
-        phone: phone ?? null,
+        phone,
         type,
         image: imageUrl,
         phoneVerified: false,
-
-        // ⬅ ال location لو مش OWNER
-        location: type !== "OWNER" ? (location ?? []) : [],
-
+        location: type !== 'OWNER' ? (location ?? []) : [],
         addresses: {
           create: {
             type: 'HOME',
@@ -53,31 +50,38 @@ export class AuthService {
       include: { addresses: true },
     });
 
-    let market = {};
-
-    // لو OWNER هنعمل ماركت
+    // إنشاء ماركت لو المستخدم OWNER
+    let market: any = null;
     if (type === 'OWNER') {
       market = await this.prisma.market.create({
         data: {
-          name: dto.marketName ?? `${name}'s Market`,
+          nameAr: marketName ?? `${name}'s Market`,
           ownerId: user.id,
-          zone,
-          district,
-          address,
-
+          zone: zone ?? '',
+          district: district ?? '',
+          address: address ?? '',
           operations: operations ?? [],
           hours: hours ?? [],
-
-          // ⬅ حفظ ال location هنا لو OWNER
           location: location ?? [],
         },
       });
+
+      // ربط الماركت بالـ categories لو موجودة
+      if (Array.isArray((dto as any).categoryIds) && (dto as any).categoryIds.length > 0) {
+        const marketCategories = (dto as any).categoryIds.map((catId: string) => ({
+          marketId: market.id,
+          categoryId: catId,
+        }));
+        await this.prisma.marketCategory.createMany({ data: marketCategories });
+      }
     }
 
+    // إرسال OTP (مثال)
     await this.sendOtp({ email, phone });
 
     return { message: 'User registered successfully', user, market };
   }
+
   async checkOwnerApproved(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -236,7 +240,7 @@ export class AuthService {
       const lastProducts = await this.prisma.product.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
-        include: { category: true, market: true },
+        include: {  market: true },
       });
 
       return { lastConversation: formattedConversation, lastProducts };
@@ -431,7 +435,7 @@ export class AuthService {
       await this.prisma.market.update({
         where: { id: user.market.id },
         data: {
-          name: dto.market?.name ?? user.market.name,
+          nameAr: dto.market?.name ?? user.market.nameAr,
           zone: dto.market?.zone ?? user.market.zone,
           district: dto.market?.district ?? user.market.district,
           address: dto.market?.address ?? user.market.address,

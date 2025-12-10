@@ -1,56 +1,98 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpdateMarketDto } from "./dtos/market.dto";
 import { getDistance } from "src/helpers/distance";
+import { CreateMarketDto } from "./dtos/create-market.dto";
 
 @Injectable()
 export class MarketService {
   constructor(private prisma: PrismaService) {}
+async createMarket(dto: CreateMarketDto) {
+  // تحقق إن Owner موجود
+  const owner = await this.prisma.user.findUnique({ where: { id: dto.ownerId } });
+  if (!owner) throw new NotFoundException("Owner not found");
 
-  // OWNER: Get only his market
-async getMyMarket(userId: string, userType: string, userLocation?: [number, number]) {
-  if (userType === "OWNER") {
-    const market = await this.prisma.market.findUnique({
-      where: { ownerId: userId },
-    });
+  // إنشاء الماركت
+  const market = await this.prisma.market.create({
+    data: {
+      nameAr: dto.nameAr ?? "",
+      nameEn: dto.nameEn ?? "",
+      descriptionAr: dto.descriptionAr ?? "",
+      descriptionEn: dto.descriptionEn ?? "",
+      ownerId: dto.ownerId,
+      zone: dto.zone ?? "",
+      district: dto.district ?? "",
+      address: dto.address ?? "",
+      operations: dto.operations ?? [],
+      hours: dto.hours ?? [],
+      commissionFee: dto.commissionFee ?? 5,
+      location: dto.location ?? [],
+    },
+  });
 
-    if (!market) {
-      throw new NotFoundException("No market found for this user");
-    }
-
-    return { message: "Market loaded successfully", market };
-  } else {
-    const markets = await this.prisma.market.findMany({
-      include: { owner: true },
-    });
-
-    if (!markets || markets.length === 0) {
-      throw new NotFoundException("No markets found for you");
-    }
-
-    // لو المستخدم أرسل location، نرتب الماركت حسب الأقرب
-    if (userLocation) {
-      markets.sort((a, b) => {
-        const distA = a.location ? getDistance(userLocation[0], userLocation[1], a.location[0], a.location[1]) : Infinity;
-        const distB = b.location ? getDistance(userLocation[0], userLocation[1], b.location[0], b.location[1]) : Infinity;
-        return distA - distB;
-      });
-    }
-
-    return { message: "Markets for client loaded successfully", markets };
-  }
+  // ربط Market بالـ Categories
+if (Array.isArray(dto.categoryIds) && dto.categoryIds.length > 0) {
+  const marketCategories = dto.categoryIds.map((catId) => ({
+    marketId: market.id,
+    categoryId: catId,
+  }));
+  await this.prisma.marketCategory.createMany({ data: marketCategories });
 }
 
-  // OWNER: Update only his market
-  async updateMyMarket(
-    userId: string,
-    userType: string,
-    dto: UpdateMarketDto,
-  ) {
+
+  return { message: "Market created", market };
+}
+
+  async getMyMarket(userId: string, userType: string, userLocation?: [number, number]) {
+    if (userType === "OWNER") {
+      const market = await this.prisma.market.findUnique({
+        where: { ownerId: userId },
+        include: {
+          categories: { include: { category: true } },
+          products: true,
+        },
+      });
+
+      if (!market) {
+        throw new NotFoundException("No market found for this user");
+      }
+
+      return {
+        message: "Market loaded successfully",
+        market,
+      };
+    } else {
+      const markets = await this.prisma.market.findMany({
+        include: {
+          owner: true,
+          categories: { include: { category: true } },
+          products: true,
+        },
+      });
+
+      if (!markets || markets.length === 0) {
+        throw new NotFoundException("No markets found for you");
+      }
+
+      if (userLocation) {
+        markets.forEach(m => {
+          if (m.location?.length === 2) {
+            m["distanceInKm"] = getDistance(userLocation[0], userLocation[1], m.location[0], m.location[1]);
+          } else {
+            m["distanceInKm"] = null;
+          }
+        });
+        markets.sort((a, b) => (a["distanceInKm"] || Infinity) - (b["distanceInKm"] || Infinity));
+      }
+
+      return {
+        message: "Markets for client loaded successfully",
+        markets,
+      };
+    }
+  }
+
+  async updateMyMarket(userId: string, userType: string, dto: UpdateMarketDto) {
     if (userType !== "OWNER") {
       throw new ForbiddenException("Only owners can update markets");
     }
