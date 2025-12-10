@@ -518,27 +518,19 @@ async register(dto: AuthDto, imageUrl: string | null) {
       orderBy: { createdAt: 'desc' }
     });
   }
-  async deleteAllData() {
-    return await this.prisma.$transaction(async (prisma) => {
-      // حذف كل البيانات المرتبطة باليوزر
-      await prisma.order.deleteMany({});
-      await prisma.notification.deleteMany({});
-      await prisma.message.deleteMany({});
-      await prisma.otp.deleteMany({});
+async deleteAllData() {
+  await this.prisma.order.deleteMany({});
+  await this.prisma.notification.deleteMany({});
+  await this.prisma.message.deleteMany({});
+  await this.prisma.otp.deleteMany({});
+  await this.prisma.product.deleteMany({});
+  await this.prisma.marketCategory.deleteMany({});
+  await this.prisma.market.deleteMany({});
+  await this.prisma.address.deleteMany({});
+  await this.prisma.user.deleteMany({});
 
-      // أولاً نحذف كل المنتجات المرتبطة بكل market
-      await prisma.product.deleteMany({});
-
-      // بعد كده نحذف كل الأسواق
-      await prisma.market.deleteMany({});
-
-      // بعد كده العناوين واليوزر
-      await prisma.address.deleteMany({});
-      await prisma.user.deleteMany({});
-
-      return { message: 'All user data has been deleted successfully.' };
-    });
-  }
+  return { message: 'All user data has been deleted successfully.' };
+}
 
   async deleteUser(userId: string) {
     const user = await this.prisma.user.findUnique({

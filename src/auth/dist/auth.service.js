@@ -661,50 +661,36 @@ var AuthService = /** @class */ (function () {
     };
     AuthService.prototype.deleteAllData = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.prisma.$transaction(function (prisma) { return __awaiter(_this, void 0, void 0, function () {
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0: 
-                                    // حذف كل البيانات المرتبطة باليوزر
-                                    return [4 /*yield*/, prisma.order.deleteMany({})];
-                                    case 1:
-                                        // حذف كل البيانات المرتبطة باليوزر
-                                        _a.sent();
-                                        return [4 /*yield*/, prisma.notification.deleteMany({})];
-                                    case 2:
-                                        _a.sent();
-                                        return [4 /*yield*/, prisma.message.deleteMany({})];
-                                    case 3:
-                                        _a.sent();
-                                        return [4 /*yield*/, prisma.otp.deleteMany({})];
-                                    case 4:
-                                        _a.sent();
-                                        // أولاً نحذف كل المنتجات المرتبطة بكل market
-                                        return [4 /*yield*/, prisma.product.deleteMany({})];
-                                    case 5:
-                                        // أولاً نحذف كل المنتجات المرتبطة بكل market
-                                        _a.sent();
-                                        // بعد كده نحذف كل الأسواق
-                                        return [4 /*yield*/, prisma.market.deleteMany({})];
-                                    case 6:
-                                        // بعد كده نحذف كل الأسواق
-                                        _a.sent();
-                                        // بعد كده العناوين واليوزر
-                                        return [4 /*yield*/, prisma.address.deleteMany({})];
-                                    case 7:
-                                        // بعد كده العناوين واليوزر
-                                        _a.sent();
-                                        return [4 /*yield*/, prisma.user.deleteMany({})];
-                                    case 8:
-                                        _a.sent();
-                                        return [2 /*return*/, { message: 'All user data has been deleted successfully.' }];
-                                }
-                            });
-                        }); })];
-                    case 1: return [2 /*return*/, _a.sent()];
+                    case 0: return [4 /*yield*/, this.prisma.order.deleteMany({})];
+                    case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.notification.deleteMany({})];
+                    case 2:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.message.deleteMany({})];
+                    case 3:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.otp.deleteMany({})];
+                    case 4:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.product.deleteMany({})];
+                    case 5:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.marketCategory.deleteMany({})];
+                    case 6:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.market.deleteMany({})];
+                    case 7:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.address.deleteMany({})];
+                    case 8:
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.user.deleteMany({})];
+                    case 9:
+                        _a.sent();
+                        return [2 /*return*/, { message: 'All user data has been deleted successfully.' }];
                 }
             });
         });
