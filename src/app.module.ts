@@ -65,6 +65,7 @@ export class AppModule implements NestModule {
         { path: 'v1/auth/add-admin', method: RequestMethod.POST },
         { path: 'v1/auth/delete-users', method: RequestMethod.DELETE },
         { path: 'v1/messages/delete-all', method: RequestMethod.DELETE },
+        { path: 'v1/auth/delete-all-data', method: RequestMethod.DELETE },
         { path: 'v1/orders/delete-all', method: RequestMethod.DELETE },
         { path: 'v1/auth/verify-otp', method: RequestMethod.POST },
         { path: 'v1/twilio/send-sms', method: RequestMethod.POST },
