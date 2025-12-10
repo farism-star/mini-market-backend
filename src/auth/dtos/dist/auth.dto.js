@@ -70,7 +70,8 @@ var AuthDto = /** @class */ (function () {
     ], AuthDto.prototype, "hours");
     __decorate([
         class_validator_1.IsOptional(),
-        class_validator_1.IsArray()
+        class_validator_1.IsArray(),
+        Arr(2)
     ], AuthDto.prototype, "location");
     return AuthDto;
 }());

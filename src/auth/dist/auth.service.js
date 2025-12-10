@@ -57,11 +57,11 @@ var AuthService = /** @class */ (function () {
     AuthService.prototype.register = function (dto, imageUrl) {
         var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var email, phone, name, type, zone, district, address, operations, hours, existingUser, user, market;
+            var email, phone, name, type, zone, district, address, operations, hours, location, existingUser, user, market;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        email = dto.email, phone = dto.phone, name = dto.name, type = dto.type, zone = dto.zone, district = dto.district, address = dto.address, operations = dto.operations, hours = dto.hours;
+                        email = dto.email, phone = dto.phone, name = dto.name, type = dto.type, zone = dto.zone, district = dto.district, address = dto.address, operations = dto.operations, hours = dto.hours, location = dto.location;
                         return [4 /*yield*/, this.prisma.user.findFirst({
                                 where: { OR: [{ email: email }, { phone: phone }] }
                             })];
@@ -78,6 +78,8 @@ var AuthService = /** @class */ (function () {
                                     type: type,
                                     image: imageUrl,
                                     phoneVerified: false,
+                                    // ⬅ ال location لو مش OWNER
+                                    location: type !== "OWNER" ? (location !== null && location !== void 0 ? location : []) : [],
                                     addresses: {
                                         create: {
                                             type: 'HOME',
@@ -100,7 +102,9 @@ var AuthService = /** @class */ (function () {
                                     district: district,
                                     address: address,
                                     operations: operations !== null && operations !== void 0 ? operations : [],
-                                    hours: hours !== null && hours !== void 0 ? hours : []
+                                    hours: hours !== null && hours !== void 0 ? hours : [],
+                                    // ⬅ حفظ ال location هنا لو OWNER
+                                    location: location !== null && location !== void 0 ? location : []
                                 }
                             })];
                     case 3:
@@ -110,6 +114,28 @@ var AuthService = /** @class */ (function () {
                     case 5:
                         _b.sent();
                         return [2 /*return*/, { message: 'User registered successfully', user: user, market: market }];
+                }
+            });
+        });
+    };
+    AuthService.prototype.checkOwnerApproved = function (userId) {
+        return __awaiter(this, void 0, void 0, function () {
+            var user;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.user.findUnique({
+                            where: { id: userId },
+                            select: { isAproved: true, name: true, id: true }
+                        })];
+                    case 1:
+                        user = _a.sent();
+                        if (!user) {
+                            throw new common_1.NotFoundException('User not found');
+                        }
+                        return [2 /*return*/, {
+                                message: "Owner approval status loaded",
+                                isApproved: user.isAproved
+                            }];
                 }
             });
         });
