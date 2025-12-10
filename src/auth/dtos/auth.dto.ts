@@ -1,5 +1,5 @@
 // dtos/auth.dto.ts
-import { IsEnum, IsNotEmpty, IsOptional, IsString, Length, IsBoolean } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString,IsArray ,Length, IsBoolean } from 'class-validator';
 
 export enum UserType {
   OWNER = 'OWNER',
@@ -56,6 +56,9 @@ export class AuthDto {
 
   @IsOptional()
   hours?: string[];
+  @IsOptional()
+@IsArray()
+location?: number[];
 }
 
 export class VerifyOtpDto {
