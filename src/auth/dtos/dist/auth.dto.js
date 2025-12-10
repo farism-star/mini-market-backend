@@ -68,6 +68,10 @@ var AuthDto = /** @class */ (function () {
     __decorate([
         class_validator_1.IsOptional()
     ], AuthDto.prototype, "hours");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsArray()
+    ], AuthDto.prototype, "location");
     return AuthDto;
 }());
 exports.AuthDto = AuthDto;

@@ -18,54 +18,67 @@ export class AuthService {
     private mailService: MailService,
   ) { }
 
-  async register(dto: AuthDto, imageUrl: string | null) {
-    const { email, phone, name, type, zone, district, address, operations, hours } = dto;
-    const existingUser = await this.prisma.user.findFirst({
-      where: { OR: [{ email }, { phone }] },
-    });
+ async register(dto: AuthDto, imageUrl: string | null) {
+  const { email, phone, name, type, zone, district, address, operations, hours, location } = dto;
 
-    if (existingUser) {
-      throw new ConflictException('User already exists with this email or phone');
-    }
-    const user = await this.prisma.user.create({
-      data: {
-        name,
-        email: email ?? null,
-        phone: phone ?? null,
-        type,
-        image: imageUrl,       // ← الصورة من multer
-        phoneVerified: false,
-        addresses: {
-          create: {
-            type: 'HOME',
-            fullAddress: address ?? '',
-            isSelected: true,
-          },
+  const existingUser = await this.prisma.user.findFirst({
+    where: { OR: [{ email }, { phone }] },
+  });
+
+  if (existingUser) {
+    throw new ConflictException('User already exists with this email or phone');
+  }
+
+  // ⬅ إنشاء اليوزر
+  const user = await this.prisma.user.create({
+    data: {
+      name,
+      email: email ?? null,
+      phone: phone ?? null,
+      type,
+      image: imageUrl,
+      phoneVerified: false,
+
+      // ⬅ ال location لو مش OWNER
+      location: type !== "OWNER" ? (location ?? []) : [],
+
+      addresses: {
+        create: {
+          type: 'HOME',
+          fullAddress: address ?? '',
+          isSelected: true,
         },
       },
-      include: { addresses: true },
+    },
+    include: { addresses: true },
+  });
+
+  let market = {};
+
+  // لو OWNER هنعمل ماركت
+  if (type === 'OWNER') {
+    market = await this.prisma.market.create({
+      data: {
+        name: dto.marketName ?? `${name}'s Market`,
+        ownerId: user.id,
+        zone,
+        district,
+        address,
+
+        operations: operations ?? [],
+        hours: hours ?? [],
+
+        // ⬅ حفظ ال location هنا لو OWNER
+        location: location ?? [],
+      },
     });
-
-    let market = {};
-
-    if (type === 'OWNER') {
-      market = await this.prisma.market.create({
-        data: {
-          name: dto.marketName ?? `${name}'s Market`,
-          ownerId: user.id,
-          zone,
-          district,
-          address,
-          operations: operations ?? [],
-          hours: hours ?? [],
-        },
-      });
-    }
-
-    await this.sendOtp({ email, phone });
-
-    return { message: 'User registered successfully', user, market };
   }
+
+  await this.sendOtp({ email, phone });
+
+  return { message: 'User registered successfully', user, market };
+}
+
   async addAdmin(dto: AddAdminDto) {
     const { email, name, password } = dto;
 
