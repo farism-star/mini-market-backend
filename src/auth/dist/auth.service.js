@@ -259,7 +259,6 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
-    // داخل AuthService
     AuthService.prototype.getDashboardData = function (userId, type) {
         return __awaiter(this, void 0, void 0, function () {
             var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, conversations, lastSentMessages;

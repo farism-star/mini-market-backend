@@ -60,7 +60,7 @@ async findAll(user: any, query: any) {
   const skip = (page - 1) * limit;
   const take = Number(limit);
 
-  // تأكيد وجود المستخدم
+ 
   const existeUser = await this.prisma.user.findFirst({
     where: { id: user.id },
   });
@@ -69,10 +69,10 @@ async findAll(user: any, query: any) {
     throw new UnauthorizedException('User not found');
   }
 
-  // فلتر الاساس
+  
   const filters: any = {};
 
-  // لو Owner يعرض منتجاته فقط
+ 
   if (user.type === 'OWNER') {
     const market = await this.prisma.market.findFirst({
       where: { ownerId: existeUser.id },
@@ -107,26 +107,33 @@ async findAll(user: any, query: any) {
   });
 
   // البيانات مع pagination
-  const data = await this.prisma.product.findMany({
-    where: filters,
-    include: {
-      category: true,
-      market: true,
-    },
-    orderBy: { createdAt: 'desc' },
-    skip,
-    take,
-  });
+ const data = await this.prisma.product.findMany({
+  where: filters,
+  include: {
+    category: true,
+    market: true,
+  },
+  orderBy: { createdAt: 'desc' },
+  skip,
+  take,
+});
 
-  return {
-   pagination:{
-     page: Number(page),
+// Format price to 2 decimal places
+const formattedData = data.map(p => ({
+  ...p,
+  price: parseFloat(Number(p.price).toFixed(2)),
+}));
+
+return {
+  pagination: {
+    page: Number(page),
     limit: Number(limit),
     total,
     totalPages: Math.ceil(total / limit),
-   },
-    data,
-  };
+  },
+  data: formattedData,
+};
+
 }
 
 
