@@ -9,6 +9,12 @@ import { Login } from './dtos/login.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { MailService } from 'src/mail/mail.service';
 import { AddAdminDto } from './dtos/add-admin.dto';
+import { getDistance } from "src/helpers/distance";
+
+type MarketWithDistance = {
+  distanceInKm: number | null;
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -186,29 +192,24 @@ async register(dto: AuthDto, imageUrl: string | null) {
   }
 
  
-  async getDashboardData(userId: string, type: string) {
+async getDashboardData(userId: string, type: string) {
     if (type === 'OWNER') {
-      // آخر محادثة
+      // ===== OWNER =====
       const conversations = await this.prisma.conversation.findMany({
         where: { users: { has: userId } },
         include: {
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
+          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
           _count: {
             select: {
-              messages: {
-                where: { senderId: { not: userId }, isRead: false },
-              },
+              messages: { where: { senderId: { not: userId }, isRead: false } },
             },
           },
         },
-        orderBy: { updatedAt: 'desc' }, // أحدث conversation أولًا
+        orderBy: { updatedAt: 'desc' },
         take: 1,
       });
 
-      let formattedConversation;
+      let formattedConversation: any = null;
 
       if (conversations.length > 0) {
         const lastConversation = conversations[0];
@@ -223,63 +224,93 @@ async register(dto: AuthDto, imageUrl: string | null) {
           user: otherUser,
           lastMessage: lastMsg
             ? {
-              id: lastMsg.id,
-              type: lastMsg.type,
-              senderId: lastMsg.senderId,
-              text: lastMsg.text,
-              image: lastMsg.imageUrl,
-              voice: lastMsg.voice,
-              createdAt: lastMsg.createdAt,
-            }
+                id: lastMsg.id,
+                type: lastMsg.type,
+                senderId: lastMsg.senderId,
+                text: lastMsg.text,
+                image: lastMsg.imageUrl,
+                voice: lastMsg.voice,
+                createdAt: lastMsg.createdAt,
+              }
             : null,
           unreadMessages: lastConversation._count.messages,
         };
       }
 
-      // آخر 5 منتجات
       const lastProducts = await this.prisma.product.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
-        include: {  market: true },
+        include: { market: true },
       });
 
       return { lastConversation: formattedConversation, lastProducts };
     } else {
-      // Client: آخر رسالة أرسلها هو فقط
-      const conversations = await this.prisma.conversation.findMany({
-        where: { users: { has: userId } },
-        include: {
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            where: { senderId: userId },
-            take: 1,
-          },
+      // ===== CLIENT =====
+      const categories = await this.prisma.category.findMany();
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { location: true },
+      });
+
+      const userLocation = user?.location;
+
+      let markets = await this.prisma.market.findMany({
+        select: {
+          id: true,
+          nameAr: true,
+          nameEn: true,
+          descriptionAr: true,
+          descriptionEn: true,
+          ownerId: true,
+          zone: true,
+          district: true,
+          address: true,
+          operations: true,
+          hours: true,
+          image: true,
+          commissionFee: true,
+          location: true,
+          rate: true,
+          isOpen: true,
+          from: true,
+          to: true,
+          createdAt: true,
+          updatedAt: true,
         },
-        orderBy: { updatedAt: 'desc' },
-        take: 1,
       });
 
-      const lastSentMessages = conversations.map((conv) => {
-        const msg = conv.messages[0];
-        return {
-          conversationId: conv.id,
-          lastMessage: msg
-            ? {
-              id: msg.id,
-              type: msg.type,
-              text: msg.text,
-              image: msg.imageUrl,
-              voice: msg.voice,
-              createdAt: msg.createdAt,
-            }
-            : null,
-        };
-      });
+      if (userLocation) {
+        // أضف distanceInKm ديناميكيًا
+        const marketsWithDistance: (typeof markets[0] & MarketWithDistance)[] = markets.map((m) => {
+          let distanceInKm: number | null = null;
+          if (m.location?.length === 2) {
+            distanceInKm = getDistance(
+              userLocation[0],
+              userLocation[1],
+              m.location[0],
+              m.location[1],
+            );
+          }
+          return { ...m, distanceInKm };
+        });
 
-      return { lastSentMessages };
+        // فرز حسب المسافة
+        const sortedMarkets = marketsWithDistance.sort(
+          (a, b) => (a.distanceInKm ?? Infinity) - (b.distanceInKm ?? Infinity),
+        );
+
+        // تصفية المسافة <= 30 كم
+        const filteredMarkets = sortedMarkets.filter(
+          (m) => m.distanceInKm !== null && m.distanceInKm <= 30,
+        );
+
+        return { categories, markets: filteredMarkets };
+      }
+
+      return { categories, markets };
     }
   }
-
 
   async login(authDto: Login) {
     const { email, phone } = authDto;

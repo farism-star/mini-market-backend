@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -47,6 +58,7 @@ exports.AuthService = void 0;
 var common_1 = require("@nestjs/common");
 var crypto_1 = require("crypto");
 var bcrypt = require("bcrypt");
+var distance_1 = require("src/helpers/distance");
 var AuthService = /** @class */ (function () {
     function AuthService(prisma, jwtService, cloudinary, mailService) {
         this.prisma = prisma;
@@ -269,7 +281,7 @@ var AuthService = /** @class */ (function () {
     };
     AuthService.prototype.getDashboardData = function (userId, type) {
         return __awaiter(this, void 0, void 0, function () {
-            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, conversations, lastSentMessages;
+            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, categories, user, userLocation_1, markets, marketsWithDistance, sortedMarkets, filteredMarkets;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -277,15 +289,10 @@ var AuthService = /** @class */ (function () {
                         return [4 /*yield*/, this.prisma.conversation.findMany({
                                 where: { users: { has: userId } },
                                 include: {
-                                    messages: {
-                                        orderBy: { createdAt: 'desc' },
-                                        take: 1
-                                    },
+                                    messages: { orderBy: { createdAt: 'desc' }, take: 1 },
                                     _count: {
                                         select: {
-                                            messages: {
-                                                where: { senderId: { not: userId }, isRead: false }
-                                            }
+                                            messages: { where: { senderId: { not: userId }, isRead: false } }
                                         }
                                     }
                                 },
@@ -294,7 +301,7 @@ var AuthService = /** @class */ (function () {
                             })];
                     case 1:
                         conversations = _a.sent();
-                        formattedConversation = void 0;
+                        formattedConversation = null;
                         if (!(conversations.length > 0)) return [3 /*break*/, 3];
                         lastConversation = conversations[0];
                         otherUserId = lastConversation.users.find(function (uid) { return uid !== userId; });
@@ -330,37 +337,56 @@ var AuthService = /** @class */ (function () {
                     case 4:
                         lastProducts = _a.sent();
                         return [2 /*return*/, { lastConversation: formattedConversation, lastProducts: lastProducts }];
-                    case 5: return [4 /*yield*/, this.prisma.conversation.findMany({
-                            where: { users: { has: userId } },
-                            include: {
-                                messages: {
-                                    orderBy: { createdAt: 'desc' },
-                                    where: { senderId: userId },
-                                    take: 1
-                                }
-                            },
-                            orderBy: { updatedAt: 'desc' },
-                            take: 1
-                        })];
+                    case 5: return [4 /*yield*/, this.prisma.category.findMany()];
                     case 6:
-                        conversations = _a.sent();
-                        lastSentMessages = conversations.map(function (conv) {
-                            var msg = conv.messages[0];
-                            return {
-                                conversationId: conv.id,
-                                lastMessage: msg
-                                    ? {
-                                        id: msg.id,
-                                        type: msg.type,
-                                        text: msg.text,
-                                        image: msg.imageUrl,
-                                        voice: msg.voice,
-                                        createdAt: msg.createdAt
-                                    }
-                                    : null
-                            };
-                        });
-                        return [2 /*return*/, { lastSentMessages: lastSentMessages }];
+                        categories = _a.sent();
+                        return [4 /*yield*/, this.prisma.user.findUnique({
+                                where: { id: userId },
+                                select: { location: true }
+                            })];
+                    case 7:
+                        user = _a.sent();
+                        userLocation_1 = user === null || user === void 0 ? void 0 : user.location;
+                        return [4 /*yield*/, this.prisma.market.findMany({
+                                select: {
+                                    id: true,
+                                    nameAr: true,
+                                    nameEn: true,
+                                    descriptionAr: true,
+                                    descriptionEn: true,
+                                    ownerId: true,
+                                    zone: true,
+                                    district: true,
+                                    address: true,
+                                    operations: true,
+                                    hours: true,
+                                    image: true,
+                                    commissionFee: true,
+                                    location: true,
+                                    rate: true,
+                                    isOpen: true,
+                                    from: true,
+                                    to: true,
+                                    createdAt: true,
+                                    updatedAt: true
+                                }
+                            })];
+                    case 8:
+                        markets = _a.sent();
+                        if (userLocation_1) {
+                            marketsWithDistance = markets.map(function (m) {
+                                var _a;
+                                var distanceInKm = null;
+                                if (((_a = m.location) === null || _a === void 0 ? void 0 : _a.length) === 2) {
+                                    distanceInKm = distance_1.getDistance(userLocation_1[0], userLocation_1[1], m.location[0], m.location[1]);
+                                }
+                                return __assign(__assign({}, m), { distanceInKm: distanceInKm });
+                            });
+                            sortedMarkets = marketsWithDistance.sort(function (a, b) { var _a, _b; return ((_a = a.distanceInKm) !== null && _a !== void 0 ? _a : Infinity) - ((_b = b.distanceInKm) !== null && _b !== void 0 ? _b : Infinity); });
+                            filteredMarkets = sortedMarkets.filter(function (m) { return m.distanceInKm !== null && m.distanceInKm <= 30; });
+                            return [2 /*return*/, { categories: categories, markets: filteredMarkets }];
+                        }
+                        return [2 /*return*/, { categories: categories, markets: markets }];
                 }
             });
         });
