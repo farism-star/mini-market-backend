@@ -52,6 +52,15 @@ export class AuthController {
   getProfile(@Req() req) {
     return req.user;
   }
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(Role.OWNER)
+@Get('is-approved')
+async checkApproved(@Req() req: any) {
+  const user = req.user; // من JWT
+  return this.authService.checkOwnerApproved(user.id);
+}
+
+
 
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(Role.CLIENT, Role.OWNER, Role.ADMIN)

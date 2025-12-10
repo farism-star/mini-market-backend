@@ -78,6 +78,21 @@ export class AuthService {
 
   return { message: 'User registered successfully', user, market };
 }
+async checkOwnerApproved(userId: string) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { isAproved: true, name: true,id:true },
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  return {
+    message: "Owner approval status loaded",
+    isApproved: user.isAproved,
+  };
+}
 
   async addAdmin(dto: AddAdminDto) {
     const { email, name, password } = dto;

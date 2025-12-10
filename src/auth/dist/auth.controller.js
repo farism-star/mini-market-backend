@@ -83,6 +83,15 @@ var AuthController = /** @class */ (function () {
     AuthController.prototype.getProfile = function (req) {
         return req.user;
     };
+    AuthController.prototype.checkApproved = function (req) {
+        return __awaiter(this, void 0, void 0, function () {
+            var user;
+            return __generator(this, function (_a) {
+                user = req.user;
+                return [2 /*return*/, this.authService.checkOwnerApproved(user.id)];
+            });
+        });
+    };
     AuthController.prototype.updateUser = function (files, dto, // ممكن يبقى فيه userId في البادي
     req) {
         return __awaiter(this, void 0, void 0, function () {
@@ -194,6 +203,12 @@ var AuthController = /** @class */ (function () {
         common_1.Post('me'),
         __param(0, common_1.Req())
     ], AuthController.prototype, "getProfile");
+    __decorate([
+        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
+        common_1.Get('is-approved'),
+        __param(0, common_1.Req())
+    ], AuthController.prototype, "checkApproved");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER, roles_enum_1.Role.ADMIN),

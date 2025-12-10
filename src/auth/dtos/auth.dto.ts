@@ -56,9 +56,10 @@ export class AuthDto {
 
   @IsOptional()
   hours?: string[];
-  @IsOptional()
-@IsArray()
-location?: number[];
+
+    @IsOptional()
+  @IsArray()
+  location?: number[];
 }
 
 export class VerifyOtpDto {
