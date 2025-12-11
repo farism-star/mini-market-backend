@@ -71,7 +71,13 @@ var MarketController = /** @class */ (function () {
             });
         });
     };
-    // Update my market
+    MarketController.prototype.getMarketById = function (marketId) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.marketService.getMarketById(marketId)];
+            });
+        });
+    };
     MarketController.prototype.updateMyMarket = function (req, dto) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -89,6 +95,11 @@ var MarketController = /** @class */ (function () {
         common_1.Get(""),
         __param(0, common_1.Req())
     ], MarketController.prototype, "getMyMarket");
+    __decorate([
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
+        common_1.Get(":id"),
+        __param(0, common_1.Param("id"))
+    ], MarketController.prototype, "getMarketById");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Patch("me"),

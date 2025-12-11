@@ -119,27 +119,27 @@ var OrdersController = /** @class */ (function () {
         });
     };
     __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
         common_1.Post(),
         __param(0, common_1.Body()), __param(1, common_1.Req())
     ], OrdersController.prototype, "create");
     __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
         common_1.Get(),
         __param(0, common_1.Req())
     ], OrdersController.prototype, "findAll");
     __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
         common_1.Get(':id'),
         __param(0, common_1.Param('id')), __param(1, common_1.Req())
     ], OrdersController.prototype, "findOne");
     __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
         common_1.Patch(':id'),
         __param(0, common_1.Param('id')), __param(1, common_1.Body()), __param(2, common_1.Req())
     ], OrdersController.prototype, "update");
     __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
         common_1.Delete(':id'),
         common_1.HttpCode(common_1.HttpStatus.NO_CONTENT),
         __param(0, common_1.Param('id')), __param(1, common_1.Req())

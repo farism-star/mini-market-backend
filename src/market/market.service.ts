@@ -91,6 +91,26 @@ if (Array.isArray(dto.categoryIds) && dto.categoryIds.length > 0) {
       };
     }
   }
+  async getMarketById(marketId: string) {
+  const market = await this.prisma.market.findUnique({
+    where: { id: marketId },
+    include: {
+      owner: true,
+      categories: { include: { category: true } },
+      products: true, 
+    },
+  });
+
+  if (!market) {
+    throw new NotFoundException("Market not found");
+  }
+
+  return {
+    message: "Market details loaded successfully",
+    market,
+  };
+}
+
 
   async updateMyMarket(userId: string, userType: string, dto: UpdateMarketDto) {
     if (userType !== "OWNER") {
