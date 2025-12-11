@@ -96,7 +96,6 @@ if (Array.isArray(dto.categoryIds) && dto.categoryIds.length > 0) {
     where: { id: marketId },
     include: {
       owner: true,
-      categories: { include: { category: true } },
       products: true, 
     },
   });

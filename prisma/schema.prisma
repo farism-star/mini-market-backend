@@ -178,8 +178,8 @@ model Order {
 
   totalPrice      Float @default(0)
   commissionValue Float @default(0)
-}
 
+}
 
 
 

@@ -167,7 +167,6 @@ var MarketService = /** @class */ (function () {
                             where: { id: marketId },
                             include: {
                                 owner: true,
-                                categories: { include: { category: true } },
                                 products: true
                             }
                         })];
