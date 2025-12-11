@@ -91,7 +91,7 @@ async register(dto: AuthDto, imageUrl: string | null) {
   async checkOwnerApproved(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { isAproved: true, name: true, id: true },
+      select: { isAproved: true, isFeesRequired:true,name: true, id: true },
     });
 
     if (!user) {

@@ -152,7 +152,9 @@ export class OrdersService {
     };
   }
 
-  async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
+// ... (الاستيرادات والدوال الأخرى)
+
+async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { market: true, client: true },
@@ -161,9 +163,15 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
     if (!user) throw new ForbiddenException('Unauthorized');
 
-    if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
-      throw new ForbiddenException('Only the owner of the market can modify this order');
-    }
+    // ... (منطق التحقق من الصلاحيات)
+
+    // حفظ الحالة القديمة والحالة الجديدة المحتملة للمقارنة
+    const oldStatus = order.status;
+    const newStatus = dto.status;
+    
+    // تحديد ما إذا كان هناك تغيير في الحالة من/إلى COMPLETED
+    const completedToOther = oldStatus === 'COMPLETED' && newStatus !== 'COMPLETED';
+    const otherToCompleted = oldStatus !== 'COMPLETED' && newStatus === 'COMPLETED';
 
     try {
       const updated = await this.prisma.order.update({
@@ -171,6 +179,66 @@ export class OrdersService {
         data: dto,
         include: { market: true, client: true },
       });
+
+      // ==========================================================
+      // منطق تحديث الرسوم المالية بناءً على تغيير الحالة
+      // ==========================================================
+      if (updated.market) {
+        const marketId = updated.market.id;
+        const ownerId = updated.market.ownerId;
+        const feePerOrder = updated.market.feePerOrder || 0;
+
+        let feesChange = 0;
+        
+        // 1. الانتقال من أي حالة إلى COMPLETED (إضافة الرسوم)
+        if (otherToCompleted) {
+            feesChange = feePerOrder;
+        } 
+        // 2. الانتقال من COMPLETED إلى أي حالة أخرى (خصم الرسوم)
+        else if (completedToOther) {
+            feesChange = -feePerOrder;
+        }
+
+        if (feesChange !== 0) {
+            // تحديث currentFees للماركت
+            let updatedMarket = await this.prisma.market.update({
+                where: { id: marketId },
+                data: {
+                    currentFees: {
+                        increment: feesChange, // إضافة (إذا كانت موجبة) أو خصم (إذا كانت سالبة)
+                    },
+                },
+            });
+
+            // 3. تحديث حالة المالك (isFeesRequired) بناءً على currentFees الجديدة
+            
+            // تحديد قيمة isFeesRequired الجديدة
+            let newIsFeesRequired = false;
+            if (updatedMarket.currentFees && updatedMarket.limitFees) {
+                newIsFeesRequired = updatedMarket.currentFees >= updatedMarket.limitFees;
+            }
+
+            // جلب بيانات المالك للتحقق من حالته الحالية
+            const owner = await this.prisma.user.findUnique({ 
+                where: { id: ownerId },
+                select: { isFeesRequired: true } // جلب الحقل المطلوب فقط
+            });
+
+            // إذا كانت الحالة الجديدة تختلف عن الحالة الحالية للمالك، قم بالتحديث
+            if (owner && owner.isFeesRequired !== newIsFeesRequired) {
+                await this.prisma.user.update({
+                    where: { id: ownerId },
+                    data: {
+                        isFeesRequired: newIsFeesRequired, // تحديث طلب الرسوم
+                    },
+                });
+            }
+        }
+      }
+      // ==========================================================
+      // نهاية منطق تحديث الرسوم المالية
+      // ==========================================================
+
 
       if (updated.clientId) {
         await this.notification.create({
@@ -186,7 +254,7 @@ export class OrdersService {
     } catch (err) {
       throw new BadRequestException(err?.message || 'Failed to update order');
     }
-  }
+}
 
   async remove(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({

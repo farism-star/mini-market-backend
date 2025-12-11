@@ -119,13 +119,9 @@ var MarketService = /** @class */ (function () {
                             })];
                     case 1:
                         market = _a.sent();
-                        if (!market) {
+                        if (!market)
                             throw new common_1.NotFoundException("No market found for this user");
-                        }
-                        return [2 /*return*/, {
-                                message: "Market loaded successfully",
-                                market: market
-                            }];
+                        return [2 /*return*/, { message: "Market loaded successfully", market: market }];
                     case 2: return [4 /*yield*/, this.prisma.market.findMany({
                             include: {
                                 owner: true,
@@ -135,9 +131,9 @@ var MarketService = /** @class */ (function () {
                         })];
                     case 3:
                         markets = _a.sent();
-                        if (!markets || markets.length === 0) {
-                            throw new common_1.NotFoundException("No markets found for you");
-                        }
+                        if (!markets || markets.length === 0)
+                            throw new common_1.NotFoundException("No markets found");
+                        // ترتيب حسب المسافة لو متوفر
                         if (userLocation) {
                             markets.forEach(function (m) {
                                 var _a;
@@ -150,10 +146,7 @@ var MarketService = /** @class */ (function () {
                             });
                             markets.sort(function (a, b) { return (a["distanceInKm"] || Infinity) - (b["distanceInKm"] || Infinity); });
                         }
-                        return [2 /*return*/, {
-                                message: "Markets for client loaded successfully",
-                                markets: markets
-                            }];
+                        return [2 /*return*/, { message: "Markets for client loaded successfully", markets: markets }];
                 }
             });
         });
@@ -165,58 +158,136 @@ var MarketService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.market.findUnique({
                             where: { id: marketId },
-                            include: {
-                                owner: true,
-                                products: true
-                            }
+                            include: { owner: true, products: true }
                         })];
                     case 1:
                         market = _a.sent();
-                        if (!market) {
+                        if (!market)
                             throw new common_1.NotFoundException("Market not found");
-                        }
-                        return [2 /*return*/, {
-                                message: "Market details loaded successfully",
-                                market: market
-                            }];
+                        return [2 /*return*/, { message: "Market details loaded successfully", market: market }];
                 }
             });
         });
     };
     MarketService.prototype.updateMyMarket = function (userId, userType, dto) {
         return __awaiter(this, void 0, void 0, function () {
-            var market, updated, err_1;
+            var market, dataToUpdate, updated, marketCategories, err_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (userType !== "OWNER") {
+                        if (userType !== "OWNER")
                             throw new common_1.ForbiddenException("Only owners can update markets");
-                        }
-                        return [4 /*yield*/, this.prisma.market.findUnique({
-                                where: { ownerId: userId }
-                            })];
+                        return [4 /*yield*/, this.prisma.market.findUnique({ where: { ownerId: userId } })];
                     case 1:
                         market = _a.sent();
-                        if (!market) {
+                        if (!market)
                             throw new common_1.NotFoundException("Market not found");
-                        }
                         _a.label = 2;
                     case 2:
-                        _a.trys.push([2, 4, , 5]);
+                        _a.trys.push([2, 7, , 8]);
+                        dataToUpdate = __assign({}, dto);
+                        if (dto.from)
+                            dataToUpdate.from = new Date(dto.from);
+                        if (dto.to)
+                            dataToUpdate.to = new Date(dto.to);
                         return [4 /*yield*/, this.prisma.market.update({
                                 where: { id: market.id },
-                                data: __assign({}, dto)
+                                data: dataToUpdate
                             })];
                     case 3:
                         updated = _a.sent();
-                        return [2 /*return*/, {
-                                message: "Market updated successfully",
-                                market: updated
-                            }];
+                        if (!(dto.categoryIds && Array.isArray(dto.categoryIds))) return [3 /*break*/, 6];
+                        // احذف القديم
+                        return [4 /*yield*/, this.prisma.marketCategory.deleteMany({ where: { marketId: market.id } })];
                     case 4:
+                        // احذف القديم
+                        _a.sent();
+                        marketCategories = dto.categoryIds.map(function (catId) { return ({
+                            marketId: market.id,
+                            categoryId: catId
+                        }); });
+                        return [4 /*yield*/, this.prisma.marketCategory.createMany({ data: marketCategories })];
+                    case 5:
+                        _a.sent();
+                        _a.label = 6;
+                    case 6: return [2 /*return*/, { message: "Market updated successfully", market: updated }];
+                    case 7:
                         err_1 = _a.sent();
-                        throw new common_1.ForbiddenException("Failed to update market");
-                    case 5: return [2 /*return*/];
+                        throw new common_1.BadRequestException((err_1 === null || err_1 === void 0 ? void 0 : err_1.message) || "Failed to update market");
+                    case 8: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    MarketService.prototype.updateMarketByAdmin = function (marketId, dto) {
+        return __awaiter(this, void 0, void 0, function () {
+            var market, dataToUpdate, updated, marketCategories, err_2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.market.findUnique({ where: { id: marketId } })];
+                    case 1:
+                        market = _a.sent();
+                        if (!market)
+                            throw new common_1.NotFoundException("Market not found");
+                        _a.label = 2;
+                    case 2:
+                        _a.trys.push([2, 7, , 8]);
+                        dataToUpdate = __assign({}, dto);
+                        if (dto.from)
+                            dataToUpdate.from = new Date(dto.from);
+                        if (dto.to)
+                            dataToUpdate.to = new Date(dto.to);
+                        return [4 /*yield*/, this.prisma.market.update({
+                                where: { id: marketId },
+                                data: dataToUpdate
+                            })];
+                    case 3:
+                        updated = _a.sent();
+                        if (!(dto.categoryIds && Array.isArray(dto.categoryIds))) return [3 /*break*/, 6];
+                        return [4 /*yield*/, this.prisma.marketCategory.deleteMany({ where: { marketId: marketId } })];
+                    case 4:
+                        _a.sent();
+                        marketCategories = dto.categoryIds.map(function (catId) { return ({
+                            marketId: marketId,
+                            categoryId: catId
+                        }); });
+                        return [4 /*yield*/, this.prisma.marketCategory.createMany({ data: marketCategories })];
+                    case 5:
+                        _a.sent();
+                        _a.label = 6;
+                    case 6: return [2 /*return*/, { message: "Market updated successfully by Admin", market: updated }];
+                    case 7:
+                        err_2 = _a.sent();
+                        throw new common_1.BadRequestException((err_2 === null || err_2 === void 0 ? void 0 : err_2.message) || "Failed to update market");
+                    case 8: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    // ===============================================
+    // الدالة الجديدة لحذف الماركت بواسطة المسؤول (ADMIN)
+    // ===============================================
+    MarketService.prototype.deleteMarketByAdmin = function (marketId) {
+        return __awaiter(this, void 0, void 0, function () {
+            var market, deletedMarket;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.market.findUnique({ where: { id: marketId } })];
+                    case 1:
+                        market = _a.sent();
+                        if (!market)
+                            throw new common_1.NotFoundException("Market not found");
+                        // يجب حذف السجلات المرتبطة (MarketCategory) أولاً
+                        return [4 /*yield*/, this.prisma.marketCategory.deleteMany({ where: { marketId: marketId } })];
+                    case 2:
+                        // يجب حذف السجلات المرتبطة (MarketCategory) أولاً
+                        _a.sent();
+                        return [4 /*yield*/, this.prisma.market["delete"]({
+                                where: { id: marketId }
+                            })];
+                    case 3:
+                        deletedMarket = _a.sent();
+                        return [2 /*return*/, { message: "Market deleted successfully by Admin", market: deletedMarket }];
                 }
             });
         });

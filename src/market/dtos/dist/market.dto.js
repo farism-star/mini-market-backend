@@ -75,6 +75,18 @@ var UpdateMarketDto = /** @class */ (function () {
         class_validator_1.IsOptional(),
         class_validator_1.IsArray()
     ], UpdateMarketDto.prototype, "categoryIds");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsNumber()
+    ], UpdateMarketDto.prototype, "limitFees");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsNumber()
+    ], UpdateMarketDto.prototype, "feePerOrder");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsNumber()
+    ], UpdateMarketDto.prototype, "currentFees");
     return UpdateMarketDto;
 }());
 exports.UpdateMarketDto = UpdateMarketDto;
