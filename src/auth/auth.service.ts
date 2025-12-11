@@ -104,6 +104,68 @@ async register(dto: AuthDto, imageUrl: string | null) {
       isFeesRequired:user.isFeesRequired
     };
   }
+async checkOwnerFees(userId: string) {
+  // جلب معلومات المالك
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, id: true },
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  // جلب الماركت الخاص بالمالك
+  const market = await this.prisma.market.findUnique({
+    where: { ownerId: userId },
+    select: {
+      id: true,
+      nameAr: true,
+      nameEn: true,
+      limitFees: true,
+      currentFees: true,
+      feePerOrder: true,
+    },
+  });
+
+  if (!market) throw new NotFoundException('Market not found');
+
+  const limitFees = market.limitFees || 0;
+  const currentFees = market.currentFees || 0;
+  const feePerOrder = market.feePerOrder || 0;
+  const totalDue = limitFees - currentFees;
+
+  let messageEn = '';
+  let messageAr = '';
+
+  if (totalDue > 0) {
+    messageEn = `⚠️ Attention! You have pending fees that must be paid before opening your market.
+Limit Fees: ${limitFees.toFixed(2)}
+Current Fees Paid: ${currentFees.toFixed(2)}
+Fee Per Order: ${feePerOrder.toFixed(2)}
+Amount Due: ${totalDue.toFixed(2)}`;
+
+    messageAr = `⚠️ تنبيه! لديك مستحقات لم يتم دفعها بعد، يجب دفعها قبل فتح السوق.
+الحد الأقصى للرسوم: ${limitFees.toFixed(2)}
+المستحق المدفوع: ${currentFees.toFixed(2)}
+الرسوم لكل طلب: ${feePerOrder.toFixed(2)}
+المبلغ المستحق: ${totalDue.toFixed(2)}`;
+  } else {
+    messageEn = `✅ Your market is in good standing. No pending fees.`;
+    messageAr = `👍 سوقك جاهز للعمل، لا توجد مستحقات متبقية.`;
+  }
+
+  return {
+    market,
+    fees: {
+      limitFees,
+      currentFees,
+      feePerOrder,
+      totalDue,
+    },
+    messageEn,
+    messageAr,
+
+  };
+}
 
   async addAdmin(dto: AddAdminDto) {
     const { email, name, password } = dto;

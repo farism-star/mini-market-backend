@@ -92,6 +92,19 @@ var AuthController = /** @class */ (function () {
             });
         });
     };
+    AuthController.prototype.checkFees = function (req) {
+        return __awaiter(this, void 0, void 0, function () {
+            var user;
+            return __generator(this, function (_a) {
+                user = req.user;
+                if (!user) {
+                    throw new common_1.NotFoundException('User not found');
+                }
+                // استدعاء السيرفس
+                return [2 /*return*/, this.authService.checkOwnerFees(user.id)];
+            });
+        });
+    };
     AuthController.prototype.updateUser = function (files, dto, // ممكن يبقى فيه userId في البادي
     req) {
         return __awaiter(this, void 0, void 0, function () {
@@ -209,6 +222,12 @@ var AuthController = /** @class */ (function () {
         common_1.Get('is-approved'),
         __param(0, common_1.Req())
     ], AuthController.prototype, "checkApproved");
+    __decorate([
+        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
+        common_1.Get('feesRequired'),
+        __param(0, common_1.Req())
+    ], AuthController.prototype, "checkFees");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER, roles_enum_1.Role.ADMIN),
