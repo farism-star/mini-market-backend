@@ -11,7 +11,7 @@ export class CreateProductDto {
   titleEn?: string;
   @IsOptional()
   @IsString()
-  descreptionAr?: string;
+  descriptionAr?: string;
   @IsOptional()
   @IsString()
   descriptionEn?: string;

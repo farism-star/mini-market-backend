@@ -23,7 +23,7 @@ var CreateProductDto = /** @class */ (function () {
     __decorate([
         class_validator_1.IsOptional(),
         class_validator_1.IsString()
-    ], CreateProductDto.prototype, "descreptionAr");
+    ], CreateProductDto.prototype, "descriptionAr");
     __decorate([
         class_validator_1.IsOptional(),
         class_validator_1.IsString()
