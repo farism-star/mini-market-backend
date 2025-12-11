@@ -35,7 +35,7 @@ export class ProductService {
         data: {
           titleAr: dto.titleAr!,
           titleEn: dto.titleEn!,
-          descriptionAr: dto.descreptionAr ?? "",
+          descriptionAr: dto.descriptionAr ?? "",
           descriptionEn: dto.descriptionEn ?? "",
           price: dto.price!,
           images: imageUrls,
