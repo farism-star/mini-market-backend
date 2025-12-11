@@ -13,14 +13,41 @@ export class PaymentService {
 
   constructor(private prisma: PrismaService) {}
 
-  async initiatePayment(dto: CreatePaymentDto) {
+ async initiatePayment(ownerId: string, amount: number) {
+    // جلب بيانات المالك من جدول الـ User
+    const owner = await this.prisma.user.findUnique({
+      where: { id: ownerId },
+      select: {
+        name: true,
+        email: true,
+        phone: true,
+        location: true,
+        isAproved: true,
+        isFeesRequired: true,
+      },
+    });
+
+    if (!owner) throw new NotFoundException('Owner not found');
+
+    // جلب الماركت الخاص بالمالك
+    const market = await this.prisma.market.findUnique({
+      where: { ownerId },
+      select: { id: true, nameAr: true, nameEn: true },
+    });
+
+    if (!market) throw new NotFoundException('Market not found');
+
+    // تحقق إذا فيه مستحقات غير مدفوعة
+  
+
+    // إنشاء سجل الدفع
     const payment = await this.prisma.payment.create({
       data: {
-        userId: dto.userId,
-        amount: dto.amount,
-        method: dto.method,
-        status: 'PENDING'
-      }
+        userId: ownerId,
+        amount,
+        method: 'ONLINE',
+        status: 'PENDING',
+      },
     });
 
     const paymentRequest = {
@@ -28,39 +55,32 @@ export class PaymentService {
       tran_type: 'sale',
       tran_class: 'ecom',
       cart_id: payment.id,
-      cart_description: `Payment for order ${payment.id}`,
+      cart_description: `Payment for market ${market.nameAr || market.nameEn}`,
       cart_currency: 'SAR',
-      cart_amount: dto.amount,
+      cart_amount: amount,
       customer_details: {
-        name: dto.customerName,
-        email: dto.customerEmail,
-        phone: dto.customerPhone,
-        street1: dto.customerAddress || 'N/A',
-        city: dto.customerCity || 'Riyadh',
-        state: dto.customerState || 'Riyadh',
+        name: owner.name,
+        email: owner.email || 'N/A',
+        phone: owner.phone || 'N/A',
+        street1: 'N/A',  
+        city: 'Riyadh',
+        state: 'Riyadh',
         country: 'SA',
-        zip: dto.customerZip || '12345',
+        zip: '12345',
       },
       hide_shipping: true,
       framed: false,
     };
 
     try {
-      
-      
-      const clickpayResponse = await axios.post(
-        this.CLICKPAY_API_URL,
-        paymentRequest,
-        {
-          headers: {
-            'Authorization': this.SERVER_KEY,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const clickpayResponse = await axios.post(this.CLICKPAY_API_URL, paymentRequest, {
+        headers: {
+          Authorization: this.SERVER_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
 
       const responseData = clickpayResponse.data;
-      
 
       if (responseData.tran_ref) {
         await this.prisma.payment.update({
@@ -68,27 +88,27 @@ export class PaymentService {
           data: {
             clickpayOrderId: responseData.tran_ref,
             clickpayCartId: responseData.cart_id,
-          }
+          },
         });
 
         return {
           success: true,
           paymentId: payment.id,
           redirectUrl: responseData.redirect_url,
+          data:responseData,
+          message: 'Please complete your payment to unlock your market.',
         };
       } else {
         throw new BadRequestException('Failed to create payment with ClickPay');
       }
     } catch (error) {
-      console.log('Error Response:', error.response?.data);
-      
       await this.prisma.payment.update({
         where: { id: payment.id },
-        data: { status: 'FAILED' }
+        data: { status: 'FAILED' },
       });
 
       throw new BadRequestException(
-        `Payment initiation failed: ${error.response?.data?.message || error.message}`
+        `Payment initiation failed: ${error.response?.data?.message || error.message}`,
       );
     }
   }
@@ -163,6 +183,8 @@ export class PaymentService {
 
   async verifyPaymentStatus(transactionRef: string) {
     try {
+      console.log(transactionRef);
+      
       const response = await axios.post(
         this.CLICKPAY_QUERY_URL,
         {
