@@ -6,6 +6,8 @@ import {
     UseGuards,
     Req,
     Post,
+    Delete
+    ,
     Param,
     NotFoundException,
     ForbiddenException,
@@ -52,5 +54,20 @@ async getMarketById(@Param("id") marketId: string) {
         
         
         return this.marketService.updateMyMarket(req.user.id, req.user.type, dto);
+    }
+
+
+     @Roles(Role.ADMIN)
+    @Delete(":id")
+    async deleteMarketByAdmin(@Param("id") marketId: string) {
+        return this.marketService.deleteMarketByAdmin(marketId);
+    }
+     @Roles(Role.ADMIN)
+    @Patch(":id")
+    async updateMarketByAdmin(
+        @Param("id") marketId: string, 
+        @Body() dto: UpdateMarketDto
+    ) {
+        return this.marketService.updateMarketByAdmin(marketId, dto);
     }
 }

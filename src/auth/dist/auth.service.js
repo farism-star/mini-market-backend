@@ -145,7 +145,7 @@ var AuthService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.user.findUnique({
                             where: { id: userId },
-                            select: { isAproved: true, name: true, id: true }
+                            select: { isAproved: true, isFeesRequired: true, name: true, id: true }
                         })];
                     case 1:
                         user = _a.sent();

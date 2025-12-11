@@ -218,48 +218,94 @@ var OrdersService = /** @class */ (function () {
             });
         });
     };
+    // ... (الاستيرادات والدوال الأخرى)
     OrdersService.prototype.update = function (id, dto, user) {
-        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var order, updated, err_2;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var order, oldStatus, newStatus, completedToOther, otherToCompleted, updated, marketId, ownerId, feePerOrder, feesChange, updatedMarket, newIsFeesRequired, owner, err_2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.order.findUnique({
                             where: { id: id },
                             include: { market: true, client: true }
                         })];
                     case 1:
-                        order = _b.sent();
+                        order = _a.sent();
                         if (!order)
                             throw new common_1.NotFoundException('Order not found');
                         if (!user)
                             throw new common_1.ForbiddenException('Unauthorized');
-                        if (user.type !== 'OWNER' || ((_a = order.market) === null || _a === void 0 ? void 0 : _a.ownerId) !== user.id) {
-                            throw new common_1.ForbiddenException('Only the owner of the market can modify this order');
-                        }
-                        _b.label = 2;
+                        oldStatus = order.status;
+                        newStatus = dto.status;
+                        completedToOther = oldStatus === 'COMPLETED' && newStatus !== 'COMPLETED';
+                        otherToCompleted = oldStatus !== 'COMPLETED' && newStatus === 'COMPLETED';
+                        _a.label = 2;
                     case 2:
-                        _b.trys.push([2, 6, , 7]);
+                        _a.trys.push([2, 10, , 11]);
                         return [4 /*yield*/, this.prisma.order.update({
                                 where: { id: id },
                                 data: dto,
                                 include: { market: true, client: true }
                             })];
                     case 3:
-                        updated = _b.sent();
-                        if (!updated.clientId) return [3 /*break*/, 5];
+                        updated = _a.sent();
+                        if (!updated.market) return [3 /*break*/, 7];
+                        marketId = updated.market.id;
+                        ownerId = updated.market.ownerId;
+                        feePerOrder = updated.market.feePerOrder || 0;
+                        feesChange = 0;
+                        // 1. الانتقال من أي حالة إلى COMPLETED (إضافة الرسوم)
+                        if (otherToCompleted) {
+                            feesChange = feePerOrder;
+                        }
+                        // 2. الانتقال من COMPLETED إلى أي حالة أخرى (خصم الرسوم)
+                        else if (completedToOther) {
+                            feesChange = -feePerOrder;
+                        }
+                        if (!(feesChange !== 0)) return [3 /*break*/, 7];
+                        return [4 /*yield*/, this.prisma.market.update({
+                                where: { id: marketId },
+                                data: {
+                                    currentFees: {
+                                        increment: feesChange
+                                    }
+                                }
+                            })];
+                    case 4:
+                        updatedMarket = _a.sent();
+                        newIsFeesRequired = false;
+                        if (updatedMarket.currentFees && updatedMarket.limitFees) {
+                            newIsFeesRequired = updatedMarket.currentFees >= updatedMarket.limitFees;
+                        }
+                        return [4 /*yield*/, this.prisma.user.findUnique({
+                                where: { id: ownerId },
+                                select: { isFeesRequired: true } // جلب الحقل المطلوب فقط
+                            })];
+                    case 5:
+                        owner = _a.sent();
+                        if (!(owner && owner.isFeesRequired !== newIsFeesRequired)) return [3 /*break*/, 7];
+                        return [4 /*yield*/, this.prisma.user.update({
+                                where: { id: ownerId },
+                                data: {
+                                    isFeesRequired: newIsFeesRequired
+                                }
+                            })];
+                    case 6:
+                        _a.sent();
+                        _a.label = 7;
+                    case 7:
+                        if (!updated.clientId) return [3 /*break*/, 9];
                         return [4 /*yield*/, this.notification.create({
                                 userId: updated.clientId,
                                 body: "Your order (" + updated.orderId + ") status is now: " + updated.status
                             })];
-                    case 4:
-                        _b.sent();
-                        _b.label = 5;
-                    case 5: return [2 /*return*/, __assign(__assign({}, updated), { time: updated.time ? helper_1.formatTimeToAMPM(updated.time) : null })];
-                    case 6:
-                        err_2 = _b.sent();
+                    case 8:
+                        _a.sent();
+                        _a.label = 9;
+                    case 9: return [2 /*return*/, __assign(__assign({}, updated), { time: updated.time ? helper_1.formatTimeToAMPM(updated.time) : null })];
+                    case 10:
+                        err_2 = _a.sent();
                         throw new common_1.BadRequestException((err_2 === null || err_2 === void 0 ? void 0 : err_2.message) || 'Failed to update order');
-                    case 7: return [2 /*return*/];
+                    case 11: return [2 /*return*/];
                 }
             });
         });

@@ -62,4 +62,18 @@ export class UpdateMarketDto {
     @IsArray() 
     categoryIds?: string[];
 
+  // ===================================
+  // يجب إضافة الخصائص المالية هنا
+  // ===================================
+  @IsOptional() 
+  @IsNumber() 
+  limitFees?: number;
+
+  @IsOptional() 
+  @IsNumber() 
+  feePerOrder?: number;
+
+  @IsOptional() 
+  @IsNumber() 
+  currentFees?: number;
 }

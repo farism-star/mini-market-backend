@@ -63,23 +63,24 @@ model Payment {
 }
 
 model User {
-  id            String         @id @default(auto()) @map("_id") @db.ObjectId
-  type          UserType
-  name          String
-  email         String?        @unique
-  emailVerified Boolean        @default(false)
-  phone         String?        @unique
-  phoneVerified Boolean        @default(false)
-  image         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  isAproved     Boolean        @default(false)
-  messages      Message[]      @relation("UserMessages")
-  otps          Otp[]
-  market        Market?
-  orders        Order[]
-  notifications Notification[]
-  addresses     Address[]
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  type           UserType
+  name           String
+  email          String?        @unique
+  emailVerified  Boolean        @default(false)
+  phone          String?        @unique
+  phoneVerified  Boolean        @default(false)
+  image          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  isAproved      Boolean        @default(false)
+  isFeesRequired Boolean        @default(false)
+  messages       Message[]      @relation("UserMessages")
+  otps           Otp[]
+  market         Market?
+  orders         Order[]
+  notifications  Notification[]
+  addresses      Address[]
 
   location Float[] @default([]) // [latitude, longitude]
 }
@@ -117,13 +118,15 @@ model MarketCategory {
 
 model Market {
   id            String  @id @default(auto()) @map("_id") @db.ObjectId
-  nameAr          String?
-  nameEn          String?
+  nameAr        String?
+  nameEn        String?
   descriptionAr String?
   descriptionEn String?
   ownerId       String  @unique @db.ObjectId
   owner         User    @relation(fields: [ownerId], references: [id])
-
+  limitFees        Float?   @default(0.0)
+  feePerOrder  Float?   @default(0.0)
+  currentFees  Float?   @default(0.0)
   zone       String?
   district   String?
   address    String?
@@ -146,6 +149,7 @@ model Market {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model Category {
   id     String  @id @default(auto()) @map("_id") @db.ObjectId
   nameAr String
@@ -157,6 +161,7 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model Order {
   id      String @id @default(auto()) @map("_id") @db.ObjectId
   orderId String @unique
@@ -178,10 +183,7 @@ model Order {
 
   totalPrice      Float @default(0)
   commissionValue Float @default(0)
-
 }
-
-
 
 model Otp {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -192,6 +194,7 @@ model Otp {
   createdAt  DateTime @default(now())
   expiresAt  DateTime
 }
+
 model Product {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   titleAr       String?

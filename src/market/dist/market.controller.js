@@ -85,6 +85,20 @@ var MarketController = /** @class */ (function () {
             });
         });
     };
+    MarketController.prototype.deleteMarketByAdmin = function (marketId) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.marketService.deleteMarketByAdmin(marketId)];
+            });
+        });
+    };
+    MarketController.prototype.updateMarketByAdmin = function (marketId, dto) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.marketService.updateMarketByAdmin(marketId, dto)];
+            });
+        });
+    };
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
         common_1.Post("create"),
@@ -105,6 +119,17 @@ var MarketController = /** @class */ (function () {
         common_1.Patch("me"),
         __param(0, common_1.Req()), __param(1, common_1.Body())
     ], MarketController.prototype, "updateMyMarket");
+    __decorate([
+        Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
+        common_1.Delete(":id"),
+        __param(0, common_1.Param("id"))
+    ], MarketController.prototype, "deleteMarketByAdmin");
+    __decorate([
+        Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
+        common_1.Patch(":id"),
+        __param(0, common_1.Param("id")),
+        __param(1, common_1.Body())
+    ], MarketController.prototype, "updateMarketByAdmin");
     MarketController = __decorate([
         common_1.Controller({
             path: 'market',
