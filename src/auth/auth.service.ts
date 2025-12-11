@@ -101,6 +101,7 @@ async register(dto: AuthDto, imageUrl: string | null) {
     return {
       message: "Owner approval status loaded",
       isApproved: user.isAproved,
+      isFeesRequired:user.isFeesRequired
     };
   }
 
