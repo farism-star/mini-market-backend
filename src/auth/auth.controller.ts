@@ -1,7 +1,7 @@
 // auth.controller.ts
 import {
   Controller, Post, Body, UseGuards, Req, Param, Patch, Delete, Get, UseInterceptors,
-  UploadedFile, UploadedFiles,NotFoundException
+  UploadedFile, UploadedFiles,NotFoundException,Query
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
@@ -163,12 +163,13 @@ export class AuthController {
   }
 
 
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.CLIENT, Role.OWNER)
-  @Get('home-data')
-  async getDashboardData(@Req() req: any) {
-    const user = req.user;
-    return this.authService.getDashboardData(user.id, user.type);
-  }
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(Role.CLIENT, Role.OWNER)
+@Get('home-data')
+async getDashboardData(@Req() req: any, @Query('categoryId') categoryId?: string) {
+  const user = req.user;
+  return this.authService.getDashboardData(user.id, user.type, categoryId);
+}
+
 
 }

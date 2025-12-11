@@ -255,125 +255,137 @@ Amount Due: ${totalDue.toFixed(2)}`;
   }
 
  
-async getDashboardData(userId: string, type: string) {
-    if (type === 'OWNER') {
-      // ===== OWNER =====
-      const conversations = await this.prisma.conversation.findMany({
-        where: { users: { has: userId } },
-        include: {
-          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-          _count: {
-            select: {
-              messages: { where: { senderId: { not: userId }, isRead: false } },
-            },
+async getDashboardData(userId: string, type: string, categoryId?: string) {
+  if (type === 'OWNER') {
+  
+    const conversations = await this.prisma.conversation.findMany({
+      where: { users: { has: userId } },
+      include: {
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        _count: {
+          select: {
+            messages: { where: { senderId: { not: userId }, isRead: false } },
           },
         },
-        orderBy: { updatedAt: 'desc' },
-        take: 1,
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 1,
+    });
+
+    let formattedConversation: any = null;
+
+    if (conversations.length > 0) {
+      const lastConversation = conversations[0];
+      const otherUserId = lastConversation.users.find((uid) => uid !== userId);
+      const otherUser = await this.prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: { id: true, name: true, image: true },
       });
-
-      let formattedConversation: any = null;
-
-      if (conversations.length > 0) {
-        const lastConversation = conversations[0];
-        const otherUserId = lastConversation.users.find((uid) => uid !== userId);
-        const otherUser = await this.prisma.user.findUnique({
-          where: { id: otherUserId },
-          select: { id: true, name: true, image: true },
-        });
-        const lastMsg = lastConversation.messages[0];
-        formattedConversation = {
-          id: lastConversation.id,
-          user: otherUser,
-          lastMessage: lastMsg
-            ? {
-                id: lastMsg.id,
-                type: lastMsg.type,
-                senderId: lastMsg.senderId,
-                text: lastMsg.text,
-                image: lastMsg.imageUrl,
-                voice: lastMsg.voice,
-                createdAt: lastMsg.createdAt,
-              }
-            : null,
-          unreadMessages: lastConversation._count.messages,
-        };
-      }
-
-      const lastProducts = await this.prisma.product.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: { market: true },
-      });
-
-      return { lastConversation: formattedConversation, lastProducts };
-    } else {
-      // ===== CLIENT =====
-      const categories = await this.prisma.category.findMany();
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { location: true },
-      });
-
-      const userLocation = user?.location;
-
-      let markets = await this.prisma.market.findMany({
-        select: {
-          id: true,
-          nameAr: true,
-          nameEn: true,
-          descriptionAr: true,
-          descriptionEn: true,
-          ownerId: true,
-          zone: true,
-          district: true,
-          address: true,
-          operations: true,
-          hours: true,
-          image: true,
-          commissionFee: true,
-          location: true,
-          rate: true,
-          isOpen: true,
-          from: true,
-          to: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-
-      if (userLocation) {
-        // أضف distanceInKm ديناميكيًا
-        const marketsWithDistance: (typeof markets[0] & MarketWithDistance)[] = markets.map((m) => {
-          let distanceInKm: number | null = null;
-          if (m.location?.length === 2) {
-            distanceInKm = getDistance(
-              userLocation[0],
-              userLocation[1],
-              m.location[0],
-              m.location[1],
-            );
-          }
-          return { ...m, distanceInKm };
-        });
-
-        // فرز حسب المسافة
-        const sortedMarkets = marketsWithDistance.sort(
-          (a, b) => (a.distanceInKm ?? Infinity) - (b.distanceInKm ?? Infinity),
-        );
-
-        // تصفية المسافة <= 30 كم
-        const filteredMarkets = sortedMarkets.filter(
-          (m) => m.distanceInKm !== null && m.distanceInKm <= 30,
-        );
-
-        return { categories, markets: filteredMarkets };
-      }
-
-      return { categories, markets };
+      const lastMsg = lastConversation.messages[0];
+      formattedConversation = {
+        id: lastConversation.id,
+        user: otherUser,
+        lastMessage: lastMsg
+          ? {
+              id: lastMsg.id,
+              type: lastMsg.type,
+              senderId: lastMsg.senderId,
+              text: lastMsg.text,
+              image: lastMsg.imageUrl,
+              voice: lastMsg.voice,
+              createdAt: lastMsg.createdAt,
+            }
+          : null,
+        unreadMessages: lastConversation._count.messages,
+      };
     }
+
+    const lastProducts = await this.prisma.product.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: { market: true },
+    });
+
+    return { lastConversation: formattedConversation, lastProducts };
+  } 
+
+  // ===== CLIENT =====
+
+  const categories = await this.prisma.category.findMany();
+
+  // user location
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { location: true },
+  });
+
+  const userLocation = user?.location;
+
+  // base markets query
+let markets = await this.prisma.market.findMany({
+  where: categoryId
+    ? {
+        categories: {
+          some: {
+            categoryId: categoryId,
+          },
+        },
+      }
+    : undefined,
+  select: {
+    id: true,
+    nameAr: true,
+    nameEn: true,
+    descriptionAr: true,
+    descriptionEn: true,
+    ownerId: true,
+    zone: true,
+    district: true,
+    address: true,
+    operations: true,
+    hours: true,
+    image: true,
+    commissionFee: true,
+    location: true,
+    rate: true,
+    isOpen: true,
+    from: true,
+    to: true,
+    createdAt: true,
+    updatedAt: true,
+  },
+});
+
+
+  // لو المستخدم ليه location
+  if (userLocation) {
+    const marketsWithDistance = markets.map((m: any) => {
+      let distanceInKm: number | null = null;
+      if (m.location?.length === 2) {
+        distanceInKm = getDistance(
+          userLocation[0],
+          userLocation[1],
+          m.location[0],
+          m.location[1],
+        );
+      }
+      return { ...m, distanceInKm };
+    });
+
+    const sortedMarkets = marketsWithDistance.sort(
+      (a, b) => (a.distanceInKm ?? Infinity) - (b.distanceInKm ?? Infinity),
+    );
+
+    const filteredMarkets = sortedMarkets.filter(
+      (m) => m.distanceInKm !== null && m.distanceInKm <= 30,
+    );
+
+    return { categories, markets: filteredMarkets };
   }
+
+  return { categories, markets };
+}
+
 
   async login(authDto: Login) {
     const { email, phone } = authDto;

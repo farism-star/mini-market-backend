@@ -133,7 +133,6 @@ var MarketService = /** @class */ (function () {
                         markets = _a.sent();
                         if (!markets || markets.length === 0)
                             throw new common_1.NotFoundException("No markets found");
-                        // ترتيب حسب المسافة لو متوفر
                         if (userLocation) {
                             markets.forEach(function (m) {
                                 var _a;
@@ -264,9 +263,6 @@ var MarketService = /** @class */ (function () {
             });
         });
     };
-    // ===============================================
-    // الدالة الجديدة لحذف الماركت بواسطة المسؤول (ADMIN)
-    // ===============================================
     MarketService.prototype.deleteMarketByAdmin = function (marketId) {
         return __awaiter(this, void 0, void 0, function () {
             var market, deletedMarket;
