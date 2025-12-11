@@ -1,7 +1,7 @@
 // auth.controller.ts
 import {
   Controller, Post, Body, UseGuards, Req, Param, Patch, Delete, Get, UseInterceptors,
-  UploadedFile, UploadedFiles
+  UploadedFile, UploadedFiles,NotFoundException
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
@@ -52,42 +52,53 @@ export class AuthController {
   getProfile(@Req() req) {
     return req.user;
   }
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.OWNER)
+  @Get('is-approved')
+  async checkApproved(@Req() req: any) {
+    const user = req.user; // من JWT
+    return this.authService.checkOwnerApproved(user.id);
+  }
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(Role.OWNER)
-@Get('is-approved')
-async checkApproved(@Req() req: any) {
-  const user = req.user; // من JWT
-  return this.authService.checkOwnerApproved(user.id);
-}
+  @Roles(Role.OWNER)
+  @Get('feesRequired')
+  async checkFees(@Req() req: any) {
+    const user = req.user;
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // استدعاء السيرفس
+    return this.authService.checkOwnerFees(user.id);
+  }
 
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.CLIENT, Role.OWNER, Role.ADMIN)
+  @Patch('update')
+  @UseInterceptors(AnyFilesInterceptor(multerConfig))
+  async updateUser(
+    @UploadedFiles() files: Array<Express.Multer.File>,
+    @Body() dto: UpdateUserDto & { userId?: string }, // ممكن يبقى فيه userId في البادي
+    @Req() req: any,
+  ) {
+    // ناخد الـ userId من البادي لو موجود، وإلا ناخده من الـ JWT
+    const userId = dto.userId || req.user.id;
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(Role.CLIENT, Role.OWNER, Role.ADMIN)
-@Patch('update')
-@UseInterceptors(AnyFilesInterceptor(multerConfig))
-async updateUser(
-  @UploadedFiles() files: Array<Express.Multer.File>,
-  @Body() dto: UpdateUserDto & { userId?: string }, // ممكن يبقى فيه userId في البادي
-  @Req() req: any,
-) {
-  // ناخد الـ userId من البادي لو موجود، وإلا ناخده من الـ JWT
-  const userId = dto.userId || req.user.id;
+    let userImage: string | null = null;
+    let marketImage: string | null = null;
 
-  let userImage: string | null = null;
-  let marketImage: string | null = null;
-
-  // Loop files
- if (files && files.length > 0) {
-  files.forEach(file => {
-    if (file.fieldname === 'image') userImage = `/uploads/${file.filename}`;
-    if (file.fieldname === 'marketImage') marketImage = `/uploads/${file.filename}`;
-  });
-}
+    // Loop files
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        if (file.fieldname === 'image') userImage = `/uploads/${file.filename}`;
+        if (file.fieldname === 'marketImage') marketImage = `/uploads/${file.filename}`;
+      });
+    }
 
 
-  return this.authService.updateUser(userId, dto, userImage, marketImage);
-}
+    return this.authService.updateUser(userId, dto, userImage, marketImage);
+  }
 
 
 
@@ -101,12 +112,12 @@ async updateUser(
   updateAddress(@Param('addressId') addressId: string, @Body() dto: UpdateAddressDto) {
     return this.authService.updateAddress(addressId, dto);
   }
-@UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(Role.ADMIN)
-@Delete('user/:userId')
-async deleteUser(@Param('userId') userId: string) {
-  return this.authService.deleteUser(userId);
-}
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('user/:userId')
+  async deleteUser(@Param('userId') userId: string) {
+    return this.authService.deleteUser(userId);
+  }
 
   @Delete('address/delete/:addressId')
   deleteAddress(@Param('addressId') addressId: string) {
@@ -118,20 +129,20 @@ async deleteUser(@Param('userId') userId: string) {
     return this.authService.getUserAddresses(userId);
   }
 
-@Post('admin/login')
+  @Post('admin/login')
   async adminLogin(@Body() authDto: Login) {
     return this.authService.adminLogin(authDto);
   }
- @Post('add-admin')
+  @Post('add-admin')
   async addAdmin(@Body() dto: AddAdminDto, @Req() req: any) {
     return this.authService.addAdmin(dto);
   }
- @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/clients')
-  async getAllClients( @Req() req: any) {
+  async getAllClients(@Req() req: any) {
     const user = req.user
-    console.log("user",user)
+    console.log("user", user)
     return this.authService.getAllClients();
   }
 
@@ -152,12 +163,12 @@ async deleteUser(@Param('userId') userId: string) {
   }
 
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(Role.CLIENT, Role.OWNER)
-@Get('home-data')
-async getDashboardData(@Req() req: any) {
-  const user = req.user;
-  return this.authService.getDashboardData(user.id, user.type);
-}
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.CLIENT, Role.OWNER)
+  @Get('home-data')
+  async getDashboardData(@Req() req: any) {
+    const user = req.user;
+    return this.authService.getDashboardData(user.id, user.type);
+  }
 
 }
