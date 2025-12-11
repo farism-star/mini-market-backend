@@ -163,7 +163,7 @@ var AuthService = /** @class */ (function () {
     };
     AuthService.prototype.checkOwnerFees = function (userId) {
         return __awaiter(this, void 0, void 0, function () {
-            var user, market, limitFees, currentFees, feePerOrder, totalDue, message;
+            var user, market, limitFees, currentFees, feePerOrder, totalDue, messageEn, messageAr;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.user.findUnique({
@@ -193,12 +193,15 @@ var AuthService = /** @class */ (function () {
                         currentFees = market.currentFees || 0;
                         feePerOrder = market.feePerOrder || 0;
                         totalDue = limitFees - currentFees;
-                        message = '';
+                        messageEn = '';
+                        messageAr = '';
                         if (totalDue > 0) {
-                            message = "\n        \u26A0\uFE0F Attention! You have pending fees that must be paid before opening your market.\n        Limit Fees: " + limitFees.toFixed(2) + "\n        Current Fees Paid: " + currentFees.toFixed(2) + "\n        Fee Per Order: " + feePerOrder.toFixed(2) + "\n        Amount Due: " + totalDue.toFixed(2) + "\n\n        \u26A0\uFE0F \u062A\u0646\u0628\u064A\u0647! \u0644\u062F\u064A\u0643 \u0645\u0633\u062A\u062D\u0642\u0627\u062A \u0644\u0645 \u064A\u062A\u0645 \u062F\u0641\u0639\u0647\u0627 \u0628\u0639\u062F\u060C \u064A\u062C\u0628 \u062F\u0641\u0639\u0647\u0627 \u0642\u0628\u0644 \u0641\u062A\u062D \u0627\u0644\u0633\u0648\u0642.\n        \u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0642\u0635\u0649 \u0644\u0644\u0631\u0633\u0648\u0645: " + limitFees.toFixed(2) + "\n        \u0627\u0644\u0645\u0633\u062A\u062D\u0642 \u0627\u0644\u0645\u062F\u0641\u0648\u0639: " + currentFees.toFixed(2) + "\n        \u0627\u0644\u0631\u0633\u0648\u0645 \u0644\u0643\u0644 \u0637\u0644\u0628: " + feePerOrder.toFixed(2) + "\n        \u0627\u0644\u0645\u0628\u0644\u063A \u0627\u0644\u0645\u0633\u062A\u062D\u0642: " + totalDue.toFixed(2) + "\n      ";
+                            messageEn = "\u26A0\uFE0F Attention! You have pending fees that must be paid before opening your market.\nLimit Fees: " + limitFees.toFixed(2) + "\nCurrent Fees Paid: " + currentFees.toFixed(2) + "\nFee Per Order: " + feePerOrder.toFixed(2) + "\nAmount Due: " + totalDue.toFixed(2);
+                            messageAr = "\u26A0\uFE0F \u062A\u0646\u0628\u064A\u0647! \u0644\u062F\u064A\u0643 \u0645\u0633\u062A\u062D\u0642\u0627\u062A \u0644\u0645 \u064A\u062A\u0645 \u062F\u0641\u0639\u0647\u0627 \u0628\u0639\u062F\u060C \u064A\u062C\u0628 \u062F\u0641\u0639\u0647\u0627 \u0642\u0628\u0644 \u0641\u062A\u062D \u0627\u0644\u0633\u0648\u0642.\n\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0642\u0635\u0649 \u0644\u0644\u0631\u0633\u0648\u0645: " + limitFees.toFixed(2) + "\n\u0627\u0644\u0645\u0633\u062A\u062D\u0642 \u0627\u0644\u0645\u062F\u0641\u0648\u0639: " + currentFees.toFixed(2) + "\n\u0627\u0644\u0631\u0633\u0648\u0645 \u0644\u0643\u0644 \u0637\u0644\u0628: " + feePerOrder.toFixed(2) + "\n\u0627\u0644\u0645\u0628\u0644\u063A \u0627\u0644\u0645\u0633\u062A\u062D\u0642: " + totalDue.toFixed(2);
                         }
                         else {
-                            message = "\n        \u2705 Your market is in good standing. No pending fees.\n        \uD83D\uDC4D \u0633\u0648\u0642\u0643 \u062C\u0627\u0647\u0632 \u0644\u0644\u0639\u0645\u0644\u060C \u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0633\u062A\u062D\u0642\u0627\u062A \u0645\u062A\u0628\u0642\u064A\u0629.\n      ";
+                            messageEn = "\u2705 Your market is in good standing. No pending fees.";
+                            messageAr = "\uD83D\uDC4D \u0633\u0648\u0642\u0643 \u062C\u0627\u0647\u0632 \u0644\u0644\u0639\u0645\u0644\u060C \u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0633\u062A\u062D\u0642\u0627\u062A \u0645\u062A\u0628\u0642\u064A\u0629.";
                         }
                         return [2 /*return*/, {
                                 market: market,
@@ -208,7 +211,8 @@ var AuthService = /** @class */ (function () {
                                     feePerOrder: feePerOrder,
                                     totalDue: totalDue
                                 },
-                                message: message
+                                messageEn: messageEn,
+                                messageAr: messageAr
                             }];
                 }
             });

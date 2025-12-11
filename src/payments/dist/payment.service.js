@@ -54,56 +54,79 @@ var PaymentService = /** @class */ (function () {
         this.PROFILE_ID = process.env.PROFILE_ID;
         this.SERVER_KEY = process.env.CLICKPAY_SERVER_KEY;
     }
-    PaymentService.prototype.initiatePayment = function (dto) {
-        var _a, _b, _c;
+    PaymentService.prototype.initiatePayment = function (ownerId, amount) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function () {
-            var payment, paymentRequest, clickpayResponse, responseData, error_1;
-            return __generator(this, function (_d) {
-                switch (_d.label) {
-                    case 0: return [4 /*yield*/, this.prisma.payment.create({
-                            data: {
-                                userId: dto.userId,
-                                amount: dto.amount,
-                                method: dto.method,
-                                status: 'PENDING'
+            var owner, market, payment, paymentRequest, clickpayResponse, responseData, error_1;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0: return [4 /*yield*/, this.prisma.user.findUnique({
+                            where: { id: ownerId },
+                            select: {
+                                name: true,
+                                email: true,
+                                phone: true,
+                                location: true,
+                                isAproved: true,
+                                isFeesRequired: true
                             }
                         })];
                     case 1:
-                        payment = _d.sent();
+                        owner = _c.sent();
+                        if (!owner)
+                            throw new common_1.NotFoundException('Owner not found');
+                        return [4 /*yield*/, this.prisma.market.findUnique({
+                                where: { ownerId: ownerId },
+                                select: { id: true, nameAr: true, nameEn: true }
+                            })];
+                    case 2:
+                        market = _c.sent();
+                        if (!market)
+                            throw new common_1.NotFoundException('Market not found');
+                        return [4 /*yield*/, this.prisma.payment.create({
+                                data: {
+                                    userId: ownerId,
+                                    amount: amount,
+                                    method: 'ONLINE',
+                                    status: 'PENDING'
+                                }
+                            })];
+                    case 3:
+                        payment = _c.sent();
                         paymentRequest = {
                             profile_id: this.PROFILE_ID,
                             tran_type: 'sale',
                             tran_class: 'ecom',
                             cart_id: payment.id,
-                            cart_description: "Payment for order " + payment.id,
+                            cart_description: "Payment for market " + (market.nameAr || market.nameEn),
                             cart_currency: 'SAR',
-                            cart_amount: dto.amount,
+                            cart_amount: amount,
                             customer_details: {
-                                name: dto.customerName,
-                                email: dto.customerEmail,
-                                phone: dto.customerPhone,
-                                street1: dto.customerAddress || 'N/A',
-                                city: dto.customerCity || 'Riyadh',
-                                state: dto.customerState || 'Riyadh',
+                                name: owner.name,
+                                email: owner.email || 'N/A',
+                                phone: owner.phone || 'N/A',
+                                street1: 'N/A',
+                                city: 'Riyadh',
+                                state: 'Riyadh',
                                 country: 'SA',
-                                zip: dto.customerZip || '12345'
+                                zip: '12345'
                             },
                             hide_shipping: true,
                             framed: false
                         };
-                        _d.label = 2;
-                    case 2:
-                        _d.trys.push([2, 7, , 9]);
+                        _c.label = 4;
+                    case 4:
+                        _c.trys.push([4, 9, , 11]);
                         return [4 /*yield*/, axios_1["default"].post(this.CLICKPAY_API_URL, paymentRequest, {
                                 headers: {
-                                    'Authorization': this.SERVER_KEY,
+                                    Authorization: this.SERVER_KEY,
                                     'Content-Type': 'application/json'
                                 }
                             })];
-                    case 3:
-                        clickpayResponse = _d.sent();
+                    case 5:
+                        clickpayResponse = _c.sent();
                         responseData = clickpayResponse.data;
-                        if (!responseData.tran_ref) return [3 /*break*/, 5];
+                        if (!responseData.tran_ref) return [3 /*break*/, 7];
                         return [4 /*yield*/, this.prisma.payment.update({
                                 where: { id: payment.id },
                                 data: {
@@ -111,26 +134,27 @@ var PaymentService = /** @class */ (function () {
                                     clickpayCartId: responseData.cart_id
                                 }
                             })];
-                    case 4:
-                        _d.sent();
+                    case 6:
+                        _c.sent();
                         return [2 /*return*/, {
                                 success: true,
                                 paymentId: payment.id,
-                                redirectUrl: responseData.redirect_url
+                                redirectUrl: responseData.redirect_url,
+                                data: responseData,
+                                message: 'Please complete your payment to unlock your market.'
                             }];
-                    case 5: throw new common_1.BadRequestException('Failed to create payment with ClickPay');
-                    case 6: return [3 /*break*/, 9];
-                    case 7:
-                        error_1 = _d.sent();
-                        console.log('Error Response:', (_a = error_1.response) === null || _a === void 0 ? void 0 : _a.data);
+                    case 7: throw new common_1.BadRequestException('Failed to create payment with ClickPay');
+                    case 8: return [3 /*break*/, 11];
+                    case 9:
+                        error_1 = _c.sent();
                         return [4 /*yield*/, this.prisma.payment.update({
                                 where: { id: payment.id },
                                 data: { status: 'FAILED' }
                             })];
-                    case 8:
-                        _d.sent();
-                        throw new common_1.BadRequestException("Payment initiation failed: " + (((_c = (_b = error_1.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.message) || error_1.message));
-                    case 9: return [2 /*return*/];
+                    case 10:
+                        _c.sent();
+                        throw new common_1.BadRequestException("Payment initiation failed: " + (((_b = (_a = error_1.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || error_1.message));
+                    case 11: return [2 /*return*/];
                 }
             });
         });
@@ -198,6 +222,7 @@ var PaymentService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 2, , 3]);
+                        console.log(transactionRef);
                         return [4 /*yield*/, axios_1["default"].post(this.CLICKPAY_QUERY_URL, {
                                 profile_id: this.PROFILE_ID,
                                 tran_ref: transactionRef

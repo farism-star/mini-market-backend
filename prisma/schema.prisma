@@ -51,10 +51,10 @@ model Message {
 
 model Payment {
   id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String
-  amount           Float
-  method           String
-  status           String // PENDING, SUCCESS, FAILED
+  userId           String?
+  amount           Float?
+  method           String?
+  status           String? // PENDING, SUCCESS, FAILED
   clickpayOrderId  String?
   clickpayCartId   String?
   clickpayResponse String? // تخزين كل الـ response
