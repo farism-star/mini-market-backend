@@ -99,7 +99,7 @@ var PaymentService = /** @class */ (function () {
                             tran_class: 'ecom',
                             cart_id: payment.id,
                             cart_description: "Payment for market " + (market.nameAr || market.nameEn),
-                            cart_currency: 'SAR',
+                            cart_currency: 'EGP',
                             cart_amount: amount,
                             customer_details: {
                                 name: owner.name,
