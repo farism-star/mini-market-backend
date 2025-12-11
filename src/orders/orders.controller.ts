@@ -31,35 +31,35 @@ import { Role } from "src/auth/roles.enum";
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
- @Roles(Role.OWNER,Role.CLIENT)
+ @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Post()
   async create(@Body() createOrderDto: CreateOrderDto, @Req() req: Request) {
     const user = (req as any).user ; // check your app's user shape
     return this.ordersService.create(createOrderDto, user);
   }
 
- @Roles(Role.OWNER,Role.CLIENT)
+ @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Get()
   async findAll(@Req() req: Request) {
     const user = (req as any).user ;
     return this.ordersService.findAll(user);
   }
 
- @Roles(Role.OWNER,Role.CLIENT)
+ @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Get(':id')
   async findOne(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user ;
     return this.ordersService.findOne(id, user);
   }
 
- @Roles(Role.OWNER,Role.CLIENT)
+ @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateDto: UpdateOrderDto, @Req() req: Request) {
     const user = (req as any).user ;
     return this.ordersService.update(id, updateDto, user);
   }
 
- @Roles(Role.OWNER,Role.CLIENT)
+ @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string, @Req() req: Request) {

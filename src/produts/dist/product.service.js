@@ -94,7 +94,7 @@ var ProductService = /** @class */ (function () {
                                 data: {
                                     titleAr: dto.titleAr,
                                     titleEn: dto.titleEn,
-                                    descriptionAr: (_a = dto.descreptionAr) !== null && _a !== void 0 ? _a : "",
+                                    descriptionAr: (_a = dto.descriptionAr) !== null && _a !== void 0 ? _a : "",
                                     descriptionEn: (_b = dto.descriptionEn) !== null && _b !== void 0 ? _b : "",
                                     price: dto.price,
                                     images: imageUrls,

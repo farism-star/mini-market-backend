@@ -158,6 +158,32 @@ var MarketService = /** @class */ (function () {
             });
         });
     };
+    MarketService.prototype.getMarketById = function (marketId) {
+        return __awaiter(this, void 0, void 0, function () {
+            var market;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.market.findUnique({
+                            where: { id: marketId },
+                            include: {
+                                owner: true,
+                                categories: { include: { category: true } },
+                                products: true
+                            }
+                        })];
+                    case 1:
+                        market = _a.sent();
+                        if (!market) {
+                            throw new common_1.NotFoundException("Market not found");
+                        }
+                        return [2 /*return*/, {
+                                message: "Market details loaded successfully",
+                                market: market
+                            }];
+                }
+            });
+        });
+    };
     MarketService.prototype.updateMyMarket = function (userId, userType, dto) {
         return __awaiter(this, void 0, void 0, function () {
             var market, updated, err_1;

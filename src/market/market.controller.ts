@@ -5,8 +5,8 @@ import {
     Body,
     UseGuards,
     Req,
-    Post
-    ,
+    Post,
+    Param,
     NotFoundException,
     ForbiddenException,
 } from "@nestjs/common";
@@ -39,8 +39,13 @@ async create(@Body() dto: CreateMarketDto, @Req() req: any) {
         
         return this.marketService.getMyMarket(req.user.id, req.user.type);
     }
+@Roles(Role.OWNER, Role.CLIENT)
+@Get(":id")
+async getMarketById(@Param("id") marketId: string) {
+  return this.marketService.getMarketById(marketId);
+}
 
-    // Update my market
+   
     @Roles(Role.OWNER)
     @Patch("me")
     async updateMyMarket(@Req() req: any, @Body() dto: UpdateMarketDto) {
