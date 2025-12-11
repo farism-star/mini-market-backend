@@ -64,7 +64,7 @@ export class MarketService {
       });
       if (!markets || markets.length === 0) throw new NotFoundException("No markets found");
 
-      // ترتيب حسب المسافة لو متوفر
+      
       if (userLocation) {
         markets.forEach(m => {
           if (m.location?.length === 2) {
@@ -156,9 +156,7 @@ export class MarketService {
     }
   }
 
-  // ===============================================
-  // الدالة الجديدة لحذف الماركت بواسطة المسؤول (ADMIN)
-  // ===============================================
+  
   async deleteMarketByAdmin(marketId: string) {
     const market = await this.prisma.market.findUnique({ where: { id: marketId } });
     if (!market) throw new NotFoundException("Market not found");

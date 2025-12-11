@@ -337,9 +337,9 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
-    AuthService.prototype.getDashboardData = function (userId, type) {
+    AuthService.prototype.getDashboardData = function (userId, type, categoryId) {
         return __awaiter(this, void 0, void 0, function () {
-            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, categories, user, userLocation_1, markets, marketsWithDistance, sortedMarkets, filteredMarkets;
+            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, categories, user, userLocation, markets, marketsWithDistance, sortedMarkets, filteredMarkets;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -404,8 +404,17 @@ var AuthService = /** @class */ (function () {
                             })];
                     case 7:
                         user = _a.sent();
-                        userLocation_1 = user === null || user === void 0 ? void 0 : user.location;
+                        userLocation = user === null || user === void 0 ? void 0 : user.location;
                         return [4 /*yield*/, this.prisma.market.findMany({
+                                where: categoryId
+                                    ? {
+                                        categories: {
+                                            some: {
+                                                categoryId: categoryId
+                                            }
+                                        }
+                                    }
+                                    : undefined,
                                 select: {
                                     id: true,
                                     nameAr: true,
@@ -431,12 +440,13 @@ var AuthService = /** @class */ (function () {
                             })];
                     case 8:
                         markets = _a.sent();
-                        if (userLocation_1) {
+                        // لو المستخدم ليه location
+                        if (userLocation) {
                             marketsWithDistance = markets.map(function (m) {
                                 var _a;
                                 var distanceInKm = null;
                                 if (((_a = m.location) === null || _a === void 0 ? void 0 : _a.length) === 2) {
-                                    distanceInKm = distance_1.getDistance(userLocation_1[0], userLocation_1[1], m.location[0], m.location[1]);
+                                    distanceInKm = distance_1.getDistance(userLocation[0], userLocation[1], m.location[0], m.location[1]);
                                 }
                                 return __assign(__assign({}, m), { distanceInKm: distanceInKm });
                             });
