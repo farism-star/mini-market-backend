@@ -216,27 +216,64 @@ var PaymentService = /** @class */ (function () {
         return calculatedSignature === signature;
     };
     PaymentService.prototype.verifyPaymentStatus = function (transactionRef) {
+        var _a, _b, _c;
         return __awaiter(this, void 0, void 0, function () {
-            var response, error_2;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var response, data, result, status, success, userMessage, error_2;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
-                        _a.trys.push([0, 2, , 3]);
-                        console.log(transactionRef);
+                        _d.trys.push([0, 2, , 3]);
                         return [4 /*yield*/, axios_1["default"].post(this.CLICKPAY_QUERY_URL, {
                                 profile_id: this.PROFILE_ID,
                                 tran_ref: transactionRef
                             }, {
                                 headers: {
-                                    'Authorization': this.SERVER_KEY,
+                                    Authorization: this.SERVER_KEY,
                                     'Content-Type': 'application/json'
                                 }
                             })];
                     case 1:
-                        response = _a.sent();
-                        return [2 /*return*/, response.data];
+                        response = _d.sent();
+                        data = response.data;
+                        if (!data.payment_result) {
+                            return [2 /*return*/, {
+                                    success: false,
+                                    status: 'UNKNOWN',
+                                    message: 'No payment result found.',
+                                    raw: data
+                                }];
+                        }
+                        result = data.payment_result;
+                        status = 'FAILED';
+                        success = false;
+                        userMessage = '';
+                        if (result.response_status === 'A') {
+                            status = 'SUCCESS';
+                            success = true;
+                            userMessage = 'Your payment was successful 🎉';
+                        }
+                        else if (result.response_status === 'P') {
+                            status = 'PENDING';
+                            userMessage = 'Your payment is still pending ⏳';
+                        }
+                        else {
+                            status = 'FAILED';
+                            userMessage = "Payment failed \u274C: " + (result.response_message || 'Unknown error');
+                        }
+                        return [2 /*return*/, {
+                                success: success,
+                                status: status,
+                                amount: data.tran_total,
+                                transactionRef: data.tran_ref,
+                                message: userMessage,
+                                reason: result.acquirer_message || result.response_message,
+                                method: (_a = data.payment_info) === null || _a === void 0 ? void 0 : _a.payment_method,
+                                card: (_b = data.payment_info) === null || _b === void 0 ? void 0 : _b.payment_description,
+                                bank: (_c = data.payment_info) === null || _c === void 0 ? void 0 : _c.issuerName,
+                                time: result.transaction_time
+                            }];
                     case 2:
-                        error_2 = _a.sent();
+                        error_2 = _d.sent();
                         throw new common_1.BadRequestException('Failed to verify payment status');
                     case 3: return [2 /*return*/];
                 }

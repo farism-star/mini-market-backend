@@ -181,27 +181,68 @@ export class PaymentService {
     return calculatedSignature === signature;
   }
 
-  async verifyPaymentStatus(transactionRef: string) {
-    try {
-      console.log(transactionRef);
-      
-      const response = await axios.post(
-        this.CLICKPAY_QUERY_URL,
-        {
-          profile_id: this.PROFILE_ID,
-          tran_ref: transactionRef,
+async verifyPaymentStatus(transactionRef: string) {
+  try {
+    const response = await axios.post(
+      this.CLICKPAY_QUERY_URL,
+      {
+        profile_id: this.PROFILE_ID,
+        tran_ref: transactionRef,
+      },
+      {
+        headers: {
+          Authorization: this.SERVER_KEY,
+          'Content-Type': 'application/json',
         },
-        {
-          headers: {
-            'Authorization': this.SERVER_KEY,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      }
+    );
 
-      return response.data;
-    } catch (error) {
-      throw new BadRequestException('Failed to verify payment status');
+    const data = response.data;
+
+    if (!data.payment_result) {
+      return {
+        success: false,
+        status: 'UNKNOWN',
+        message: 'No payment result found.',
+        raw: data,
+      };
     }
+
+    const result = data.payment_result;
+
+    // الحالة الأساسية
+    let status = 'FAILED';
+    let success = false;
+    let userMessage = '';
+
+    if (result.response_status === 'A') {
+      status = 'SUCCESS';
+      success = true;
+      userMessage = 'Your payment was successful 🎉';
+    } else if (result.response_status === 'P') {
+      status = 'PENDING';
+      userMessage = 'Your payment is still pending ⏳';
+    } else {
+      status = 'FAILED';
+      userMessage = `Payment failed ❌: ${result.response_message || 'Unknown error'}`;
+    }
+
+    return {
+      success,
+      status,
+      amount: data.tran_total,
+      transactionRef: data.tran_ref,
+      message: userMessage,
+      reason: result.acquirer_message || result.response_message,
+      method: data.payment_info?.payment_method,
+      card: data.payment_info?.payment_description,
+      bank: data.payment_info?.issuerName,
+      time: result.transaction_time,
+    };
+
+  } catch (error) {
+    throw new BadRequestException('Failed to verify payment status');
   }
+}
+
 }
