@@ -76,6 +76,9 @@ var OrdersService = /** @class */ (function () {
                         if (!data.orderId) {
                             data.orderId = "ORD-" + Date.now();
                         }
+                        if (!data.deliveryId) {
+                            data.deliveryId = null;
+                        }
                         return [4 /*yield*/, this.prisma.order.create({
                                 data: data,
                                 include: { market: true, client: true }
@@ -162,7 +165,7 @@ var OrdersService = /** @class */ (function () {
                         if (!(user.type === 'CLIENT')) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.prisma.order.findMany({
                                 where: { clientId: user.id },
-                                include: { market: true, client: true },
+                                include: { market: true, client: true, delivery: true },
                                 orderBy: { createdAt: 'desc' }
                             })];
                     case 1:
@@ -172,14 +175,14 @@ var OrdersService = /** @class */ (function () {
                         if (!(user.type === 'OWNER')) return [3 /*break*/, 4];
                         return [4 /*yield*/, this.prisma.order.findMany({
                                 where: { market: { ownerId: user.id } },
-                                include: { market: true, client: true },
+                                include: { market: true, client: true, delivery: true },
                                 orderBy: { createdAt: 'desc' }
                             })];
                     case 3:
                         orders = _a.sent();
                         return [3 /*break*/, 6];
                     case 4: return [4 /*yield*/, this.prisma.order.findMany({
-                            include: { market: true, client: true },
+                            include: { market: true, client: true, delivery: true },
                             orderBy: { createdAt: 'desc' }
                         })];
                     case 5:
@@ -197,7 +200,7 @@ var OrdersService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.order.findUnique({
                             where: { id: id },
-                            include: { market: true, client: true }
+                            include: { market: true, client: true, delivery: true }
                         })];
                     case 1:
                         order = _a.sent();
@@ -218,10 +221,9 @@ var OrdersService = /** @class */ (function () {
             });
         });
     };
-    // ... (الاستيرادات والدوال الأخرى)
     OrdersService.prototype.update = function (id, dto, user) {
         return __awaiter(this, void 0, void 0, function () {
-            var order, oldStatus, newStatus, completedToOther, otherToCompleted, updated, marketId, ownerId, feePerOrder, feesChange, updatedMarket, newIsFeesRequired, owner, err_2;
+            var order, oldStatus, newStatus, completedToOther, otherToCompleted, updated, marketId, ownerId, feePerOrder, currentFees, newFees, shouldUpdateFees, updatedMarket, newIsFeesRequired, owner, err_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.order.findUnique({
@@ -244,7 +246,7 @@ var OrdersService = /** @class */ (function () {
                         return [4 /*yield*/, this.prisma.order.update({
                                 where: { id: id },
                                 data: dto,
-                                include: { market: true, client: true }
+                                include: { market: true, client: true, delivery: true }
                             })];
                     case 3:
                         updated = _a.sent();
@@ -252,22 +254,25 @@ var OrdersService = /** @class */ (function () {
                         marketId = updated.market.id;
                         ownerId = updated.market.ownerId;
                         feePerOrder = updated.market.feePerOrder || 0;
-                        feesChange = 0;
+                        currentFees = updated.market.currentFees || 0;
+                        newFees = currentFees;
+                        shouldUpdateFees = false;
                         // 1. الانتقال من أي حالة إلى COMPLETED (إضافة الرسوم)
                         if (otherToCompleted) {
-                            feesChange = feePerOrder;
+                            newFees += feePerOrder;
+                            shouldUpdateFees = true;
                         }
                         // 2. الانتقال من COMPLETED إلى أي حالة أخرى (خصم الرسوم)
                         else if (completedToOther) {
-                            feesChange = -feePerOrder;
+                            // نستخدم Math.max(0, ...) لضمان أن الرسوم الجديدة لا تقل عن الصفر
+                            newFees = Math.max(0, currentFees - feePerOrder);
+                            shouldUpdateFees = true;
                         }
-                        if (!(feesChange !== 0)) return [3 /*break*/, 7];
+                        if (!shouldUpdateFees) return [3 /*break*/, 7];
                         return [4 /*yield*/, this.prisma.market.update({
                                 where: { id: marketId },
                                 data: {
-                                    currentFees: {
-                                        increment: feesChange
-                                    }
+                                    currentFees: newFees
                                 }
                             })];
                     case 4:

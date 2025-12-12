@@ -19,6 +19,10 @@ var CreateOrderDto = /** @class */ (function () {
     __decorate([
         class_validator_1.IsOptional(),
         class_validator_1.IsString()
+    ], CreateOrderDto.prototype, "deliveryId");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsString()
     ], CreateOrderDto.prototype, "clientId");
     __decorate([
         class_validator_1.IsOptional(),

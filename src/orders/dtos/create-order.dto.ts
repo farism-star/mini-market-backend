@@ -5,6 +5,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   orderId?: string;
+  @IsOptional()
+  @IsString()
+  deliveryId?: string;
 
   @IsOptional()
   @IsString()

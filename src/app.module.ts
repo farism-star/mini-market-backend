@@ -4,7 +4,6 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
-import { LoaderController } from './loader.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { TwilioModule } from './twilio/twilio.module';
@@ -21,8 +20,7 @@ import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notifications/notification.module';
 import { PaymentModule } from './payments/payment.module';
 import { MulterModule } from '@nestjs/platform-express';
-import { multerConfig } from './upload/multer.config';
-
+import { multerConfig } from './upload/multer.config';  
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -50,7 +48,7 @@ import { multerConfig } from './upload/multer.config';
     MessageModule,
     JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],
-  controllers: [AppController,LoaderController],
+  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
