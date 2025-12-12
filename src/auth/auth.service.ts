@@ -6,7 +6,7 @@ import { randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
 import { Login } from './dtos/login.dto';
-import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+
 import { MailService } from 'src/mail/mail.service';
 import { AddAdminDto } from './dtos/add-admin.dto';
 import { getDistance } from "src/helpers/distance";
@@ -20,7 +20,6 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private cloudinary: CloudinaryService,
     private mailService: MailService,
   ) { }
 

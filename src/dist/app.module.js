@@ -13,7 +13,6 @@ var serve_static_1 = require("@nestjs/serve-static");
 var path_1 = require("path");
 var prisma_module_1 = require("./prisma/prisma.module");
 var app_controller_1 = require("./app.controller");
-var loader_controller_1 = require("./loader.controller");
 var app_service_1 = require("./app.service");
 var auth_module_1 = require("./auth/auth.module");
 var twilio_module_1 = require("./twilio/twilio.module");
@@ -67,7 +66,7 @@ var AppModule = /** @class */ (function () {
                 message_module_1.MessageModule,
                 jwt_1.JwtModule.register({ secret: process.env.JWT_SECRET }),
             ],
-            controllers: [app_controller_1.AppController, loader_controller_1.LoaderController],
+            controllers: [app_controller_1.AppController],
             providers: [app_service_1.AppService]
         })
     ], AppModule);

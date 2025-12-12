@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dtos/create-order.dto';
 import { UpdateOrderDto } from './dtos/update-order.dto';
 import { NotificationService } from '../notifications/notification.service';
-import { formatTimeToAMPM, buildOrderBanarMessage,buildOrderMessage } from '../helpers/helper';
+import { formatTimeToAMPM, buildOrderBanarMessage, buildOrderMessage } from '../helpers/helper';
 
 type AuthUser = { id: string; type: string };
 
@@ -17,7 +17,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notification: NotificationService,
-  ) {}
+  ) { }
 
   async create(createDto: CreateOrderDto, user?: AuthUser) {
     try {
@@ -30,7 +30,9 @@ export class OrdersService {
       if (!data.orderId) {
         data.orderId = `ORD-${Date.now()}`;
       }
-
+      if (!data.deliveryId) {
+        data.deliveryId = null;
+      }
       const order = await this.prisma.order.create({
         data,
         include: { market: true, client: true },
@@ -105,18 +107,18 @@ export class OrdersService {
     if (user.type === 'CLIENT') {
       orders = await this.prisma.order.findMany({
         where: { clientId: user.id },
-        include: { market: true, client: true },
+        include: { market: true, client: true,delivery:true },
         orderBy: { createdAt: 'desc' },
       });
     } else if (user.type === 'OWNER') {
       orders = await this.prisma.order.findMany({
         where: { market: { ownerId: user.id } },
-        include: { market: true, client: true },
+        include: { market: true, client: true ,delivery:true},
         orderBy: { createdAt: 'desc' },
       });
     } else {
       orders = await this.prisma.order.findMany({
-        include: { market: true, client: true },
+        include: { market: true, client: true ,delivery:true},
         orderBy: { createdAt: 'desc' },
       });
     }
@@ -130,7 +132,7 @@ export class OrdersService {
   async findOne(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { market: true, client: true },
+      include: { market: true, client: true,delivery:true },
     });
 
     if (!order) throw new NotFoundException('Order not found');
@@ -152,9 +154,9 @@ export class OrdersService {
     };
   }
 
-// ... (الاستيرادات والدوال الأخرى)
 
-async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
+
+  async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { market: true, client: true },
@@ -168,7 +170,7 @@ async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
     // حفظ الحالة القديمة والحالة الجديدة المحتملة للمقارنة
     const oldStatus = order.status;
     const newStatus = dto.status;
-    
+
     // تحديد ما إذا كان هناك تغيير في الحالة من/إلى COMPLETED
     const completedToOther = oldStatus === 'COMPLETED' && newStatus !== 'COMPLETED';
     const otherToCompleted = oldStatus !== 'COMPLETED' && newStatus === 'COMPLETED';
@@ -177,7 +179,7 @@ async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
       const updated = await this.prisma.order.update({
         where: { id },
         data: dto,
-        include: { market: true, client: true },
+        include: { market: true, client: true,delivery:true },
       });
 
       // ==========================================================
@@ -187,52 +189,56 @@ async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
         const marketId = updated.market.id;
         const ownerId = updated.market.ownerId;
         const feePerOrder = updated.market.feePerOrder || 0;
+        const currentFees = updated.market.currentFees || 0; // القيمة الحالية قبل التغيير في هذه العملية
 
-        let feesChange = 0;
-        
+        let newFees = currentFees;
+        let shouldUpdateFees = false;
+
         // 1. الانتقال من أي حالة إلى COMPLETED (إضافة الرسوم)
         if (otherToCompleted) {
-            feesChange = feePerOrder;
-        } 
+          newFees += feePerOrder;
+          shouldUpdateFees = true;
+        }
         // 2. الانتقال من COMPLETED إلى أي حالة أخرى (خصم الرسوم)
         else if (completedToOther) {
-            feesChange = -feePerOrder;
+          // نستخدم Math.max(0, ...) لضمان أن الرسوم الجديدة لا تقل عن الصفر
+          newFees = Math.max(0, currentFees - feePerOrder);
+          shouldUpdateFees = true;
         }
 
-        if (feesChange !== 0) {
-            // تحديث currentFees للماركت
-            let updatedMarket = await this.prisma.market.update({
-                where: { id: marketId },
-                data: {
-                    currentFees: {
-                        increment: feesChange, // إضافة (إذا كانت موجبة) أو خصم (إذا كانت سالبة)
-                    },
-                },
+        // إذا حدث تغيير في الرسوم
+        if (shouldUpdateFees) {
+          // تحديث currentFees للماركت بالقيمة الجديدة المحسوبة
+          let updatedMarket = await this.prisma.market.update({
+            where: { id: marketId },
+            data: {
+              currentFees: newFees, // نستخدم القيمة المطلقة المحسوبة (newFees) بدلاً من increment
+            },
+          });
+
+          // 3. تحديث حالة المالك (isFeesRequired) بناءً على currentFees الجديدة
+
+          // تحديد قيمة isFeesRequired الجديدة
+          let newIsFeesRequired = false;
+          if (updatedMarket.currentFees && updatedMarket.limitFees) {
+            newIsFeesRequired = updatedMarket.currentFees >= updatedMarket.limitFees;
+          }
+
+          // جلب بيانات المالك للتحقق من حالته الحالية
+          const owner = await this.prisma.user.findUnique({
+            where: { id: ownerId },
+            select: { isFeesRequired: true } // جلب الحقل المطلوب فقط
+          });
+
+          // إذا كانت الحالة الجديدة تختلف عن الحالة الحالية للمالك، قم بالتحديث
+          if (owner && owner.isFeesRequired !== newIsFeesRequired) {
+            await this.prisma.user.update({
+              where: { id: ownerId },
+              data: {
+                isFeesRequired: newIsFeesRequired, // تحديث طلب الرسوم
+              },
             });
-
-            // 3. تحديث حالة المالك (isFeesRequired) بناءً على currentFees الجديدة
-            
-            // تحديد قيمة isFeesRequired الجديدة
-            let newIsFeesRequired = false;
-            if (updatedMarket.currentFees && updatedMarket.limitFees) {
-                newIsFeesRequired = updatedMarket.currentFees >= updatedMarket.limitFees;
-            }
-
-            // جلب بيانات المالك للتحقق من حالته الحالية
-            const owner = await this.prisma.user.findUnique({ 
-                where: { id: ownerId },
-                select: { isFeesRequired: true } // جلب الحقل المطلوب فقط
-            });
-
-            // إذا كانت الحالة الجديدة تختلف عن الحالة الحالية للمالك، قم بالتحديث
-            if (owner && owner.isFeesRequired !== newIsFeesRequired) {
-                await this.prisma.user.update({
-                    where: { id: ownerId },
-                    data: {
-                        isFeesRequired: newIsFeesRequired, // تحديث طلب الرسوم
-                    },
-                });
-            }
+          }
         }
       }
       // ==========================================================
@@ -254,7 +260,7 @@ async update(id: string, dto: UpdateOrderDto, user?: AuthUser) {
     } catch (err) {
       throw new BadRequestException(err?.message || 'Failed to update order');
     }
-}
+  }
 
   async remove(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({

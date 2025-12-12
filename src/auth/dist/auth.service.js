@@ -60,10 +60,9 @@ var crypto_1 = require("crypto");
 var bcrypt = require("bcrypt");
 var distance_1 = require("src/helpers/distance");
 var AuthService = /** @class */ (function () {
-    function AuthService(prisma, jwtService, cloudinary, mailService) {
+    function AuthService(prisma, jwtService, mailService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
-        this.cloudinary = cloudinary;
         this.mailService = mailService;
     }
     AuthService.prototype.register = function (dto, imageUrl) {
