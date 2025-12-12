@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { TwilioModule } from './twilio/twilio.module';
 import { ProductModule } from './produts/product.module';
 import { CategoryModule } from './category/category.module';
+import { DeliveryModule } from './delivery/delivery.module';
 import { UserCheckMiddleware } from './common/middelwares/UserCheckMiddleware ';
 import { JwtModule } from '@nestjs/jwt';
 import { MarketModule } from './market/market.module';
@@ -36,6 +37,7 @@ import { multerConfig } from './upload/multer.config';
     PrismaModule,
     AuthModule,
     TwilioModule,
+    DeliveryModule,
     ProductModule,
     CategoryModule,
     MarketModule,

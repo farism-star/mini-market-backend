@@ -387,6 +387,9 @@ let markets = await this.prisma.market.findMany({
 }
 
 
+
+
+
   async login(authDto: Login) {
     const { email, phone } = authDto;
 
