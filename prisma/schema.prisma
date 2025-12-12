@@ -117,24 +117,24 @@ model MarketCategory {
 }
 
 model Market {
-  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
   nameAr        String?
   nameEn        String?
   descriptionAr String?
   descriptionEn String?
-  ownerId       String  @unique @db.ObjectId
-  owner         User    @relation(fields: [ownerId], references: [id])
-  limitFees        Float?   @default(0.0)
-  feePerOrder  Float?   @default(0.0)
-  currentFees  Float?   @default(0.0)
-  zone       String?
-  district   String?
-  address    String?
-  operations String[] @default([])
-  hours      String[] @default([])
-
-  from DateTime? // تاريخ البداية
-  to   DateTime? // تاريخ النهاية
+  ownerId       String     @unique @db.ObjectId
+  owner         User       @relation(fields: [ownerId], references: [id])
+  limitFees     Float?     @default(0.0)
+  feePerOrder   Float?     @default(0.0)
+  currentFees   Float?     @default(0.0)
+  zone          String?
+  district      String?
+  address       String?
+  operations    String[]   @default([])
+  hours         String[]   @default([])
+  deliveries    Delivery[]
+  from          DateTime? // تاريخ البداية
+  to            DateTime? // تاريخ النهاية
 
   products   Product[]
   orders     Order[]
@@ -150,24 +150,26 @@ model Market {
   updatedAt DateTime @updatedAt
 }
 
-model Category {
+model Delivery {
   id     String  @id @default(auto()) @map("_id") @db.ObjectId
-  nameAr String
-  nameEn String
-  icon   String?
+  nameAr String?
+  nameEn String?
+  phone  String?
+  image  String?
 
-  markets MarketCategory[]
+  marketId String? @db.ObjectId
+  market   Market? @relation(fields: [marketId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  orders Order[]
 }
 
 model Order {
   id      String @id @default(auto()) @map("_id") @db.ObjectId
   orderId String @unique
 
-  clientId String? @db.ObjectId
-  marketId String? @db.ObjectId
+  clientId  String? @db.ObjectId
+  marketId  String? @db.ObjectId
+  deliveryId String? @db.ObjectId   // الجديد
 
   deliveryAddress String?
 
@@ -178,11 +180,31 @@ model Order {
   createdAt DateTime    @default(now())
 
   // relations
-  market Market? @relation(fields: [marketId], references: [id])
-  client User?   @relation(fields: [clientId], references: [id])
+  market   Market?   @relation(fields: [marketId], references: [id])
+  client   User?     @relation(fields: [clientId], references: [id])
+  delivery Delivery? @relation(fields: [deliveryId], references: [id]) // الجديد
 
   totalPrice      Float @default(0)
   commissionValue Float @default(0)
+}
+
+
+
+
+
+
+
+
+model Category {
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  nameAr String
+  nameEn String
+  icon   String?
+
+  markets MarketCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Otp {

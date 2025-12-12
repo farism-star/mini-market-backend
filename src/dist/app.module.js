@@ -19,6 +19,7 @@ var auth_module_1 = require("./auth/auth.module");
 var twilio_module_1 = require("./twilio/twilio.module");
 var product_module_1 = require("./produts/product.module");
 var category_module_1 = require("./category/category.module");
+var delivery_module_1 = require("./delivery/delivery.module");
 var UserCheckMiddleware_1 = require("./common/middelwares/UserCheckMiddleware ");
 var jwt_1 = require("@nestjs/jwt");
 var market_module_1 = require("./market/market.module");
@@ -53,6 +54,7 @@ var AppModule = /** @class */ (function () {
                 prisma_module_1.PrismaModule,
                 auth_module_1.AuthModule,
                 twilio_module_1.TwilioModule,
+                delivery_module_1.DeliveryModule,
                 product_module_1.ProductModule,
                 category_module_1.CategoryModule,
                 market_module_1.MarketModule,
