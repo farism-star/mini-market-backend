@@ -16,14 +16,13 @@ export class MessageService {
     });
   }
 
-  // جلب كل الرسائل لمحادثة معينة
- async getMessages(
+ 
+async getMessages(
   conversationId: string,
-  userId: string,     // 👈 لازم نضيفه
+  userId: string,
   page: number = 1,
   limit: number = 20
 ) {
-
   const conversationExists = await this.prisma.conversation.findUnique({
     where: { id: conversationId },
   });
@@ -32,24 +31,34 @@ export class MessageService {
     throw new NotFoundException('Conversation not found');
   }
 
-  // اعمل read للرسائل اللي اتبعت للشخص
+  // 🔹 نعمل read للرسائل اللي مش أنا باعتها
   await this.prisma.message.updateMany({
     where: {
       conversationId,
-      senderId: { not: userId }, // الرسائل اللي مش أنا اللي باعتها
-      isRead: false,             // فقط اللي مش مقروءة
+      senderId: { not: userId },
+      isRead: false,
     },
     data: { isRead: true },
   });
 
-  // pagination
   const skip = (page - 1) * limit;
 
+  // 🔹 هنا نجيب الرسائل ومعاها sender object
   const messages = await this.prisma.message.findMany({
     where: { conversationId },
     orderBy: { createdAt: 'desc' },
     skip,
     take: limit,
+    include: {
+      sender: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true, // لو موجود
+        },
+      },
+    },
   });
 
   const total = await this.prisma.message.count({
@@ -63,6 +72,7 @@ export class MessageService {
     messages,
   };
 }
+
 
 
 async deleteMessages(){

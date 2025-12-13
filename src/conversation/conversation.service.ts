@@ -13,6 +13,7 @@ export class ConversationService {
       where: {
         users: { hasEvery: [user1, user2] },
       },
+      
     });
 
     if (!conversation) {

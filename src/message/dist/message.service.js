@@ -62,9 +62,7 @@ var MessageService = /** @class */ (function () {
             });
         });
     };
-    // جلب كل الرسائل لمحادثة معينة
-    MessageService.prototype.getMessages = function (conversationId, userId, // 👈 لازم نضيفه
-    page, limit) {
+    MessageService.prototype.getMessages = function (conversationId, userId, page, limit) {
         if (page === void 0) { page = 1; }
         if (limit === void 0) { limit = 20; }
         return __awaiter(this, void 0, void 0, function () {
@@ -79,7 +77,7 @@ var MessageService = /** @class */ (function () {
                         if (!conversationExists) {
                             throw new common_1.NotFoundException('Conversation not found');
                         }
-                        // اعمل read للرسائل اللي اتبعت للشخص
+                        // 🔹 نعمل read للرسائل اللي مش أنا باعتها
                         return [4 /*yield*/, this.prisma.message.updateMany({
                                 where: {
                                     conversationId: conversationId,
@@ -89,14 +87,24 @@ var MessageService = /** @class */ (function () {
                                 data: { isRead: true }
                             })];
                     case 2:
-                        // اعمل read للرسائل اللي اتبعت للشخص
+                        // 🔹 نعمل read للرسائل اللي مش أنا باعتها
                         _a.sent();
                         skip = (page - 1) * limit;
                         return [4 /*yield*/, this.prisma.message.findMany({
                                 where: { conversationId: conversationId },
                                 orderBy: { createdAt: 'desc' },
                                 skip: skip,
-                                take: limit
+                                take: limit,
+                                include: {
+                                    sender: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            email: true,
+                                            image: true
+                                        }
+                                    }
+                                }
                             })];
                     case 3:
                         messages = _a.sent();
