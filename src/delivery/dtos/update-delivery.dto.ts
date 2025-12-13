@@ -16,4 +16,8 @@ export class UpdateDeliveryDto {
   @IsOptional()
   @IsString()
   image?: string;
+  
+  @IsOptional()
+  @IsString()
+  marketId?: string;
 }

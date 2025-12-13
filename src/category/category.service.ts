@@ -25,7 +25,7 @@ async findAll() {
     include: {
       markets: {
         include: {
-          market: true, // هيجيب كل بيانات الماركت المرتبط
+          market: true, 
         },
       },
     },

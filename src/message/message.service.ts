@@ -55,7 +55,7 @@ async getMessages(
           id: true,
           name: true,
           email: true,
-          image: true, // لو موجود
+          image: true, 
         },
       },
     },

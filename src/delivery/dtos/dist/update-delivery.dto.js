@@ -27,6 +27,10 @@ var UpdateDeliveryDto = /** @class */ (function () {
         class_validator_1.IsOptional(),
         class_validator_1.IsString()
     ], UpdateDeliveryDto.prototype, "image");
+    __decorate([
+        class_validator_1.IsOptional(),
+        class_validator_1.IsString()
+    ], UpdateDeliveryDto.prototype, "marketId");
     return UpdateDeliveryDto;
 }());
 exports.UpdateDeliveryDto = UpdateDeliveryDto;

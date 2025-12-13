@@ -29,17 +29,23 @@ export class DeliveryController {
   constructor(private deliveryService: DeliveryService) {}
 
   // OWNER: Create delivery + upload image
-  @Roles(Role.OWNER)
-  @Post("create")
-  @UseInterceptors(FileInterceptor("image", multerConfig))
-  create(
-    @Req() req: any,
-    @UploadedFile() file: Express.Multer.File,
-    @Body() dto: CreateDeliveryDto
-  ) {
-    const imageUrl = file ? `/uploads/${file.filename}` : undefined;
-    return this.deliveryService.createDelivery(dto, req.user.id, req.user.type, imageUrl);
-  }
+ @Roles(Role.OWNER, Role.ADMIN)
+@Post("create")
+@UseInterceptors(FileInterceptor("image", multerConfig))
+create(
+  @Req() req: any,
+  @UploadedFile() file: Express.Multer.File,
+  @Body() dto: CreateDeliveryDto
+) {
+  const imageUrl = file ? `/uploads/${file.filename}` : undefined;
+  return this.deliveryService.createDelivery(
+    dto,
+    req.user.id,
+    req.user.type,
+    imageUrl
+  );
+}
+
 
   // OWNER: list my deliveries
   @Roles(Role.OWNER)
