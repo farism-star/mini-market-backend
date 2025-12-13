@@ -29,7 +29,7 @@ import { multerConfig } from '../upload/multer.config';
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Roles(Role.OWNER)
+  @Roles(Role.OWNER,Role.ADMIN)
   @Post()
   @UseInterceptors(FileInterceptor('icon', multerConfig))
   create(
@@ -40,19 +40,19 @@ export class CategoryController {
     return this.categoryService.create(dto, iconUrl);
   }
 
-  @Roles(Role.CLIENT, Role.OWNER)
+  @Roles(Role.CLIENT, Role.OWNER,Role.ADMIN)
   @Get()
   findAll() {
     return this.categoryService.findAll();
   }
 
-  @Roles(Role.CLIENT, Role.OWNER)
+  @Roles(Role.CLIENT, Role.OWNER,Role.ADMIN)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.categoryService.findOne(id);
   }
 
-  @Roles(Role.OWNER)
+  @Roles(Role.OWNER,Role.ADMIN)
   @Patch(':id')
   @UseInterceptors(FileInterceptor('icon', multerConfig))
   update(
@@ -64,7 +64,7 @@ export class CategoryController {
     return this.categoryService.update(id, dto, iconUrl);
   }
 
-  @Roles(Role.OWNER)
+  @Roles(Role.OWNER,Role.ADMIN)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoryService.remove(id);

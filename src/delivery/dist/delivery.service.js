@@ -62,13 +62,11 @@ var DeliveryService = /** @class */ (function () {
     }
     DeliveryService.prototype.createDelivery = function (dto, userId, userType, imageUrl) {
         return __awaiter(this, void 0, void 0, function () {
-            var market;
+            var marketId, market;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (userType !== roles_enum_1.Role.OWNER) {
-                            throw new common_1.ForbiddenException("Only owners can add deliveries");
-                        }
+                        if (!(userType === roles_enum_1.Role.OWNER)) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.prisma.market.findFirst({
                                 where: { ownerId: userId }
                             })];
@@ -76,9 +74,23 @@ var DeliveryService = /** @class */ (function () {
                         market = _a.sent();
                         if (!market)
                             throw new common_1.NotFoundException("Market not found");
-                        return [2 /*return*/, this.prisma.delivery.create({
-                                data: __assign(__assign({}, dto), { image: imageUrl, marketId: market.id })
-                            })];
+                        marketId = market.id;
+                        return [3 /*break*/, 3];
+                    case 2:
+                        if (userType === roles_enum_1.Role.ADMIN) {
+                            // Admin → لازم يكون الـ DTO فيه marketId
+                            if (!dto.marketId) {
+                                throw new common_1.ForbiddenException("Admin must provide marketId");
+                            }
+                            marketId = dto.marketId;
+                        }
+                        else {
+                            throw new common_1.ForbiddenException("Only owners or admins can add deliveries");
+                        }
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, this.prisma.delivery.create({
+                            data: __assign(__assign({}, dto), { image: imageUrl, marketId: marketId })
+                        })];
                 }
             });
         });
@@ -108,7 +120,7 @@ var DeliveryService = /** @class */ (function () {
     };
     DeliveryService.prototype.updateDelivery = function (id, dto, user, imageUrl) {
         return __awaiter(this, void 0, void 0, function () {
-            var delivery, market;
+            var delivery, marketIdToUpdate, market, market;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.delivery.findFirst({
@@ -118,6 +130,7 @@ var DeliveryService = /** @class */ (function () {
                         delivery = _a.sent();
                         if (!delivery)
                             throw new common_1.NotFoundException("Delivery not found");
+                        marketIdToUpdate = delivery.marketId;
                         if (!(user.type === roles_enum_1.Role.OWNER)) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.prisma.market.findFirst({
                                 where: { ownerId: user.id }
@@ -127,10 +140,26 @@ var DeliveryService = /** @class */ (function () {
                         if (!market || market.id !== delivery.marketId) {
                             throw new common_1.ForbiddenException("You can only update your market deliveries");
                         }
-                        _a.label = 3;
-                    case 3: return [2 /*return*/, this.prisma.delivery.update({
+                        // Owner لا يقدر يغيّر marketId
+                        marketIdToUpdate = delivery.marketId;
+                        return [3 /*break*/, 7];
+                    case 3:
+                        if (!(user.type === roles_enum_1.Role.ADMIN)) return [3 /*break*/, 6];
+                        if (!dto.marketId) return [3 /*break*/, 5];
+                        return [4 /*yield*/, this.prisma.market.findUnique({
+                                where: { id: dto.marketId }
+                            })];
+                    case 4:
+                        market = _a.sent();
+                        if (!market)
+                            throw new common_1.NotFoundException("Market not found");
+                        marketIdToUpdate = dto.marketId;
+                        _a.label = 5;
+                    case 5: return [3 /*break*/, 7];
+                    case 6: throw new common_1.ForbiddenException("Only owners or admins can update deliveries");
+                    case 7: return [2 /*return*/, this.prisma.delivery.update({
                             where: { id: id },
-                            data: __assign(__assign({}, dto), (imageUrl && { image: imageUrl }))
+                            data: __assign(__assign(__assign({}, dto), (imageUrl && { image: imageUrl })), { marketId: marketIdToUpdate })
                         })];
                 }
             });

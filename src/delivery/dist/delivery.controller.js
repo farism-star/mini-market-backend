@@ -44,7 +44,7 @@ var DeliveryController = /** @class */ (function () {
         return this.deliveryService.deleteDelivery(id, req.user);
     };
     __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER),
+        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.ADMIN),
         common_1.Post("create"),
         common_1.UseInterceptors(platform_express_1.FileInterceptor("image", multer_config_1.multerConfig)),
         __param(0, common_1.Req()),
