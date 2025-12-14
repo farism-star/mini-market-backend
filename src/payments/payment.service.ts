@@ -2,48 +2,47 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import axios from 'axios';
 import * as crypto from 'crypto';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-
+import { PaymentStatus } from '@prisma/client';
 @Injectable()
 export class PaymentService {
   private readonly CLICKPAY_API_URL = 'https://secure.clickpay.com.sa/payment/request';
   private readonly CLICKPAY_QUERY_URL = 'https://secure.clickpay.com.sa/payment/query';
   private readonly PROFILE_ID = process.env.PROFILE_ID;
-  private readonly SERVER_KEY = process.env.CLICKPAY_SERVER_KEY;
+  private readonly SERVER_KEY: string;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {
+  if (!process.env.CLICKPAY_SERVER_KEY) {
+    throw new Error('CLICKPAY_SERVER_KEY is not defined');
+  }
 
- async initiatePayment(ownerId: string, amount: number) {
-    // جلب بيانات المالك من جدول الـ User
-    const owner = await this.prisma.user.findUnique({
-      where: { id: ownerId },
+  this.SERVER_KEY = process.env.CLICKPAY_SERVER_KEY;
+}
+
+
+  async initiatePayment(userId: string, amount: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
       select: {
         name: true,
         email: true,
         phone: true,
-        location: true,
         isAproved: true,
         isFeesRequired: true,
       },
     });
 
-    if (!owner) throw new NotFoundException('Owner not found');
+    if (!user) throw new NotFoundException('User not found');
 
-    // جلب الماركت الخاص بالمالك
     const market = await this.prisma.market.findUnique({
-      where: { ownerId },
+      where: { ownerId: userId },
       select: { id: true, nameAr: true, nameEn: true },
     });
 
     if (!market) throw new NotFoundException('Market not found');
 
-    // تحقق إذا فيه مستحقات غير مدفوعة
-  
-
-    // إنشاء سجل الدفع
     const payment = await this.prisma.payment.create({
       data: {
-        userId: ownerId,
+        user: { connect: { id: userId } },
         amount,
         method: 'ONLINE',
         status: 'PENDING',
@@ -59,10 +58,10 @@ export class PaymentService {
       cart_currency: 'SAR',
       cart_amount: amount,
       customer_details: {
-        name: owner.name,
-        email: owner.email || 'N/A',
-        phone: owner.phone || 'N/A',
-        street1: 'N/A',  
+        name: user.name,
+        email: user.email || 'N/A',
+        phone: user.phone || 'N/A',
+        street1: 'N/A',
         city: 'Riyadh',
         state: 'Riyadh',
         country: 'SA',
@@ -73,176 +72,134 @@ export class PaymentService {
     };
 
     try {
-      const clickpayResponse = await axios.post(this.CLICKPAY_API_URL, paymentRequest, {
+      const response = await axios.post(this.CLICKPAY_API_URL, paymentRequest, {
         headers: {
           Authorization: this.SERVER_KEY,
           'Content-Type': 'application/json',
         },
       });
 
-      const responseData = clickpayResponse.data;
+      const data = response.data;
 
-      if (responseData.tran_ref) {
-        await this.prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            clickpayOrderId: responseData.tran_ref,
-            clickpayCartId: responseData.cart_id,
-          },
-        });
+      if (!data.tran_ref) throw new BadRequestException('ClickPay failed');
 
-        return {
-          success: true,
-          paymentId: payment.id,
-          redirectUrl: responseData.redirect_url,
-          data:responseData,
-          message: 'Please complete your payment to unlock your market.',
-        };
-      } else {
-        throw new BadRequestException('Failed to create payment with ClickPay');
-      }
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          clickpayOrderId: data.tran_ref,
+          clickpayCartId: data.cart_id,
+        },
+      });
+
+      return {
+        success: true,
+        paymentId: payment.id,
+        redirectUrl: data.redirect_url,
+        data,
+      };
     } catch (error) {
       await this.prisma.payment.update({
         where: { id: payment.id },
         data: { status: 'FAILED' },
       });
 
-      throw new BadRequestException(
-        `Payment initiation failed: ${error.response?.data?.message || error.message}`,
-      );
+      throw new BadRequestException(error.response?.data || error.message);
     }
   }
 
-  async handleCallback(clickpayData: any) {
-    const {
-      tran_ref,
-      cart_id,
-      resp_status,
-      resp_code,
-      signature,
-    } = clickpayData;
+ async handleCallback(payload: any) {
+  const { tran_ref, cart_id, resp_status, resp_code } = payload;
 
-    const isValidSignature = this.verifySignature(clickpayData);
-    if (!isValidSignature) {
-      throw new BadRequestException('Invalid signature');
-    }
+  if (!this.verifySignature(payload)) {
+    throw new BadRequestException('Invalid signature');
+  }
 
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: cart_id }
-    });
+  const payment = await this.prisma.payment.findUnique({
+    where: { id: cart_id },
+  });
 
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
+  if (!payment) throw new NotFoundException('Payment not found');
 
-    let newStatus = 'FAILED';
-    if (resp_status === 'A' && resp_code === '100') {
-      newStatus = 'SUCCESS';
-    }
+  let status: PaymentStatus = PaymentStatus.FAILED;
 
-    await this.prisma.payment.update({
-      where: { id: cart_id },
+  if (resp_status === 'A' && resp_code === '100') {
+    status = PaymentStatus.SUCCESS;
+  }
+
+  await this.prisma.payment.update({
+    where: { id: cart_id },
+    data: {
+      status,
+      clickpayOrderId: tran_ref,
+      clickpayResponse: JSON.stringify(payload),
+    },
+  });
+
+  if (status === PaymentStatus.SUCCESS) {
+    await this.prisma.user.update({
+      where: { id: payment.userId },
       data: {
-        status: newStatus,
-        clickpayOrderId: tran_ref,
-        clickpayResponse: JSON.stringify(clickpayData),
-      }
+        isFeesRequired: false,
+        isAproved: true,
+      },
     });
+  }
 
-    return {
-      success: true,
-      message: 'Payment updated',
-      status: newStatus,
-      transactionRef: tran_ref,
-    };
+  return {
+    success: true,
+    status,
+    transactionRef: tran_ref,
+  };
+}
+
+
+  async verifyPaymentStatus(tranRef: string) {
+    try {
+      const response = await axios.post(
+        this.CLICKPAY_QUERY_URL,
+        {
+          profile_id: this.PROFILE_ID,
+          tran_ref: tranRef,
+        },
+        {
+          headers: {
+            Authorization: this.SERVER_KEY,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const result = response.data?.payment_result;
+
+      if (!result) {
+        return { success: false, status: 'UNKNOWN' };
+      }
+
+      if (result.response_status === 'A') {
+        return { success: true, status: 'SUCCESS', data: response.data };
+      }
+
+      if (result.response_status === 'P') {
+        return { success: false, status: 'PENDING', data: response.data };
+      }
+
+      return { success: false, status: 'FAILED', data: response.data };
+    } catch {
+      throw new BadRequestException('Verification failed');
+    }
   }
 
   private verifySignature(data: any): boolean {
-    if (!this.SERVER_KEY) {
-      throw new BadRequestException('Server key is not configured');
-    }
-
-    const {
-      tran_ref,
-      cart_id,
-      cart_amount,
-      cart_currency,
-      signature,
-    } = data;
+    const { tran_ref, cart_id, cart_amount, cart_currency, signature } = data;
 
     const signatureString = `${this.SERVER_KEY}${tran_ref}${cart_id}${cart_amount}${cart_currency}`;
-    
-    const calculatedSignature = crypto
+
+    const hash = crypto
       .createHmac('sha256', this.SERVER_KEY)
       .update(signatureString)
       .digest('hex')
       .toUpperCase();
 
-    return calculatedSignature === signature;
+    return hash === signature;
   }
-
-async verifyPaymentStatus(transactionRef: string) {
-  try {
-    const response = await axios.post(
-      this.CLICKPAY_QUERY_URL,
-      {
-        profile_id: this.PROFILE_ID,
-        tran_ref: transactionRef,
-      },
-      {
-        headers: {
-          Authorization: this.SERVER_KEY,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const data = response.data;
-
-    if (!data.payment_result) {
-      return {
-        success: false,
-        status: 'UNKNOWN',
-        message: 'No payment result found.',
-        raw: data,
-      };
-    }
-
-    const result = data.payment_result;
-
-    // الحالة الأساسية
-    let status = 'FAILED';
-    let success = false;
-    let userMessage = '';
-
-    if (result.response_status === 'A') {
-      status = 'SUCCESS';
-      success = true;
-      userMessage = 'Your payment was successful 🎉';
-    } else if (result.response_status === 'P') {
-      status = 'PENDING';
-      userMessage = 'Your payment is still pending ⏳';
-    } else {
-      status = 'FAILED';
-      userMessage = `Payment failed ❌: ${result.response_message || 'Unknown error'}`;
-    }
-
-    return {
-      success,
-      status,
-      amount: data.tran_total,
-      transactionRef: data.tran_ref,
-      message: userMessage,
-      reason: result.acquirer_message || result.response_message,
-      method: data.payment_info?.payment_method,
-      card: data.payment_info?.payment_description,
-      bank: data.payment_info?.issuerName,
-      time: result.transaction_time,
-    };
-
-  } catch (error) {
-    throw new BadRequestException('Failed to verify payment status');
-  }
-}
-
 }

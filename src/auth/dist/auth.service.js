@@ -336,7 +336,7 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
-    AuthService.prototype.getDashboardData = function (userId, type, categoryId) {
+    AuthService.prototype.getDashboardData = function (userId, type, categoryId, search) {
         return __awaiter(this, void 0, void 0, function () {
             var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, categories, user, userLocation, markets, marketsWithDistance, sortedMarkets, filteredMarkets;
             return __generator(this, function (_a) {
@@ -405,15 +405,28 @@ var AuthService = /** @class */ (function () {
                         user = _a.sent();
                         userLocation = user === null || user === void 0 ? void 0 : user.location;
                         return [4 /*yield*/, this.prisma.market.findMany({
-                                where: categoryId
-                                    ? {
-                                        categories: {
-                                            some: {
-                                                categoryId: categoryId
-                                            }
+                                where: __assign(__assign({}, (categoryId && {
+                                    categories: {
+                                        some: {
+                                            categoryId: categoryId
                                         }
                                     }
-                                    : undefined,
+                                })), (search && {
+                                    OR: [
+                                        {
+                                            nameAr: {
+                                                contains: search,
+                                                mode: 'insensitive'
+                                            }
+                                        },
+                                        {
+                                            nameEn: {
+                                                contains: search,
+                                                mode: 'insensitive'
+                                            }
+                                        },
+                                    ]
+                                })),
                                 select: {
                                     id: true,
                                     nameAr: true,
@@ -439,7 +452,6 @@ var AuthService = /** @class */ (function () {
                             })];
                     case 8:
                         markets = _a.sent();
-                        // لو المستخدم ليه location
                         if (userLocation) {
                             marketsWithDistance = markets.map(function (m) {
                                 var _a;

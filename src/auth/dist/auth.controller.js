@@ -184,12 +184,12 @@ var AuthController = /** @class */ (function () {
             });
         });
     };
-    AuthController.prototype.getDashboardData = function (req, categoryId) {
+    AuthController.prototype.getDashboardData = function (req, categoryId, search) {
         return __awaiter(this, void 0, void 0, function () {
             var user;
             return __generator(this, function (_a) {
                 user = req.user;
-                return [2 /*return*/, this.authService.getDashboardData(user.id, user.type, categoryId)];
+                return [2 /*return*/, this.authService.getDashboardData(user.id, user.type, categoryId, search)];
             });
         });
     };
@@ -287,7 +287,9 @@ var AuthController = /** @class */ (function () {
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),
         common_1.Get('home-data'),
-        __param(0, common_1.Req()), __param(1, common_1.Query('categoryId'))
+        __param(0, common_1.Req()),
+        __param(1, common_1.Query('categoryId')),
+        __param(2, common_1.Query('search'))
     ], AuthController.prototype, "getDashboardData");
     AuthController = __decorate([
         common_1.Controller({

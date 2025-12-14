@@ -254,9 +254,13 @@ Amount Due: ${totalDue.toFixed(2)}`;
   }
 
  
-async getDashboardData(userId: string, type: string, categoryId?: string) {
+async getDashboardData(
+  userId: string,
+  type: string,
+  categoryId?: string,
+  search?: string,
+) {
   if (type === 'OWNER') {
-  
     const conversations = await this.prisma.conversation.findMany({
       where: { users: { has: userId } },
       include: {
@@ -281,6 +285,7 @@ async getDashboardData(userId: string, type: string, categoryId?: string) {
         select: { id: true, name: true, image: true },
       });
       const lastMsg = lastConversation.messages[0];
+
       formattedConversation = {
         id: lastConversation.id,
         user: otherUser,
@@ -306,13 +311,10 @@ async getDashboardData(userId: string, type: string, categoryId?: string) {
     });
 
     return { lastConversation: formattedConversation, lastProducts };
-  } 
-
-  // ===== CLIENT =====
+  }
 
   const categories = await this.prisma.category.findMany();
 
-  // user location
   const user = await this.prisma.user.findUnique({
     where: { id: userId },
     select: { location: true },
@@ -320,46 +322,60 @@ async getDashboardData(userId: string, type: string, categoryId?: string) {
 
   const userLocation = user?.location;
 
-  // base markets query
-let markets = await this.prisma.market.findMany({
-  where: categoryId
-    ? {
+  let markets = await this.prisma.market.findMany({
+    where: {
+      ...(categoryId && {
         categories: {
           some: {
-            categoryId: categoryId,
+            categoryId,
           },
         },
-      }
-    : undefined,
-  select: {
-    id: true,
-    nameAr: true,
-    nameEn: true,
-    descriptionAr: true,
-    descriptionEn: true,
-    ownerId: true,
-    zone: true,
-    district: true,
-    address: true,
-    operations: true,
-    hours: true,
-    image: true,
-    commissionFee: true,
-    location: true,
-    rate: true,
-    isOpen: true,
-    from: true,
-    to: true,
-    createdAt: true,
-    updatedAt: true,
-  },
-});
+      }),
+      ...(search && {
+        OR: [
+          {
+            nameAr: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            nameEn: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      }),
+    },
+    select: {
+      id: true,
+      nameAr: true,
+      nameEn: true,
+      descriptionAr: true,
+      descriptionEn: true,
+      ownerId: true,
+      zone: true,
+      district: true,
+      address: true,
+      operations: true,
+      hours: true,
+      image: true,
+      commissionFee: true,
+      location: true,
+      rate: true,
+      isOpen: true,
+      from: true,
+      to: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
 
-
-  // لو المستخدم ليه location
   if (userLocation) {
     const marketsWithDistance = markets.map((m: any) => {
       let distanceInKm: number | null = null;
+
       if (m.location?.length === 2) {
         distanceInKm = getDistance(
           userLocation[0],
@@ -368,6 +384,7 @@ let markets = await this.prisma.market.findMany({
           m.location[1],
         );
       }
+
       return { ...m, distanceInKm };
     });
 

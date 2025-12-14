@@ -50,16 +50,20 @@ model Message {
 }
 
 model Payment {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String?
-  amount           Float?
-  method           String?
-  status           String? // PENDING, SUCCESS, FAILED
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount Float
+  method String
+  status PaymentStatus @default(PENDING)
+
   clickpayOrderId  String?
   clickpayCartId   String?
-  clickpayResponse String? // تخزين كل الـ response
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  clickpayResponse String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model User {
@@ -81,8 +85,8 @@ model User {
   orders         Order[]
   notifications  Notification[]
   addresses      Address[]
-
-  location Float[] @default([]) // [latitude, longitude]
+  payments       Payment[]
+  location       Float[]        @default([]) // [latitude, longitude]
 }
 
 model UserDashboard {
@@ -167,9 +171,9 @@ model Order {
   id      String @id @default(auto()) @map("_id") @db.ObjectId
   orderId String @unique
 
-  clientId  String? @db.ObjectId
-  marketId  String? @db.ObjectId
-  deliveryId String? @db.ObjectId   // الجديد
+  clientId   String? @db.ObjectId
+  marketId   String? @db.ObjectId
+  deliveryId String? @db.ObjectId // الجديد
 
   deliveryAddress String?
 
@@ -187,13 +191,6 @@ model Order {
   totalPrice      Float @default(0)
   commissionValue Float @default(0)
 }
-
-
-
-
-
-
-
 
 model Category {
   id     String  @id @default(auto()) @map("_id") @db.ObjectId
@@ -256,4 +253,9 @@ enum AddressType {
   WORK
   HOME
   OTHER
+}
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }

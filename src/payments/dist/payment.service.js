@@ -46,53 +46,56 @@ exports.PaymentService = void 0;
 var common_1 = require("@nestjs/common");
 var axios_1 = require("axios");
 var crypto = require("crypto");
+var client_1 = require("@prisma/client");
 var PaymentService = /** @class */ (function () {
     function PaymentService(prisma) {
         this.prisma = prisma;
         this.CLICKPAY_API_URL = 'https://secure.clickpay.com.sa/payment/request';
         this.CLICKPAY_QUERY_URL = 'https://secure.clickpay.com.sa/payment/query';
         this.PROFILE_ID = process.env.PROFILE_ID;
+        if (!process.env.CLICKPAY_SERVER_KEY) {
+            throw new Error('CLICKPAY_SERVER_KEY is not defined');
+        }
         this.SERVER_KEY = process.env.CLICKPAY_SERVER_KEY;
     }
-    PaymentService.prototype.initiatePayment = function (ownerId, amount) {
-        var _a, _b;
+    PaymentService.prototype.initiatePayment = function (userId, amount) {
+        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var owner, market, payment, paymentRequest, clickpayResponse, responseData, error_1;
-            return __generator(this, function (_c) {
-                switch (_c.label) {
+            var user, market, payment, paymentRequest, response, data, error_1;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0: return [4 /*yield*/, this.prisma.user.findUnique({
-                            where: { id: ownerId },
+                            where: { id: userId },
                             select: {
                                 name: true,
                                 email: true,
                                 phone: true,
-                                location: true,
                                 isAproved: true,
                                 isFeesRequired: true
                             }
                         })];
                     case 1:
-                        owner = _c.sent();
-                        if (!owner)
-                            throw new common_1.NotFoundException('Owner not found');
+                        user = _b.sent();
+                        if (!user)
+                            throw new common_1.NotFoundException('User not found');
                         return [4 /*yield*/, this.prisma.market.findUnique({
-                                where: { ownerId: ownerId },
+                                where: { ownerId: userId },
                                 select: { id: true, nameAr: true, nameEn: true }
                             })];
                     case 2:
-                        market = _c.sent();
+                        market = _b.sent();
                         if (!market)
                             throw new common_1.NotFoundException('Market not found');
                         return [4 /*yield*/, this.prisma.payment.create({
                                 data: {
-                                    userId: ownerId,
+                                    user: { connect: { id: userId } },
                                     amount: amount,
                                     method: 'ONLINE',
                                     status: 'PENDING'
                                 }
                             })];
                     case 3:
-                        payment = _c.sent();
+                        payment = _b.sent();
                         paymentRequest = {
                             profile_id: this.PROFILE_ID,
                             tran_type: 'sale',
@@ -102,9 +105,9 @@ var PaymentService = /** @class */ (function () {
                             cart_currency: 'SAR',
                             cart_amount: amount,
                             customer_details: {
-                                name: owner.name,
-                                email: owner.email || 'N/A',
-                                phone: owner.phone || 'N/A',
+                                name: user.name,
+                                email: user.email || 'N/A',
+                                phone: user.phone || 'N/A',
                                 street1: 'N/A',
                                 city: 'Riyadh',
                                 state: 'Riyadh',
@@ -114,9 +117,9 @@ var PaymentService = /** @class */ (function () {
                             hide_shipping: true,
                             framed: false
                         };
-                        _c.label = 4;
+                        _b.label = 4;
                     case 4:
-                        _c.trys.push([4, 9, , 11]);
+                        _b.trys.push([4, 7, , 9]);
                         return [4 /*yield*/, axios_1["default"].post(this.CLICKPAY_API_URL, paymentRequest, {
                                 headers: {
                                     Authorization: this.SERVER_KEY,
@@ -124,50 +127,47 @@ var PaymentService = /** @class */ (function () {
                                 }
                             })];
                     case 5:
-                        clickpayResponse = _c.sent();
-                        responseData = clickpayResponse.data;
-                        if (!responseData.tran_ref) return [3 /*break*/, 7];
+                        response = _b.sent();
+                        data = response.data;
+                        if (!data.tran_ref)
+                            throw new common_1.BadRequestException('ClickPay failed');
                         return [4 /*yield*/, this.prisma.payment.update({
                                 where: { id: payment.id },
                                 data: {
-                                    clickpayOrderId: responseData.tran_ref,
-                                    clickpayCartId: responseData.cart_id
+                                    clickpayOrderId: data.tran_ref,
+                                    clickpayCartId: data.cart_id
                                 }
                             })];
                     case 6:
-                        _c.sent();
+                        _b.sent();
                         return [2 /*return*/, {
                                 success: true,
                                 paymentId: payment.id,
-                                redirectUrl: responseData.redirect_url,
-                                data: responseData,
-                                message: 'Please complete your payment to unlock your market.'
+                                redirectUrl: data.redirect_url,
+                                data: data
                             }];
-                    case 7: throw new common_1.BadRequestException('Failed to create payment with ClickPay');
-                    case 8: return [3 /*break*/, 11];
-                    case 9:
-                        error_1 = _c.sent();
+                    case 7:
+                        error_1 = _b.sent();
                         return [4 /*yield*/, this.prisma.payment.update({
                                 where: { id: payment.id },
                                 data: { status: 'FAILED' }
                             })];
-                    case 10:
-                        _c.sent();
-                        throw new common_1.BadRequestException("Payment initiation failed: " + (((_b = (_a = error_1.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || error_1.message));
-                    case 11: return [2 /*return*/];
+                    case 8:
+                        _b.sent();
+                        throw new common_1.BadRequestException(((_a = error_1.response) === null || _a === void 0 ? void 0 : _a.data) || error_1.message);
+                    case 9: return [2 /*return*/];
                 }
             });
         });
     };
-    PaymentService.prototype.handleCallback = function (clickpayData) {
+    PaymentService.prototype.handleCallback = function (payload) {
         return __awaiter(this, void 0, void 0, function () {
-            var tran_ref, cart_id, resp_status, resp_code, signature, isValidSignature, payment, newStatus;
+            var tran_ref, cart_id, resp_status, resp_code, payment, status;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        tran_ref = clickpayData.tran_ref, cart_id = clickpayData.cart_id, resp_status = clickpayData.resp_status, resp_code = clickpayData.resp_code, signature = clickpayData.signature;
-                        isValidSignature = this.verifySignature(clickpayData);
-                        if (!isValidSignature) {
+                        tran_ref = payload.tran_ref, cart_id = payload.cart_id, resp_status = payload.resp_status, resp_code = payload.resp_code;
+                        if (!this.verifySignature(payload)) {
                             throw new common_1.BadRequestException('Invalid signature');
                         }
                         return [4 /*yield*/, this.prisma.payment.findUnique({
@@ -175,57 +175,53 @@ var PaymentService = /** @class */ (function () {
                             })];
                     case 1:
                         payment = _a.sent();
-                        if (!payment) {
+                        if (!payment)
                             throw new common_1.NotFoundException('Payment not found');
-                        }
-                        newStatus = 'FAILED';
+                        status = client_1.PaymentStatus.FAILED;
                         if (resp_status === 'A' && resp_code === '100') {
-                            newStatus = 'SUCCESS';
+                            status = client_1.PaymentStatus.SUCCESS;
                         }
                         return [4 /*yield*/, this.prisma.payment.update({
                                 where: { id: cart_id },
                                 data: {
-                                    status: newStatus,
+                                    status: status,
                                     clickpayOrderId: tran_ref,
-                                    clickpayResponse: JSON.stringify(clickpayData)
+                                    clickpayResponse: JSON.stringify(payload)
                                 }
                             })];
                     case 2:
                         _a.sent();
-                        return [2 /*return*/, {
-                                success: true,
-                                message: 'Payment updated',
-                                status: newStatus,
-                                transactionRef: tran_ref
-                            }];
+                        if (!(status === client_1.PaymentStatus.SUCCESS)) return [3 /*break*/, 4];
+                        return [4 /*yield*/, this.prisma.user.update({
+                                where: { id: payment.userId },
+                                data: {
+                                    isFeesRequired: false,
+                                    isAproved: true
+                                }
+                            })];
+                    case 3:
+                        _a.sent();
+                        _a.label = 4;
+                    case 4: return [2 /*return*/, {
+                            success: true,
+                            status: status,
+                            transactionRef: tran_ref
+                        }];
                 }
             });
         });
     };
-    PaymentService.prototype.verifySignature = function (data) {
-        if (!this.SERVER_KEY) {
-            throw new common_1.BadRequestException('Server key is not configured');
-        }
-        var tran_ref = data.tran_ref, cart_id = data.cart_id, cart_amount = data.cart_amount, cart_currency = data.cart_currency, signature = data.signature;
-        var signatureString = "" + this.SERVER_KEY + tran_ref + cart_id + cart_amount + cart_currency;
-        var calculatedSignature = crypto
-            .createHmac('sha256', this.SERVER_KEY)
-            .update(signatureString)
-            .digest('hex')
-            .toUpperCase();
-        return calculatedSignature === signature;
-    };
-    PaymentService.prototype.verifyPaymentStatus = function (transactionRef) {
-        var _a, _b, _c;
+    PaymentService.prototype.verifyPaymentStatus = function (tranRef) {
+        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var response, data, result, status, success, userMessage, error_2;
-            return __generator(this, function (_d) {
-                switch (_d.label) {
+            var response, result, _b;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _d.trys.push([0, 2, , 3]);
+                        _c.trys.push([0, 2, , 3]);
                         return [4 /*yield*/, axios_1["default"].post(this.CLICKPAY_QUERY_URL, {
                                 profile_id: this.PROFILE_ID,
-                                tran_ref: transactionRef
+                                tran_ref: tranRef
                             }, {
                                 headers: {
                                     Authorization: this.SERVER_KEY,
@@ -233,52 +229,35 @@ var PaymentService = /** @class */ (function () {
                                 }
                             })];
                     case 1:
-                        response = _d.sent();
-                        data = response.data;
-                        if (!data.payment_result) {
-                            return [2 /*return*/, {
-                                    success: false,
-                                    status: 'UNKNOWN',
-                                    message: 'No payment result found.',
-                                    raw: data
-                                }];
+                        response = _c.sent();
+                        result = (_a = response.data) === null || _a === void 0 ? void 0 : _a.payment_result;
+                        if (!result) {
+                            return [2 /*return*/, { success: false, status: 'UNKNOWN' }];
                         }
-                        result = data.payment_result;
-                        status = 'FAILED';
-                        success = false;
-                        userMessage = '';
                         if (result.response_status === 'A') {
-                            status = 'SUCCESS';
-                            success = true;
-                            userMessage = 'Your payment was successful 🎉';
+                            return [2 /*return*/, { success: true, status: 'SUCCESS', data: response.data }];
                         }
-                        else if (result.response_status === 'P') {
-                            status = 'PENDING';
-                            userMessage = 'Your payment is still pending ⏳';
+                        if (result.response_status === 'P') {
+                            return [2 /*return*/, { success: false, status: 'PENDING', data: response.data }];
                         }
-                        else {
-                            status = 'FAILED';
-                            userMessage = "Payment failed \u274C: " + (result.response_message || 'Unknown error');
-                        }
-                        return [2 /*return*/, {
-                                success: success,
-                                status: status,
-                                amount: data.tran_total,
-                                transactionRef: data.tran_ref,
-                                message: userMessage,
-                                reason: result.acquirer_message || result.response_message,
-                                method: (_a = data.payment_info) === null || _a === void 0 ? void 0 : _a.payment_method,
-                                card: (_b = data.payment_info) === null || _b === void 0 ? void 0 : _b.payment_description,
-                                bank: (_c = data.payment_info) === null || _c === void 0 ? void 0 : _c.issuerName,
-                                time: result.transaction_time
-                            }];
+                        return [2 /*return*/, { success: false, status: 'FAILED', data: response.data }];
                     case 2:
-                        error_2 = _d.sent();
-                        throw new common_1.BadRequestException('Failed to verify payment status');
+                        _b = _c.sent();
+                        throw new common_1.BadRequestException('Verification failed');
                     case 3: return [2 /*return*/];
                 }
             });
         });
+    };
+    PaymentService.prototype.verifySignature = function (data) {
+        var tran_ref = data.tran_ref, cart_id = data.cart_id, cart_amount = data.cart_amount, cart_currency = data.cart_currency, signature = data.signature;
+        var signatureString = "" + this.SERVER_KEY + tran_ref + cart_id + cart_amount + cart_currency;
+        var hash = crypto
+            .createHmac('sha256', this.SERVER_KEY)
+            .update(signatureString)
+            .digest('hex')
+            .toUpperCase();
+        return hash === signature;
     };
     PaymentService = __decorate([
         common_1.Injectable()
