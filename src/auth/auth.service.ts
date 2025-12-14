@@ -239,7 +239,7 @@ Amount Due: ${totalDue.toFixed(2)}`;
   async getAllOwners() {
     const owners = await this.prisma.user.findMany({
       where: { type: 'OWNER' },
-      include: { addresses: true, market: true },
+      include: { addresses: true, market: true,payments:true },
     });
     return owners;
   }

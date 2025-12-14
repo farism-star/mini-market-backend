@@ -314,7 +314,7 @@ var AuthService = /** @class */ (function () {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.prisma.user.findMany({
                             where: { type: 'OWNER' },
-                            include: { addresses: true, market: true }
+                            include: { addresses: true, market: true, payments: true }
                         })];
                     case 1:
                         owners = _a.sent();
