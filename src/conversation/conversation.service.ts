@@ -5,27 +5,51 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class ConversationService {
   constructor(private prisma: PrismaService) { }
 
-  async createConversation(user1: string, user2: string) {
-    if (user1 === user2) {
-      throw new ConflictException('Users is  The Same  ');
-    }
-    let conversation = await this.prisma.conversation.findFirst({
-      where: {
-        users: { hasEvery: [user1, user2] },
-      },
-      
-    });
-
-    if (!conversation) {
-      conversation = await this.prisma.conversation.create({
-        data: {
-          users: [user1, user2],
-        },
-      });
-    }
-
-    return conversation;
+async createConversation(user1: string, user2: string) {
+  if (user1 === user2) {
+    throw new ConflictException('Users is The Same');
   }
+
+  let conversation = await this.prisma.conversation.findFirst({
+    where: {
+      users: {
+        hasEvery: [user1, user2],
+      },
+    },
+  });
+
+  if (!conversation) {
+    conversation = await this.prisma.conversation.create({
+      data: {
+        users: [user1, user2],
+      },
+    });
+  }
+
+  
+  const otherUserId = conversation.users.find(
+    (id) => id !== user1,
+  );
+
+  const otherUser = await this.prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true, // لو عندك صورة
+    },
+  });
+
+  return {
+    id: conversation.id,
+    user:otherUser,
+    lastMessage:null,
+    unreadMessages:0
+  };
+}
+
+
 
 async getUserConversations(userId: string) {
   const conversations = await this.prisma.conversation.findMany({
