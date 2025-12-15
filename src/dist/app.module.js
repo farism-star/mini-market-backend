@@ -46,7 +46,8 @@ var AppModule = /** @class */ (function () {
                     rootPath: path_1.join(process.cwd(), 'uploads'),
                     serveRoot: '/uploads',
                     serveStaticOptions: {
-                        index: false
+                        index: false,
+                        fallthrough: true
                     }
                 }),
                 config_1.ConfigModule.forRoot({ isGlobal: true }),

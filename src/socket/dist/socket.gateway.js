@@ -114,45 +114,40 @@ var SocketGateway = /** @class */ (function () {
                         voiceUrl = null;
                         // حفظ الصورة لو موجودة
                         if (data.type === send_message_dto_1.MessageType.IMAGE && data.image) {
-                            folder = path_1.join(process.cwd(), 'uploads', 'chat-images');
+                            folder = path_1.join(process.cwd(), 'uploads');
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
                             matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
                             ext = '.png';
                             if (matches) {
                                 mime = matches[1];
-                                // التعامل مع svg+xml
                                 if (mime.includes('svg')) {
                                     ext = '.svg';
                                 }
                                 else {
                                     rawExt = mime.split('/')[1];
-                                    // لو الامتداد فيه +xml
                                     rawExt = rawExt.replace(/\+xml$/, '');
-                                    // الامتداد الصحيح
                                     ext = '.' + rawExt;
                                 }
                             }
-                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
+                            fileName = "chat-img-" + Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
                             filePath = path_1.join(folder, fileName);
                             base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            imageUrl = "/uploads/chat-images/" + fileName;
+                            imageUrl = "/uploads/" + fileName;
                         }
                         // حفظ الصوت لو موجود
                         if (data.type === send_message_dto_1.MessageType.VOICE && data.voice) {
-                            folder = path_1.join(process.cwd(), 'uploads', 'chat-voices');
+                            folder = path_1.join(process.cwd(), 'uploads');
                             if (!fs_1.existsSync(folder))
                                 fs_1.mkdirSync(folder, { recursive: true });
                             matches = data.voice.match(/^data:audio\/(\w+);base64,/);
                             ext = matches ? '.' + matches[1] : '.mp3';
-                            fileName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
+                            fileName = "chat-voice-" + Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
                             filePath = path_1.join(folder, fileName);
                             base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
-                            // كتابة الملف فعلياً
                             fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            // استخدم URL نسبي للفرونت عشان يشتغل في المتصفح
-                            voiceUrl = "/uploads/chat-voices/" + fileName;
+                            voiceUrl = "/uploads/" + fileName;
                         }
                         return [4 /*yield*/, this.prisma.message.create({
                                 data: {
@@ -167,7 +162,6 @@ var SocketGateway = /** @class */ (function () {
                             })];
                     case 1:
                         message = _a.sent();
-                        console.log(message);
                         room = "room_" + data.conversationId;
                         this.server.to(room).emit('newMessage', message);
                         return [2 /*return*/, { status: 'sent', message: message }];

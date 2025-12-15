@@ -61,98 +61,75 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { status: 'joined', room };
   }
 
-  @SubscribeMessage('sendMessage')
-  async sendMessage(
-    @MessageBody() data: SendMessageDto,
-    @ConnectedSocket() client: Socket,
-  ) {
-    try {
-      let imageUrl: string | null = null;
-      let voiceUrl: string | null = null;
+ @SubscribeMessage('sendMessage')
+async sendMessage(
+  @MessageBody() data: SendMessageDto,
+  @ConnectedSocket() client: Socket,
+) {
+  try {
+    let imageUrl: string | null = null;
+    let voiceUrl: string | null = null;
 
-      // حفظ الصورة لو موجودة
-     if (data.type === MessageType.IMAGE && data.image) {
-  const folder = join(process.cwd(), 'uploads', 'chat-images');
-  if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+    // حفظ الصورة لو موجودة
+    if (data.type === MessageType.IMAGE && data.image) {
+      const folder = join(process.cwd(), 'uploads');
+      if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
 
-  // قراءة الـ MIME بالكامل
-  const matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
+      const matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
+      let ext = '.png';
 
-  let ext = '.png'; // قيمة افتراضية
-
-  if (matches) {
-    const mime = matches[1]; // مثال: image/jpg - image/jpeg - image/svg+xml
-
-    // التعامل مع svg+xml
-    if (mime.includes('svg')) {
-      ext = '.svg';
-    } else {
-      // استخراج الجزء بعد /
-      let rawExt = mime.split('/')[1]; // مثال: jpg أو jpeg أو png
-
-      // لو الامتداد فيه +xml
-      rawExt = rawExt.replace(/\+xml$/, '');
-
-      // الامتداد الصحيح
-      ext = '.' + rawExt;
-    }
-  }
-
-  const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-  const filePath = join(folder, fileName);
-
-  const base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
-  writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-
-  imageUrl = `/uploads/chat-images/${fileName}`;
-}
-
-
-      // حفظ الصوت لو موجود
-      if (data.type === MessageType.VOICE && data.voice) {
-        // مسار حفظ الملفات
-        const folder = join(process.cwd(), 'uploads', 'chat-voices');
-        if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
-
-        // استخرج امتداد الصوت من Base64 (mp3, wav, ogg)
-        const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
-        const ext = matches ? '.' + matches[1] : '.mp3';
-
-        // اسم الملف النهائي
-        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        const filePath = join(folder, fileName);
-
-        // إزالة الـ prefix من Base64
-        const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
-
-        // كتابة الملف فعلياً
-        writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-
-        // استخدم URL نسبي للفرونت عشان يشتغل في المتصفح
-        voiceUrl = `/uploads/chat-voices/${fileName}`;
+      if (matches) {
+        const mime = matches[1];
+        if (mime.includes('svg')) {
+          ext = '.svg';
+        } else {
+          let rawExt = mime.split('/')[1];
+          rawExt = rawExt.replace(/\+xml$/, '');
+          ext = '.' + rawExt;
+        }
       }
 
-      // حفظ الرسالة في الداتا بيز
-      const message = await this.prisma.message.create({
-        data: {
-          conversationId: data.conversationId,
-          senderId: data.senderId,
-          text: data.text || null,
-          imageUrl,
-          voice: voiceUrl,
-          isRead: false,
-          type: data.type,
-        },
-      });
-      console.log(message);
-
-      // إرسال الرسالة لكل الأعضاء في الغرفة
-      const room = `room_${data.conversationId}`;
-      this.server.to(room).emit('newMessage', message);
-
-      return { status: 'sent', message };
-    } catch (error) {
-      return { status: 'error', message: error.message };
+      const fileName = `chat-img-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      const filePath = join(folder, fileName);
+      const base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
+      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      imageUrl = `/uploads/${fileName}`;
     }
+
+    // حفظ الصوت لو موجود
+    if (data.type === MessageType.VOICE && data.voice) {
+      const folder = join(process.cwd(), 'uploads');
+      if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+
+      const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+      const ext = matches ? '.' + matches[1] : '.mp3';
+      const fileName = `chat-voice-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      const filePath = join(folder, fileName);
+      const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      voiceUrl = `/uploads/${fileName}`;
+    }
+
+    // حفظ الرسالة في الداتا بيز
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: data.conversationId,
+        senderId: data.senderId,
+        text: data.text || null,
+        imageUrl,
+        voice: voiceUrl,
+        isRead: false,
+        type: data.type,
+      },
+    });
+
+    // إرسال الرسالة لكل الأعضاء في الغرفة
+    const room = `room_${data.conversationId}`;
+    this.server.to(room).emit('newMessage', message);
+
+    return { status: 'sent', message };
+  } catch (error) {
+    return { status: 'error', message: error.message };
   }
+}
 }

@@ -27,7 +27,8 @@ import { multerConfig } from './upload/multer.config';
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
       serveStaticOptions: {
-        index: false, 
+        index: false,
+        fallthrough: true, 
       },
     }),
 
