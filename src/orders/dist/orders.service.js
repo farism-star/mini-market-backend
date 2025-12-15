@@ -331,8 +331,8 @@ var OrdersService = /** @class */ (function () {
                             throw new common_1.NotFoundException('Order not found');
                         if (!user)
                             throw new common_1.ForbiddenException('Unauthorized');
-                        if (user.type !== 'OWNER' || ((_a = order.market) === null || _a === void 0 ? void 0 : _a.ownerId) !== user.id) {
-                            throw new common_1.ForbiddenException('Only the owner can delete this order');
+                        if (user.type !== 'ADMIN' && (user.type !== 'OWNER' || ((_a = order.market) === null || _a === void 0 ? void 0 : _a.ownerId) !== user.id)) {
+                            throw new common_1.ForbiddenException('You do not have permission to delete this order');
                         }
                         _b.label = 2;
                     case 2:
@@ -343,7 +343,7 @@ var OrdersService = /** @class */ (function () {
                         if (!order.clientId) return [3 /*break*/, 5];
                         return [4 /*yield*/, this.notification.create({
                                 userId: order.clientId,
-                                body: "Your order (" + order.orderId + ") was deleted by the market owner"
+                                body: "Your order (" + order.orderId + ") was deleted"
                             })];
                     case 4:
                         _b.sent();

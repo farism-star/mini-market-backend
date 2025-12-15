@@ -263,33 +263,34 @@ export class OrdersService {
   }
 
   async remove(id: string, user?: AuthUser) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-      include: { market: true, client: true },
-    });
+  const order = await this.prisma.order.findUnique({
+    where: { id },
+    include: { market: true, client: true },
+  });
 
-    if (!order) throw new NotFoundException('Order not found');
-    if (!user) throw new ForbiddenException('Unauthorized');
+  if (!order) throw new NotFoundException('Order not found');
+  if (!user) throw new ForbiddenException('Unauthorized');
 
-    if (user.type !== 'OWNER' || order.market?.ownerId !== user.id) {
-      throw new ForbiddenException('Only the owner can delete this order');
-    }
-
-    try {
-      await this.prisma.order.delete({ where: { id } });
-
-      if (order.clientId) {
-        await this.notification.create({
-          userId: order.clientId,
-          body: `Your order (${order.orderId}) was deleted by the market owner`,
-        });
-      }
-
-      return { success: true };
-    } catch (err) {
-      throw new BadRequestException(err?.message || 'Failed to delete order');
-    }
+  if (user.type !== 'ADMIN' && (user.type !== 'OWNER' || order.market?.ownerId !== user.id)) {
+    throw new ForbiddenException('You do not have permission to delete this order');
   }
+
+  try {
+    await this.prisma.order.delete({ where: { id } });
+
+    if (order.clientId) {
+      await this.notification.create({
+        userId: order.clientId,
+        body: `Your order (${order.orderId}) was deleted`,
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    throw new BadRequestException(err?.message || 'Failed to delete order');
+  }
+}
+
 
   async removeAll() {
     await this.prisma.order.deleteMany({});

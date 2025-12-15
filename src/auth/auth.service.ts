@@ -452,9 +452,9 @@ async getDashboardData(
     if (!user || !user.email) {
       throw new NotFoundException("You Don't Have Email To Send OTP!")
     }
-    // await this.mailService.sendOtpMail(user.email, otpCode)
+    await this.mailService.sendOtpMail(user.email, otpCode)
 
-    console.log(otpCode);
+    // console.log(otpCode);
 
     return { message: 'OTP sent successfully' };
   }

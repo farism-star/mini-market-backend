@@ -528,8 +528,12 @@ var AuthService = /** @class */ (function () {
                         if (!user || !user.email) {
                             throw new common_1.NotFoundException("You Don't Have Email To Send OTP!");
                         }
-                        // await this.mailService.sendOtpMail(user.email, otpCode)
-                        console.log(otpCode);
+                        return [4 /*yield*/, this.mailService.sendOtpMail(user.email, otpCode)
+                            // console.log(otpCode);
+                        ];
+                    case 5:
+                        _b.sent();
+                        // console.log(otpCode);
                         return [2 /*return*/, { message: 'OTP sent successfully' }];
                 }
             });
