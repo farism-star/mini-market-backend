@@ -112,7 +112,6 @@ var SocketGateway = /** @class */ (function () {
                         _a.trys.push([0, 2, , 3]);
                         imageUrl = null;
                         voiceUrl = null;
-                        // حفظ الصورة لو موجودة
                         if (data.type === send_message_dto_1.MessageType.IMAGE && data.image) {
                             folder = path_1.join(process.cwd(), 'uploads');
                             if (!fs_1.existsSync(folder))

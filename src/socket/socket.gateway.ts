@@ -70,7 +70,7 @@ async sendMessage(
     let imageUrl: string | null = null;
     let voiceUrl: string | null = null;
 
-    // حفظ الصورة لو موجودة
+
     if (data.type === MessageType.IMAGE && data.image) {
       const folder = join(process.cwd(), 'uploads');
       if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
