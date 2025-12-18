@@ -29,6 +29,15 @@ export class AuthController {
     const imageUrl = file ? `/uploads/${file.originalname}` : null;
     return this.authService.register(dto, imageUrl);
   }
+  @Post('admin/register')
+  @UseInterceptors(FileInterceptor('image', multerConfig))
+  async AdminAddUsers(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: AuthDto,
+  ) {
+    const imageUrl = file ? `/uploads/${file.originalname}` : null;
+    return this.authService.AdminAddUsers(dto, imageUrl);
+  }
   @Post('login')
   login(@Body() authDto: Login) {
     return this.authService.login(authDto);
@@ -142,7 +151,7 @@ export class AuthController {
   @Get('admin/clients')
   async getAllClients(@Req() req: any) {
     const user = req.user
-    console.log("user", user)
+    
     return this.authService.getAllClients();
   }
 

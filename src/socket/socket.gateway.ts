@@ -12,7 +12,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { SendMessageDto, MessageType } from '../message/dto/send-message.dto';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join, extname } from 'path';
+import { join } from 'path';
 
 @WebSocketGateway({
   cors: {
@@ -21,14 +21,19 @@ import { join, extname } from 'path';
   },
   transports: ['websocket', 'polling'],
 })
-export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-  ) { }
+  ) {}
 
   @WebSocketServer()
   server: Server;
+
+  // 📁 مسار ثابت للـ uploads (نفس سلوك Multer): **تم التعديل هنا** ليستخدم process.cwd()
+  private readonly uploadDir = join(process.cwd(), 'uploads');
 
   async handleConnection(client: Socket) {
     const token = client.handshake.auth.token as string;
@@ -38,9 +43,12 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const payload = await this.jwt.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
-      client.data.userId = payload.sub || payload.id;
 
-      client.emit('connected', { status: 'success', userId: client.data.userId });
+      client.data.userId = payload.sub || payload.id;
+      client.emit('connected', {
+        status: 'success',
+        userId: client.data.userId,
+      });
     } catch {
       client.emit('error', { message: 'Invalid authentication token' });
       client.disconnect();
@@ -61,75 +69,100 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { status: 'joined', room };
   }
 
- @SubscribeMessage('sendMessage')
-async sendMessage(
-  @MessageBody() data: SendMessageDto,
-  @ConnectedSocket() client: Socket,
-) {
-  try {
-    let imageUrl: string | null = null;
-    let voiceUrl: string | null = null;
+  @SubscribeMessage('sendMessage')
+  async sendMessage(
+    @MessageBody() data: SendMessageDto,
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      let imageUrl: string | null = null;
+      let voiceUrl: string | null = null;
 
+      // تأكد إن uploads موجود (سيتم إنشاءه في جذر المشروع الآن)
+      if (!existsSync(this.uploadDir)) {
+        mkdirSync(this.uploadDir, { recursive: true });
+        console.log('📁 uploads folder created at:', this.uploadDir);
+      }
+console.log("message From User")
+      /* ================= IMAGE ================= */
+      if (data.type === MessageType.IMAGE && data.image) {
+        try {
+          const matches = data.image.match(
+            /^data:(image\/[A-Za-z0-9.+-]+);base64,/,
+          );
 
-    if (data.type === MessageType.IMAGE && data.image) {
-      const folder = join(process.cwd(), 'uploads');
-      if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
+          let ext = '.png';
+          if (matches) {
+            const mime = matches[1];
+            let rawExt = mime.split('/')[1];
+            rawExt = rawExt.replace(/\+xml$/, '');
+            ext = '.' + rawExt;
+          }
 
-      const matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
-      let ext = '.png';
+          const fileName = `chat-img-${Date.now()}-${Math.round(
+            Math.random() * 1e9,
+          )}${ext}`;
 
-      if (matches) {
-        const mime = matches[1];
-        if (mime.includes('svg')) {
-          ext = '.svg';
-        } else {
-          let rawExt = mime.split('/')[1];
-          rawExt = rawExt.replace(/\+xml$/, '');
-          ext = '.' + rawExt;
+          const filePath = join(this.uploadDir, fileName);
+          const base64Data = data.image.replace(
+            /^data:image\/[A-Za-z0-9.+-]+;base64,/,
+            '',
+          );
+
+          writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+          console.log('✅ Image saved:', filePath);
+
+          imageUrl = `/uploads/${fileName}`; // المسار للوصول عبر HTTP
+        } catch (err) {
+          console.error('❌ Image save error:', err);
         }
       }
 
-      const fileName = `chat-img-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      const filePath = join(folder, fileName);
-      const base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
-      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-      imageUrl = `/uploads/${fileName}`;
+      /* ================= VOICE ================= */
+      if (data.type === MessageType.VOICE && data.voice) {
+        try {
+          const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+          const ext = matches ? '.' + matches[1] : '.mp3';
+
+          const fileName = `chat-voice-${Date.now()}-${Math.round(
+            Math.random() * 1e9,
+          )}${ext}`;
+
+          const filePath = join(this.uploadDir, fileName);
+          const base64Data = data.voice.replace(
+            /^data:audio\/\w+;base64,/,
+            '',
+          );
+
+          writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+          console.log('✅ Voice saved:', filePath);
+
+          voiceUrl = `/uploads/${fileName}`; // المسار للوصول عبر HTTP
+        } catch (err) {
+          console.error('❌ Voice save error:', err);
+        }
+      }
+
+      /* ================= SAVE MESSAGE ================= */
+      const message = await this.prisma.message.create({
+        data: {
+          conversationId: data.conversationId,
+          senderId: data.senderId,
+          text: data.text || null,
+          imageUrl,
+          voice: voiceUrl,
+          isRead: false,
+          type: data.type,
+        },
+      });
+
+      const room = `room_${data.conversationId}`;
+      this.server.to(room).emit('newMessage', message);
+
+      return { status: 'sent', message };
+    } catch (error) {
+      console.error('❌ sendMessage error:', error);
+      return { status: 'error', message: error.message };
     }
-
-    // حفظ الصوت لو موجود
-    if (data.type === MessageType.VOICE && data.voice) {
-      const folder = join(process.cwd(), 'uploads');
-      if (!existsSync(folder)) mkdirSync(folder, { recursive: true });
-
-      const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
-      const ext = matches ? '.' + matches[1] : '.mp3';
-      const fileName = `chat-voice-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      const filePath = join(folder, fileName);
-      const base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
-      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-      voiceUrl = `/uploads/${fileName}`;
-    }
-
-    // حفظ الرسالة في الداتا بيز
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId: data.conversationId,
-        senderId: data.senderId,
-        text: data.text || null,
-        imageUrl,
-        voice: voiceUrl,
-        isRead: false,
-        type: data.type,
-      },
-    });
-
-    // إرسال الرسالة لكل الأعضاء في الغرفة
-    const room = `room_${data.conversationId}`;
-    this.server.to(room).emit('newMessage', message);
-
-    return { status: 'sent', message };
-  } catch (error) {
-    return { status: 'error', message: error.message };
   }
-}
 }

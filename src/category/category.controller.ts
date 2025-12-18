@@ -25,11 +25,11 @@ import { multerConfig } from '../upload/multer.config';
   path: 'categories',
   version: '1',
 })
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
-
-  @Roles(Role.OWNER,Role.ADMIN)
+@UseGuards(AuthGuard('jwt'), RolesGuard) 
+ @Roles(Role.OWNER,Role.ADMIN)
   @Post()
   @UseInterceptors(FileInterceptor('icon', multerConfig))
   create(
@@ -40,18 +40,18 @@ export class CategoryController {
     return this.categoryService.create(dto, iconUrl);
   }
 
-  @Roles(Role.CLIENT, Role.OWNER,Role.ADMIN)
+
   @Get()
   findAll() {
     return this.categoryService.findAll();
   }
-
+@UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.CLIENT, Role.OWNER,Role.ADMIN)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.categoryService.findOne(id);
   }
-
+@UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.OWNER,Role.ADMIN)
   @Patch(':id')
   @UseInterceptors(FileInterceptor('icon', multerConfig))
@@ -63,7 +63,7 @@ export class CategoryController {
     const iconUrl = file ? `/uploads/${file.filename}` : null;
     return this.categoryService.update(id, dto, iconUrl);
   }
-
+@UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.OWNER,Role.ADMIN)
   @Delete(':id')
   remove(@Param('id') id: string) {

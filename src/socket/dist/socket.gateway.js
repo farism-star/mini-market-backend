@@ -54,6 +54,8 @@ var SocketGateway = /** @class */ (function () {
     function SocketGateway(prisma, jwt) {
         this.prisma = prisma;
         this.jwt = jwt;
+        // 📁 مسار ثابت للـ uploads (نفس سلوك Multer): **تم التعديل هنا** ليستخدم process.cwd()
+        this.uploadDir = path_1.join(process.cwd(), 'uploads');
     }
     SocketGateway.prototype.handleConnection = function (client) {
         return __awaiter(this, void 0, void 0, function () {
@@ -73,7 +75,10 @@ var SocketGateway = /** @class */ (function () {
                     case 2:
                         payload = _b.sent();
                         client.data.userId = payload.sub || payload.id;
-                        client.emit('connected', { status: 'success', userId: client.data.userId });
+                        client.emit('connected', {
+                            status: 'success',
+                            userId: client.data.userId
+                        });
                         return [3 /*break*/, 4];
                     case 3:
                         _a = _b.sent();
@@ -105,48 +110,56 @@ var SocketGateway = /** @class */ (function () {
     };
     SocketGateway.prototype.sendMessage = function (data, client) {
         return __awaiter(this, void 0, void 0, function () {
-            var imageUrl, voiceUrl, folder, matches, ext, mime, rawExt, fileName, filePath, base64Data, folder, matches, ext, fileName, filePath, base64Data, message, room, error_1;
+            var imageUrl, voiceUrl, matches, ext, mime, rawExt, fileName, filePath, base64Data, matches, ext, fileName, filePath, base64Data, message, room, error_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 2, , 3]);
                         imageUrl = null;
                         voiceUrl = null;
+                        // تأكد إن uploads موجود (سيتم إنشاءه في جذر المشروع الآن)
+                        if (!fs_1.existsSync(this.uploadDir)) {
+                            fs_1.mkdirSync(this.uploadDir, { recursive: true });
+                            console.log('📁 uploads folder created at:', this.uploadDir);
+                        }
+                        console.log("message From User");
+                        /* ================= IMAGE ================= */
                         if (data.type === send_message_dto_1.MessageType.IMAGE && data.image) {
-                            folder = path_1.join(process.cwd(), 'uploads');
-                            if (!fs_1.existsSync(folder))
-                                fs_1.mkdirSync(folder, { recursive: true });
-                            matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
-                            ext = '.png';
-                            if (matches) {
-                                mime = matches[1];
-                                if (mime.includes('svg')) {
-                                    ext = '.svg';
-                                }
-                                else {
+                            try {
+                                matches = data.image.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,/);
+                                ext = '.png';
+                                if (matches) {
+                                    mime = matches[1];
                                     rawExt = mime.split('/')[1];
                                     rawExt = rawExt.replace(/\+xml$/, '');
                                     ext = '.' + rawExt;
                                 }
+                                fileName = "chat-img-" + Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
+                                filePath = path_1.join(this.uploadDir, fileName);
+                                base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
+                                fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+                                console.log('✅ Image saved:', filePath);
+                                imageUrl = "/uploads/" + fileName; // المسار للوصول عبر HTTP
                             }
-                            fileName = "chat-img-" + Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
-                            filePath = path_1.join(folder, fileName);
-                            base64Data = data.image.replace(/^data:image\/[A-Za-z0-9.+-]+;base64,/, '');
-                            fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            imageUrl = "/uploads/" + fileName;
+                            catch (err) {
+                                console.error('❌ Image save error:', err);
+                            }
                         }
-                        // حفظ الصوت لو موجود
+                        /* ================= VOICE ================= */
                         if (data.type === send_message_dto_1.MessageType.VOICE && data.voice) {
-                            folder = path_1.join(process.cwd(), 'uploads');
-                            if (!fs_1.existsSync(folder))
-                                fs_1.mkdirSync(folder, { recursive: true });
-                            matches = data.voice.match(/^data:audio\/(\w+);base64,/);
-                            ext = matches ? '.' + matches[1] : '.mp3';
-                            fileName = "chat-voice-" + Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
-                            filePath = path_1.join(folder, fileName);
-                            base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
-                            fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-                            voiceUrl = "/uploads/" + fileName;
+                            try {
+                                matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+                                ext = matches ? '.' + matches[1] : '.mp3';
+                                fileName = "chat-voice-" + Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
+                                filePath = path_1.join(this.uploadDir, fileName);
+                                base64Data = data.voice.replace(/^data:audio\/\w+;base64,/, '');
+                                fs_1.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+                                console.log('✅ Voice saved:', filePath);
+                                voiceUrl = "/uploads/" + fileName; // المسار للوصول عبر HTTP
+                            }
+                            catch (err) {
+                                console.error('❌ Voice save error:', err);
+                            }
                         }
                         return [4 /*yield*/, this.prisma.message.create({
                                 data: {
@@ -166,6 +179,7 @@ var SocketGateway = /** @class */ (function () {
                         return [2 /*return*/, { status: 'sent', message: message }];
                     case 2:
                         error_1 = _a.sent();
+                        console.error('❌ sendMessage error:', error_1);
                         return [2 /*return*/, { status: 'error', message: error_1.message }];
                     case 3: return [2 /*return*/];
                 }

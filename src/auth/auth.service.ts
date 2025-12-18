@@ -23,7 +23,7 @@ export class AuthService {
     private mailService: MailService,
   ) { }
 
-async register(dto: AuthDto, imageUrl: string | null) {
+  async register(dto: AuthDto, imageUrl: string | null) {
     const { email, phone, name, type, zone, district, address, operations, hours, location, marketName, categoryIds } = dto;
 
     // تحقق إن المستخدم موجود بالفعل
@@ -87,10 +87,75 @@ async register(dto: AuthDto, imageUrl: string | null) {
     return { message: 'User registered successfully', user, market };
   }
 
+
+
+  async AdminAddUsers(dto: AuthDto, imageUrl: string | null) {
+    const { email, phone, name, type, zone, district, address, operations, hours, location, marketName, categoryIds } = dto;
+
+    // تحقق إن المستخدم موجود بالفعل
+    const existingUser = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
+    if (existingUser) {
+      throw new ConflictException('User already exists with this email or phone');
+    }
+
+    // إنشاء المستخدم
+    const user = await this.prisma.user.create({
+      data: {
+        name,
+        email: email ?? null,
+        phone,
+        type,
+        image: imageUrl,
+        phoneVerified: false,
+        location: type !== 'OWNER' ? (location ?? []) : [],
+        addresses: {
+          create: {
+            type: 'HOME',
+            fullAddress: address ?? '',
+            isSelected: true,
+          },
+        },
+      },
+      include: { addresses: true },
+    });
+
+    // إنشاء ماركت لو المستخدم OWNER
+    let market: any = null;
+    if (type === 'OWNER') {
+      market = await this.prisma.market.create({
+        data: {
+          nameAr: marketName ?? `${name}'s Market`,
+          ownerId: user.id,
+          zone: zone ?? '',
+          district: district ?? '',
+          address: address ?? '',
+          operations: operations ?? [],
+          hours: hours ?? [],
+          location: location ?? [],
+        },
+      });
+
+      // ربط الماركت بالـ categories لو موجودة
+      if (Array.isArray((dto as any).categoryIds) && (dto as any).categoryIds.length > 0) {
+        const marketCategories = (dto as any).categoryIds.map((catId: string) => ({
+          marketId: market.id,
+          categoryId: catId,
+        }));
+        await this.prisma.marketCategory.createMany({ data: marketCategories });
+      }
+    }
+
+
+
+    return { message: 'User Added successfully', user, market };
+  }
+
   async checkOwnerApproved(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { isAproved: true, isFeesRequired:true,name: true, id: true },
+      select: { isAproved: true, isFeesRequired: true, name: true, id: true },
     });
 
     if (!user) {
@@ -100,71 +165,71 @@ async register(dto: AuthDto, imageUrl: string | null) {
     return {
       message: "Owner approval status loaded",
       isApproved: user.isAproved,
-      isFeesRequired:user.isFeesRequired
+      isFeesRequired: user.isFeesRequired
     };
   }
-async checkOwnerFees(userId: string) {
-  // جلب معلومات المالك
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true, id: true },
-  });
+  async checkOwnerFees(userId: string) {
+    // جلب معلومات المالك
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, id: true },
+    });
 
-  if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException('User not found');
 
-  // جلب الماركت الخاص بالمالك
-  const market = await this.prisma.market.findUnique({
-    where: { ownerId: userId },
-    select: {
-      id: true,
-      nameAr: true,
-      nameEn: true,
-      limitFees: true,
-      currentFees: true,
-      feePerOrder: true,
-    },
-  });
+    // جلب الماركت الخاص بالمالك
+    const market = await this.prisma.market.findUnique({
+      where: { ownerId: userId },
+      select: {
+        id: true,
+        nameAr: true,
+        nameEn: true,
+        limitFees: true,
+        currentFees: true,
+        feePerOrder: true,
+      },
+    });
 
-  if (!market) throw new NotFoundException('Market not found');
+    if (!market) throw new NotFoundException('Market not found');
 
-  const limitFees = market.limitFees || 0;
-  const currentFees = market.currentFees || 0;
-  const feePerOrder = market.feePerOrder || 0;
-  const totalDue = limitFees - currentFees;
+    const limitFees = market.limitFees || 0;
+    const currentFees = market.currentFees || 0;
+    const feePerOrder = market.feePerOrder || 0;
+    const totalDue = limitFees - currentFees;
 
-  let messageEn = '';
-  let messageAr = '';
+    let messageEn = '';
+    let messageAr = '';
 
-  if (totalDue > 0) {
-    messageEn = `⚠️ Attention! You have pending fees that must be paid before opening your market.
+    if (totalDue > 0) {
+      messageEn = `⚠️ Attention! You have pending fees that must be paid before opening your market.
 Limit Fees: ${limitFees.toFixed(2)}
 Current Fees Paid: ${currentFees.toFixed(2)}
 Fee Per Order: ${feePerOrder.toFixed(2)}
 Amount Due: ${totalDue.toFixed(2)}`;
 
-    messageAr = `⚠️ تنبيه! لديك مستحقات لم يتم دفعها بعد، يجب دفعها قبل فتح السوق.
+      messageAr = `⚠️ تنبيه! لديك مستحقات لم يتم دفعها بعد، يجب دفعها قبل فتح السوق.
 الحد الأقصى للرسوم: ${limitFees.toFixed(2)}
 المستحق المدفوع: ${currentFees.toFixed(2)}
 الرسوم لكل طلب: ${feePerOrder.toFixed(2)}
 المبلغ المستحق: ${totalDue.toFixed(2)}`;
-  } else {
-    messageEn = `✅ Your market is in good standing. No pending fees.`;
-    messageAr = `👍 سوقك جاهز للعمل، لا توجد مستحقات متبقية.`;
+    } else {
+      messageEn = `✅ Your market is in good standing. No pending fees.`;
+      messageAr = `👍 سوقك جاهز للعمل، لا توجد مستحقات متبقية.`;
+    }
+
+    return {
+      market,
+      fees: {
+        limitFees,
+        currentFees,
+        feePerOrder,
+        totalDue,
+      },
+      messageEn,
+      messageAr,
+
+    };
   }
-
-  return {
-    market,
-    fees: {
-      limitFees,
-      currentFees,
-      feePerOrder,
-      totalDue,
-    },
-    messageEn,
-    messageAr,
-
-  };
-}
 
   async addAdmin(dto: AddAdminDto) {
     const { email, name, password } = dto;
@@ -239,7 +304,7 @@ Amount Due: ${totalDue.toFixed(2)}`;
   async getAllOwners() {
     const owners = await this.prisma.user.findMany({
       where: { type: 'OWNER' },
-      include: { addresses: true, market: true,payments:true },
+      include: { addresses: true, market: true, payments: true },
     });
     return owners;
   }
@@ -253,44 +318,44 @@ Amount Due: ${totalDue.toFixed(2)}`;
     });
   }
 
- 
-async getDashboardData(
-  userId: string,
-  type: string,
-  categoryId?: string,
-  search?: string,
-) {
-  if (type === 'OWNER') {
-    const conversations = await this.prisma.conversation.findMany({
-      where: { users: { has: userId } },
-      include: {
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-        _count: {
-          select: {
-            messages: { where: { senderId: { not: userId }, isRead: false } },
+
+  async getDashboardData(
+    userId: string,
+    type: string,
+    categoryId?: string,
+    search?: string,
+  ) {
+    if (type === 'OWNER') {
+      const conversations = await this.prisma.conversation.findMany({
+        where: { users: { has: userId } },
+        include: {
+          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+          _count: {
+            select: {
+              messages: { where: { senderId: { not: userId }, isRead: false } },
+            },
           },
         },
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 1,
-    });
-
-    let formattedConversation: any = null;
-
-    if (conversations.length > 0) {
-      const lastConversation = conversations[0];
-      const otherUserId = lastConversation.users.find((uid) => uid !== userId);
-      const otherUser = await this.prisma.user.findUnique({
-        where: { id: otherUserId },
-        select: { id: true, name: true, image: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
       });
-      const lastMsg = lastConversation.messages[0];
 
-      formattedConversation = {
-        id: lastConversation.id,
-        user: otherUser,
-        lastMessage: lastMsg
-          ? {
+      let formattedConversation: any = null;
+
+      if (conversations.length > 0) {
+        const lastConversation = conversations[0];
+        const otherUserId = lastConversation.users.find((uid) => uid !== userId);
+        const otherUser = await this.prisma.user.findUnique({
+          where: { id: otherUserId },
+          select: { id: true, name: true, image: true },
+        });
+        const lastMsg = lastConversation.messages[0];
+
+        formattedConversation = {
+          id: lastConversation.id,
+          user: otherUser,
+          lastMessage: lastMsg
+            ? {
               id: lastMsg.id,
               type: lastMsg.type,
               senderId: lastMsg.senderId,
@@ -299,108 +364,108 @@ async getDashboardData(
               voice: lastMsg.voice,
               createdAt: lastMsg.createdAt,
             }
-          : null,
-        unreadMessages: lastConversation._count.messages,
-      };
-    }
-
-    const lastProducts = await this.prisma.product.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      include: { market: true },
-    });
-
-    return { lastConversation: formattedConversation, lastProducts };
-  }
-
-  const categories = await this.prisma.category.findMany();
-
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-    select: { location: true },
-  });
-
-  const userLocation = user?.location;
-
-  let markets = await this.prisma.market.findMany({
-    where: {
-      ...(categoryId && {
-        categories: {
-          some: {
-            categoryId,
-          },
-        },
-      }),
-      ...(search && {
-        OR: [
-          {
-            nameAr: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-          {
-            nameEn: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-        ],
-      }),
-    },
-    select: {
-      id: true,
-      nameAr: true,
-      nameEn: true,
-      descriptionAr: true,
-      descriptionEn: true,
-      ownerId: true,
-      zone: true,
-      district: true,
-      address: true,
-      operations: true,
-      hours: true,
-      image: true,
-      commissionFee: true,
-      location: true,
-      rate: true,
-      isOpen: true,
-      from: true,
-      to: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
-  if (userLocation) {
-    const marketsWithDistance = markets.map((m: any) => {
-      let distanceInKm: number | null = null;
-
-      if (m.location?.length === 2) {
-        distanceInKm = getDistance(
-          userLocation[0],
-          userLocation[1],
-          m.location[0],
-          m.location[1],
-        );
+            : null,
+          unreadMessages: lastConversation._count.messages,
+        };
       }
 
-      return { ...m, distanceInKm };
+      const lastProducts = await this.prisma.product.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { market: true },
+      });
+
+      return { lastConversation: formattedConversation, lastProducts };
+    }
+
+    const categories = await this.prisma.category.findMany();
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { location: true },
     });
 
-    const sortedMarkets = marketsWithDistance.sort(
-      (a, b) => (a.distanceInKm ?? Infinity) - (b.distanceInKm ?? Infinity),
-    );
+    const userLocation = user?.location;
 
-    const filteredMarkets = sortedMarkets.filter(
-      (m) => m.distanceInKm !== null && m.distanceInKm <= 30,
-    );
+    let markets = await this.prisma.market.findMany({
+      where: {
+        ...(categoryId && {
+          categories: {
+            some: {
+              categoryId,
+            },
+          },
+        }),
+        ...(search && {
+          OR: [
+            {
+              nameAr: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+            {
+              nameEn: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        }),
+      },
+      select: {
+        id: true,
+        nameAr: true,
+        nameEn: true,
+        descriptionAr: true,
+        descriptionEn: true,
+        ownerId: true,
+        zone: true,
+        district: true,
+        address: true,
+        operations: true,
+        hours: true,
+        image: true,
+        commissionFee: true,
+        location: true,
+        rate: true,
+        isOpen: true,
+        from: true,
+        to: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-    return { categories, markets: filteredMarkets };
+    if (userLocation) {
+      const marketsWithDistance = markets.map((m: any) => {
+        let distanceInKm: number | null = null;
+
+        if (m.location?.length === 2) {
+          distanceInKm = getDistance(
+            userLocation[0],
+            userLocation[1],
+            m.location[0],
+            m.location[1],
+          );
+        }
+
+        return { ...m, distanceInKm };
+      });
+
+      const sortedMarkets = marketsWithDistance.sort(
+        (a, b) => (a.distanceInKm ?? Infinity) - (b.distanceInKm ?? Infinity),
+      );
+
+      const filteredMarkets = sortedMarkets.filter(
+        (m) => m.distanceInKm !== null && m.distanceInKm <= 30,
+      );
+
+      return { categories, markets: filteredMarkets };
+    }
+
+    return { categories, markets };
   }
-
-  return { categories, markets };
-}
 
 
 
@@ -452,9 +517,9 @@ async getDashboardData(
     if (!user || !user.email) {
       throw new NotFoundException("You Don't Have Email To Send OTP!")
     }
- //   await this.mailService.sendOtpMail(user.email, otpCode)
+    //   await this.mailService.sendOtpMail(user.email, otpCode)
 
-     console.log(otpCode);
+    console.log(otpCode);
 
     return { message: 'OTP sent successfully' };
   }
@@ -643,19 +708,19 @@ async getDashboardData(
       orderBy: { createdAt: 'desc' }
     });
   }
-async deleteAllData() {
-  await this.prisma.order.deleteMany({});
-  await this.prisma.notification.deleteMany({});
-  await this.prisma.message.deleteMany({});
-  await this.prisma.otp.deleteMany({});
-  await this.prisma.product.deleteMany({});
-  await this.prisma.marketCategory.deleteMany({});
-  await this.prisma.market.deleteMany({});
-  await this.prisma.address.deleteMany({});
-  await this.prisma.user.deleteMany({});
+  async deleteAllData() {
+    await this.prisma.order.deleteMany({});
+    await this.prisma.notification.deleteMany({});
+    await this.prisma.message.deleteMany({});
+    await this.prisma.otp.deleteMany({});
+    await this.prisma.product.deleteMany({});
+    await this.prisma.marketCategory.deleteMany({});
+    await this.prisma.market.deleteMany({});
+    await this.prisma.address.deleteMany({});
+    await this.prisma.user.deleteMany({});
 
-  return { message: 'All user data has been deleted successfully.' };
-}
+    return { message: 'All user data has been deleted successfully.' };
+  }
 
   async deleteUser(userId: string) {
     const user = await this.prisma.user.findUnique({

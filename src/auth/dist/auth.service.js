@@ -137,6 +137,72 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
+    AuthService.prototype.AdminAddUsers = function (dto, imageUrl) {
+        return __awaiter(this, void 0, void 0, function () {
+            var email, phone, name, type, zone, district, address, operations, hours, location, marketName, categoryIds, existingUser, user, market, marketCategories;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        email = dto.email, phone = dto.phone, name = dto.name, type = dto.type, zone = dto.zone, district = dto.district, address = dto.address, operations = dto.operations, hours = dto.hours, location = dto.location, marketName = dto.marketName, categoryIds = dto.categoryIds;
+                        return [4 /*yield*/, this.prisma.user.findFirst({
+                                where: { OR: [{ email: email }, { phone: phone }] }
+                            })];
+                    case 1:
+                        existingUser = _a.sent();
+                        if (existingUser) {
+                            throw new common_1.ConflictException('User already exists with this email or phone');
+                        }
+                        return [4 /*yield*/, this.prisma.user.create({
+                                data: {
+                                    name: name,
+                                    email: email !== null && email !== void 0 ? email : null,
+                                    phone: phone,
+                                    type: type,
+                                    image: imageUrl,
+                                    phoneVerified: false,
+                                    location: type !== 'OWNER' ? (location !== null && location !== void 0 ? location : []) : [],
+                                    addresses: {
+                                        create: {
+                                            type: 'HOME',
+                                            fullAddress: address !== null && address !== void 0 ? address : '',
+                                            isSelected: true
+                                        }
+                                    }
+                                },
+                                include: { addresses: true }
+                            })];
+                    case 2:
+                        user = _a.sent();
+                        market = null;
+                        if (!(type === 'OWNER')) return [3 /*break*/, 5];
+                        return [4 /*yield*/, this.prisma.market.create({
+                                data: {
+                                    nameAr: marketName !== null && marketName !== void 0 ? marketName : name + "'s Market",
+                                    ownerId: user.id,
+                                    zone: zone !== null && zone !== void 0 ? zone : '',
+                                    district: district !== null && district !== void 0 ? district : '',
+                                    address: address !== null && address !== void 0 ? address : '',
+                                    operations: operations !== null && operations !== void 0 ? operations : [],
+                                    hours: hours !== null && hours !== void 0 ? hours : [],
+                                    location: location !== null && location !== void 0 ? location : []
+                                }
+                            })];
+                    case 3:
+                        market = _a.sent();
+                        if (!(Array.isArray(dto.categoryIds) && dto.categoryIds.length > 0)) return [3 /*break*/, 5];
+                        marketCategories = dto.categoryIds.map(function (catId) { return ({
+                            marketId: market.id,
+                            categoryId: catId
+                        }); });
+                        return [4 /*yield*/, this.prisma.marketCategory.createMany({ data: marketCategories })];
+                    case 4:
+                        _a.sent();
+                        _a.label = 5;
+                    case 5: return [2 /*return*/, { message: 'User Added successfully', user: user, market: market }];
+                }
+            });
+        });
+    };
     AuthService.prototype.checkOwnerApproved = function (userId) {
         return __awaiter(this, void 0, void 0, function () {
             var user;
@@ -528,12 +594,8 @@ var AuthService = /** @class */ (function () {
                         if (!user || !user.email) {
                             throw new common_1.NotFoundException("You Don't Have Email To Send OTP!");
                         }
-                        return [4 /*yield*/, this.mailService.sendOtpMail(user.email, otpCode)
-                            // console.log(otpCode);
-                        ];
-                    case 5:
-                        _b.sent();
-                        // console.log(otpCode);
+                        //   await this.mailService.sendOtpMail(user.email, otpCode)
+                        console.log(otpCode);
                         return [2 /*return*/, { message: 'OTP sent successfully' }];
                 }
             });

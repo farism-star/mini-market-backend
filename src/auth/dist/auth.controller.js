@@ -67,6 +67,15 @@ var AuthController = /** @class */ (function () {
             });
         });
     };
+    AuthController.prototype.AdminAddUsers = function (file, dto) {
+        return __awaiter(this, void 0, void 0, function () {
+            var imageUrl;
+            return __generator(this, function (_a) {
+                imageUrl = file ? "/uploads/" + file.originalname : null;
+                return [2 /*return*/, this.authService.AdminAddUsers(dto, imageUrl)];
+            });
+        });
+    };
     AuthController.prototype.login = function (authDto) {
         return this.authService.login(authDto);
     };
@@ -164,7 +173,6 @@ var AuthController = /** @class */ (function () {
             var user;
             return __generator(this, function (_a) {
                 user = req.user;
-                console.log("user", user);
                 return [2 /*return*/, this.authService.getAllClients()];
             });
         });
@@ -199,6 +207,12 @@ var AuthController = /** @class */ (function () {
         __param(0, common_1.UploadedFile()),
         __param(1, common_1.Body())
     ], AuthController.prototype, "register");
+    __decorate([
+        common_1.Post('admin/register'),
+        common_1.UseInterceptors(platform_express_1.FileInterceptor('image', multer_config_1.multerConfig)),
+        __param(0, common_1.UploadedFile()),
+        __param(1, common_1.Body())
+    ], AuthController.prototype, "AdminAddUsers");
     __decorate([
         common_1.Post('login'),
         __param(0, common_1.Body())

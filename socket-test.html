@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Socket Image Test</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+    }
+    img {
+      max-width: 200px;
+      margin-top: 10px;
+    }
+    .log {
+      background: #000;
+      color: #0f0;
+      padding: 10px;
+      height: 200px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🧪 Socket Image Upload Test</h2>
+
+  <label>JWT Token</label>
+  <input id="token" placeholder="Paste JWT token here" />
+
+  <label>Conversation ID</label>
+  <input id="conversationId" placeholder="conversationId" />
+
+  <label>Sender ID</label>
+  <input id="senderId" placeholder="senderId" />
+
+  <label>Choose Image</label>
+  <input type="file" id="imageInput" accept="image/*" />
+
+  <button onclick="connect()">🔌 Connect</button>
+  <button onclick="join()">📥 Join Conversation</button>
+  <button onclick="sendImage()">📤 Send Image</button>
+
+  <img id="preview" />
+
+  <h3>Logs</h3>
+  <div class="log" id="log"></div>
+
+  <script>
+    let socket;
+    let imageBase64 = null;
+
+    const log = (msg) => {
+      const el = document.getElementById("log");
+      el.innerHTML += msg + "<br>";
+      el.scrollTop = el.scrollHeight;
+    };
+
+    document.getElementById("imageInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        imageBase64 = reader.result;
+        document.getElementById("preview").src = imageBase64;
+        log("🖼 Image loaded as Base64");
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function connect() {
+      const token = document.getElementById("token").value;
+
+      socket = io("http://35.252.35.62:5000", {
+        auth: { token },
+        transports: ["websocket"],
+      });
+
+      socket.on("connect", () => {
+        log("✅ Connected: " + socket.id);
+      });
+
+      socket.on("connected", (data) => {
+        log("🎉 Auth success: " + JSON.stringify(data));
+      });
+
+      socket.on("newMessage", (msg) => {
+        log("📩 New Message: " + JSON.stringify(msg));
+      });
+
+      socket.on("disconnect", () => {
+        log("❌ Disconnected");
+      });
+
+      socket.on("error", (err) => {
+        log("⚠️ Error: " + JSON.stringify(err));
+      });
+    }
+
+    function join() {
+      const conversationId = document.getElementById("conversationId").value;
+      socket.emit("joinConversation", { conversationId });
+      log("📥 Joined room: " + conversationId);
+    }
+
+    function sendImage() {
+      if (!imageBase64) {
+        alert("Choose image first");
+        return;
+      }
+
+      const conversationId = document.getElementById("conversationId").value;
+      const senderId = document.getElementById("senderId").value;
+
+      socket.emit("sendMessage", {
+        conversationId,
+        senderId,
+        type: "IMAGE",
+        image: imageBase64,
+      });
+
+      log("📤 Image sent");
+    }
+  </script>
+
+</body>
+</html>
