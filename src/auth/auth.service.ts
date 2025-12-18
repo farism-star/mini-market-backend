@@ -471,26 +471,34 @@ Amount Due: ${totalDue.toFixed(2)}`;
 
 
 
-  async login(authDto: Login) {
-    const { email, phone } = authDto;
+ async login(authDto: Login) {
+  const { phone } = authDto;
 
-    if (!email && !phone) {
-      throw new BadRequestException('Email or phone is required');
-    }
-
-    const user = await this.prisma.user.findFirst({
-      where: { OR: [{ email }, { phone }] },
-      include: { market: true, addresses: true },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    await this.sendOtp({ email: user.email!, phone: user.phone! });
-
-    return { message: 'OTP sent', user };
+  if (!phone) {
+    throw new BadRequestException('Phone or email is required');
   }
+
+  const user = await this.prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: phone },
+        { phone: phone },
+      ],
+    },
+    include: { market: true, addresses: true },
+  });
+
+  if (!user) {
+    throw new UnauthorizedException('User not found');
+  }
+
+  await this.sendOtp({
+    email: user.email!,
+    phone: user.phone!,
+  });
+
+  return { message: 'OTP sent', user };
+}
 
   async sendOtp(authDto: { email?: string; phone?: string }) {
     const identifier = authDto.phone ?? authDto.email;
