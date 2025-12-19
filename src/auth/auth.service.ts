@@ -582,7 +582,9 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
   }
 
   // أرسل OTP على الإيميل
-  await this.mailService.sendOtpMail(email, otpCode);
+  // await this.mailService.sendOtpMail(email, otpCode);
+  console.log(otpCode);
+  
 
   return { message: 'OTP sent successfully' };
 }
