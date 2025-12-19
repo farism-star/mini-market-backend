@@ -10,6 +10,7 @@ import { Login } from './dtos/login.dto';
 import { MailService } from 'src/mail/mail.service';
 import { AddAdminDto } from './dtos/add-admin.dto';
 import { getDistance } from "src/helpers/distance";
+import { FirebaseService } from 'src/firbase/firebase.service';
 
 type MarketWithDistance = {
   distanceInKm: number | null;
@@ -21,6 +22,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private firebaseService: FirebaseService,
   ) { }
 
   async register(dto: AuthDto, imageUrl: string | null) {
@@ -588,7 +590,7 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
 
 // Verify OTP
 async verifyOtp(dto: VerifyOtpDto) {
-  const identifier = dto.phone ?? dto.email; // المفتاح اللي المستخدم بعته
+  const identifier = dto.phone ?? dto.email;
 
   if (!identifier) {
     throw new BadRequestException('Phone or email is required');
@@ -626,17 +628,51 @@ async verifyOtp(dto: VerifyOtpDto) {
     throw new UnauthorizedException('User not found');
   }
 
-  // ضبط الـ phoneVerified
-  await this.prisma.user.update({
+  // تحديث phoneVerified وحفظ fcmToken
+  const updateData: any = { phoneVerified: true };
+  
+  if (dto.fcmToken) {
+    updateData.fcmToken = dto.fcmToken;
+  }
+
+  const updatedUser = await this.prisma.user.update({
     where: { id: user.id },
-    data: { phoneVerified: true },
+    data: updateData,
+    include: { market: true, addresses: true },
   });
 
-  // إنشاء JWT
-  const token = this.jwtService.sign({ sub: user.id, type: user.type });
+  if (dto.fcmToken) {
+    try {
+      await this.firebaseService.sendNotification(
+        updatedUser.fcmToken|| dto.fcmToken,
+        'مرحباً بك في تطبيق ميني ماركت! 🛒',
+      'نورت التطبيق! يمكنك الآن تصفح المنتجات والتسوق بكل سهولة 🎉',
+        {
+          type: 'welcome',
+          userId: updatedUser.id,
+          timestamp: new Date().toISOString(),
+        },
+      );
+      console.log('Welcome notification sent successfully');
+    } catch (error) {
+      // لا نوقف العملية إذا فشل إرسال الإشعار
+      console.error('Failed to send welcome notification:', error);
+    }
+  }
 
-  return { token, user };
+  // إنشاء JWT
+  const token = this.jwtService.sign({ 
+    sub: updatedUser.id, 
+    type: updatedUser.type 
+  });
+
+  return { 
+    token, 
+    user: updatedUser,
+    message: 'Login successful',
+  };
 }
+
 
   async updateUser(
     userId: string,

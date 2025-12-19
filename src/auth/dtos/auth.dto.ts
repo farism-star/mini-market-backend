@@ -83,6 +83,9 @@ export class VerifyOtpDto {
   @IsString()
   @Length(5, 5)
   otp: string;
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }
 
 export class UpdateAddressDto {

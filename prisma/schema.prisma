@@ -67,26 +67,27 @@ model Payment {
 }
 
 model User {
-  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
   type           UserType
   name           String
-  email          String?        @unique
-  emailVerified  Boolean        @default(false)
-  phone          String?        @unique
-  phoneVerified  Boolean        @default(false)
+  email          String?  @unique
+  fcmToken       String?
+  phone          String?  @unique
+  phoneVerified  Boolean  @default(false)
   image          String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  isAproved      Boolean        @default(false)
-  isFeesRequired Boolean        @default(false)
-  messages       Message[]      @relation("UserMessages")
-  otps           Otp[]
-  market         Market?
-  orders         Order[]
-  notifications  Notification[]
-  addresses      Address[]
-  payments       Payment[]
-  location       Float[]        @default([]) // [latitude, longitude]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  isAproved      Boolean  @default(false)
+  isFeesRequired Boolean  @default(false)
+
+  messages      Message[]      @relation("UserMessages")
+  otps          Otp[]
+  market        Market?
+  orders        Order[]
+  notifications Notification[]
+  addresses     Address[]
+  payments      Payment[]
+  location      Float[]        @default([]) // [latitude, longitude]
 }
 
 model UserDashboard {
@@ -254,6 +255,7 @@ enum AddressType {
   HOME
   OTHER
 }
+
 enum PaymentStatus {
   PENDING
   SUCCESS

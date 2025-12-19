@@ -23,6 +23,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { multerConfig } from './upload/multer.config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { FirebaseModule } from './firbase/firebase.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { APP_GUARD } from '@nestjs/core';
     ProductModule,
     CategoryModule,
     MarketModule,
+    FirebaseModule,
     OrdersModule,
     MulterModule.register(multerConfig),
     PaymentModule,
