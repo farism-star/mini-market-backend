@@ -32,7 +32,7 @@ export class SocketGateway
   @WebSocketServer()
   server: Server;
 
-  // 📁 مسار ثابت للـ uploads (نفس سلوك Multer): **تم التعديل هنا** ليستخدم process.cwd()
+  
   private readonly uploadDir = join(process.cwd(), 'uploads');
 
   async handleConnection(client: Socket) {
@@ -70,99 +70,117 @@ export class SocketGateway
   }
 
   @SubscribeMessage('sendMessage')
-  async sendMessage(
-    @MessageBody() data: SendMessageDto,
-    @ConnectedSocket() client: Socket,
-  ) {
-    try {
-      let imageUrl: string | null = null;
-      let voiceUrl: string | null = null;
+async sendMessage(
+  @MessageBody() data: SendMessageDto,
+  @ConnectedSocket() client: Socket,
+) {
+  try {
+    let imageUrl: string | null = null;
+    let voiceUrl: string | null = null;
 
-      // تأكد إن uploads موجود (سيتم إنشاءه في جذر المشروع الآن)
-      if (!existsSync(this.uploadDir)) {
-        mkdirSync(this.uploadDir, { recursive: true });
-        console.log('📁 uploads folder created at:', this.uploadDir);
-      }
-console.log("message From User")
-      /* ================= IMAGE ================= */
-      if (data.type === MessageType.IMAGE && data.image) {
-        try {
-          const matches = data.image.match(
-            /^data:(image\/[A-Za-z0-9.+-]+);base64,/,
-          );
+    // تأكد إن uploads موجود
+    if (!existsSync(this.uploadDir)) {
+      mkdirSync(this.uploadDir, { recursive: true });
+    }
 
-          let ext = '.png';
-          if (matches) {
-            const mime = matches[1];
-            let rawExt = mime.split('/')[1];
-            rawExt = rawExt.replace(/\+xml$/, '');
-            ext = '.' + rawExt;
-          }
+    /* ================= IMAGE ================= */
+    if (data.type === MessageType.IMAGE && data.image) {
+      const matches = data.image.match(
+        /^data:(image\/[A-Za-z0-9.+-]+);base64,/,
+      );
 
-          const fileName = `chat-img-${Date.now()}-${Math.round(
-            Math.random() * 1e9,
-          )}${ext}`;
-
-          const filePath = join(this.uploadDir, fileName);
-          const base64Data = data.image.replace(
-            /^data:image\/[A-Za-z0-9.+-]+;base64,/,
-            '',
-          );
-
-          writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-          console.log('✅ Image saved:', filePath);
-
-          imageUrl = `/uploads/${fileName}`; // المسار للوصول عبر HTTP
-        } catch (err) {
-          console.error('❌ Image save error:', err);
-        }
+      let ext = '.png';
+      if (matches) {
+        let rawExt = matches[1].split('/')[1];
+        rawExt = rawExt.replace(/\+xml$/, '');
+        ext = '.' + rawExt;
       }
 
-      /* ================= VOICE ================= */
-      if (data.type === MessageType.VOICE && data.voice) {
-        try {
-          const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
-          const ext = matches ? '.' + matches[1] : '.mp3';
+      const fileName = `chat-img-${Date.now()}-${Math.round(
+        Math.random() * 1e9,
+      )}${ext}`;
 
-          const fileName = `chat-voice-${Date.now()}-${Math.round(
-            Math.random() * 1e9,
-          )}${ext}`;
+      const filePath = join(this.uploadDir, fileName);
+      const base64Data = data.image.replace(
+        /^data:image\/[A-Za-z0-9.+-]+;base64,/,
+        '',
+      );
 
-          const filePath = join(this.uploadDir, fileName);
-          const base64Data = data.voice.replace(
-            /^data:audio\/\w+;base64,/,
-            '',
-          );
+      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      imageUrl = `/uploads/${fileName}`;
+    }
 
-          writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-          console.log('✅ Voice saved:', filePath);
+    /* ================= VOICE ================= */
+    if (data.type === MessageType.VOICE && data.voice) {
+      const matches = data.voice.match(/^data:audio\/(\w+);base64,/);
+      const ext = matches ? '.' + matches[1] : '.mp3';
 
-          voiceUrl = `/uploads/${fileName}`; // المسار للوصول عبر HTTP
-        } catch (err) {
-          console.error('❌ Voice save error:', err);
-        }
+      const fileName = `chat-voice-${Date.now()}-${Math.round(
+        Math.random() * 1e9,
+      )}${ext}`;
+
+      const filePath = join(this.uploadDir, fileName);
+      const base64Data = data.voice.replace(
+        /^data:audio\/\w+;base64,/,
+        '',
+      );
+
+      writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      voiceUrl = `/uploads/${fileName}`;
+    }
+
+    /* ================= SAVE MESSAGE ================= */
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: data.conversationId,
+        senderId: data.senderId,
+        text: data.text || null,
+        imageUrl,
+        voice: voiceUrl,
+        isRead: false,
+        type: data.type,
+      },
+    });
+
+    /* ================= CREATE NOTIFICATION ================= */
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: data.conversationId },
+      select: { users: true },
+    });
+
+    const receiverId = conversation?.users.find(
+      (id) => id !== data.senderId,
+    );
+
+    if (receiverId) {
+      let notificationBody = 'You have received a new message';
+
+      if (data.type === MessageType.TEXT && data.text) {
+        notificationBody = data.text;
+      } else if (data.type === MessageType.IMAGE) {
+        notificationBody = 'You have received an image message';
+      } else if (data.type === MessageType.VOICE) {
+        notificationBody = 'You have received a voice message';
       }
 
-      /* ================= SAVE MESSAGE ================= */
-      const message = await this.prisma.message.create({
+      await this.prisma.notification.create({
         data: {
-          conversationId: data.conversationId,
-          senderId: data.senderId,
-          text: data.text || null,
-          imageUrl,
-          voice: voiceUrl,
+          userId: receiverId,
+          body: notificationBody,
           isRead: false,
-          type: data.type,
         },
       });
-
-      const room = `room_${data.conversationId}`;
-      this.server.to(room).emit('newMessage', message);
-
-      return { status: 'sent', message };
-    } catch (error) {
-      console.error('❌ sendMessage error:', error);
-      return { status: 'error', message: error.message };
     }
+
+    /* ================= EMIT MESSAGE ================= */
+    const room = `room_${data.conversationId}`;
+    this.server.to(room).emit('newMessage', message);
+
+    return { status: 'sent', message };
+  } catch (error) {
+    console.error('sendMessage error:', error);
+    return { status: 'error', message: error.message };
   }
+}
+
 }

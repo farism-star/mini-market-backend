@@ -54,6 +54,7 @@ var Role_decorator_1 = require("./Role.decorator");
 var roles_enum_1 = require("./roles.enum");
 var platform_express_1 = require("@nestjs/platform-express");
 var multer_config_1 = require("../upload/multer.config");
+var throttler_1 = require("@nestjs/throttler");
 var AuthController = /** @class */ (function () {
     function AuthController(authService) {
         this.authService = authService;
@@ -168,27 +169,25 @@ var AuthController = /** @class */ (function () {
             });
         });
     };
-    AuthController.prototype.getAllClients = function (req) {
+    AuthController.prototype.getAllClients = function (search) {
         return __awaiter(this, void 0, void 0, function () {
-            var user;
             return __generator(this, function (_a) {
-                user = req.user;
-                return [2 /*return*/, this.authService.getAllClients()];
+                return [2 /*return*/, this.authService.getAllClients(search)];
             });
         });
     };
     // جلب كل الـ Owners - Admin فقط
-    AuthController.prototype.getAllOwners = function () {
+    AuthController.prototype.getAllOwners = function (search) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2 /*return*/, this.authService.getAllOwners()];
+                return [2 /*return*/, this.authService.getAllOwners(search)];
             });
         });
     };
-    AuthController.prototype.getAllMarkets = function () {
+    AuthController.prototype.getMarkets = function (search) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2 /*return*/, this.authService.getMarkets()];
+                return [2 /*return*/, this.authService.getMarkets(search)];
             });
         });
     };
@@ -202,6 +201,7 @@ var AuthController = /** @class */ (function () {
         });
     };
     __decorate([
+        throttler_1.Throttle({ "default": { ttl: 60000, limit: 5 } }),
         common_1.Post('register'),
         common_1.UseInterceptors(platform_express_1.FileInterceptor('image', multer_config_1.multerConfig)),
         __param(0, common_1.UploadedFile()),
@@ -214,6 +214,7 @@ var AuthController = /** @class */ (function () {
         __param(1, common_1.Body())
     ], AuthController.prototype, "AdminAddUsers");
     __decorate([
+        throttler_1.Throttle({ "default": { ttl: 60000, limit: 5 } }),
         common_1.Post('login'),
         __param(0, common_1.Body())
     ], AuthController.prototype, "login");
@@ -285,18 +286,20 @@ var AuthController = /** @class */ (function () {
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
         common_1.Get('admin/clients'),
-        __param(0, common_1.Req())
+        __param(0, common_1.Query('search'))
     ], AuthController.prototype, "getAllClients");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
-        common_1.Get('admin/owners')
+        common_1.Get('admin/owners'),
+        __param(0, common_1.Query('search'))
     ], AuthController.prototype, "getAllOwners");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.ADMIN),
-        common_1.Get('admin/markets')
-    ], AuthController.prototype, "getAllMarkets");
+        common_1.Get('admin/markets'),
+        __param(0, common_1.Query('search'))
+    ], AuthController.prototype, "getMarkets");
     __decorate([
         common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard),
         Role_decorator_1.Roles(roles_enum_1.Role.CLIENT, roles_enum_1.Role.OWNER),

@@ -81,8 +81,8 @@ export class AuthService {
       }
     }
 
-    // إرسال OTP (مثال)
-    await this.sendOtp({ email, phone });
+    // // إرسال OTP (مثال)
+    // await this.sendOtp({ email, phone });
 
     return { message: 'User registered successfully', user, market };
   }
@@ -292,31 +292,71 @@ Amount Due: ${totalDue.toFixed(2)}`;
     return { admin_token, admin };
   }
   // جلب كل الـ Clients
-  async getAllClients() {
-    const clients = await this.prisma.user.findMany({
-      where: { type: 'CLIENT' },
-      include: { addresses: true, market: true },
-    });
-    return clients;
-  }
-
+ async getAllClients(search?: string) {
+  return this.prisma.user.findMany({
+    where: {
+      type: 'CLIENT',
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    },
+    include: { addresses: true, market: true },
+    orderBy: { createdAt: 'desc' },
+  });
+}
   // جلب كل الـ Owners
-  async getAllOwners() {
-    const owners = await this.prisma.user.findMany({
-      where: { type: 'OWNER' },
-      include: { addresses: true, market: true, payments: true },
-    });
-    return owners;
-  }
+async getAllOwners(search?: string) {
+  return this.prisma.user.findMany({
+    where: {
+      type: 'OWNER',
+      // إذا وجد بحث، نطبق شروط الـ OR
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } }, // البحث بالاسم
+          { email: { contains: search, mode: 'insensitive' } }, // البحث بالإيميل
+          {
+            market: {
+              OR: [
+                { nameAr: { contains: search, mode: 'insensitive' } }, // البحث باسم المتجر عربي
+                { nameEn: { contains: search, mode: 'insensitive' } }, // البحث باسم المتجر إنجليزي
+              ],
+            },
+          },
+        ],
+      }),
+    },
+    include: { 
+      addresses: true, 
+      market: true, 
+      payments: true 
+    },
+    orderBy: { createdAt: 'desc' } // اختياري: لترتيب الأحدث أولاً
+  });
+}
   // auth.service.ts
-  async getMarkets() {
-    return this.prisma.market.findMany({
-      include: {
-        owner: true, // لو عايز تجيب بيانات الـ Owner لكل Market
-        products: true, // لو حابب تجيب المنتجات المرتبطة
-      },
-    });
-  }
+ async getMarkets(search?: string) {
+  return this.prisma.market.findMany({
+    where: {
+      ...(search && {
+        OR: [
+          { nameAr: { contains: search, mode: 'insensitive' } },
+          { nameEn: { contains: search, mode: 'insensitive' } },
+          { owner: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
+    },
+    include: {
+      owner: true,
+      products: true,
+      categories: { include: { category: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+}
 
 
   async getDashboardData(
@@ -325,58 +365,70 @@ Amount Due: ${totalDue.toFixed(2)}`;
     categoryId?: string,
     search?: string,
   ) {
-    if (type === 'OWNER') {
-      const conversations = await this.prisma.conversation.findMany({
-        where: { users: { has: userId } },
-        include: {
-          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-          _count: {
-            select: {
-              messages: { where: { senderId: { not: userId }, isRead: false } },
-            },
-          },
+   if (type === 'OWNER') {
+  const conversations = await this.prisma.conversation.findMany({
+    where: { users: { has: userId } },
+    include: {
+      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      _count: {
+        select: {
+          messages: { where: { senderId: { not: userId }, isRead: false } },
         },
-        orderBy: { updatedAt: 'desc' },
-        take: 1,
-      });
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 1,
+  });
 
-      let formattedConversation: any = null;
+  let formattedConversation: any = null;
 
-      if (conversations.length > 0) {
-        const lastConversation = conversations[0];
-        const otherUserId = lastConversation.users.find((uid) => uid !== userId);
-        const otherUser = await this.prisma.user.findUnique({
-          where: { id: otherUserId },
-          select: { id: true, name: true, image: true },
-        });
-        const lastMsg = lastConversation.messages[0];
+  if (conversations.length > 0) {
+    const lastConversation = conversations[0];
+    const otherUserId = lastConversation.users.find((uid) => uid !== userId);
+    const otherUser = await this.prisma.user.findUnique({
+      where: { id: otherUserId },
+      select: { id: true, name: true, image: true },
+    });
+    const lastMsg = lastConversation.messages[0];
 
-        formattedConversation = {
-          id: lastConversation.id,
-          user: otherUser,
-          lastMessage: lastMsg
-            ? {
-              id: lastMsg.id,
-              type: lastMsg.type,
-              senderId: lastMsg.senderId,
-              text: lastMsg.text,
-              image: lastMsg.imageUrl,
-              voice: lastMsg.voice,
-              createdAt: lastMsg.createdAt,
-            }
-            : null,
-          unreadMessages: lastConversation._count.messages,
-        };
-      }
+    formattedConversation = {
+      id: lastConversation.id,
+      user: otherUser,
+      lastMessage: lastMsg
+        ? {
+            id: lastMsg.id,
+            type: lastMsg.type,
+            senderId: lastMsg.senderId,
+            text: lastMsg.text,
+            image: lastMsg.imageUrl,
+            voice: lastMsg.voice,
+            createdAt: lastMsg.createdAt,
+          }
+        : null,
+      unreadMessages: lastConversation._count.messages,
+    };
+  }
 
-      const lastProducts = await this.prisma.product.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: { market: true },
-      });
+  // اجلب الماركت الخاص بالـ OWNER
+  const market = await this.prisma.market.findFirst({
+    where: { ownerId: userId },
+  });
 
-      return { lastConversation: formattedConversation, lastProducts };
-    }
+  if (!market) {
+    throw new NotFoundException('Market not found for this owner');
+  }
+
+  // جلب آخر 5 منتجات خاصة بالماركت
+  const lastProducts = await this.prisma.product.findMany({
+    where: { marketId: market.id }, // فلترة حسب ماركت الـ OWNER
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    include: { market: true },
+  });
+
+  return { lastConversation: formattedConversation, lastProducts };
+}
+
 
     const categories = await this.prisma.category.findMany();
 
@@ -470,14 +522,15 @@ Amount Due: ${totalDue.toFixed(2)}`;
 
 
 
-
- async login(authDto: Login) {
-  const { phone } = authDto;
+// Login
+async login(authDto: Login) {
+  const { phone } = authDto; // المفتاح الوحيد اللي هيجي من frontend
 
   if (!phone) {
     throw new BadRequestException('Phone or email is required');
   }
 
+  // دور على المستخدم سواء بالإيميل أو رقم الهاتف
   const user = await this.prisma.user.findFirst({
     where: {
       OR: [
@@ -492,91 +545,99 @@ Amount Due: ${totalDue.toFixed(2)}`;
     throw new UnauthorizedException('User not found');
   }
 
+  // ابعت المفتاح زي ما هو لـ sendOtp
   await this.sendOtp({
-    email: user.email!,
-    phone: user.phone!,
+    identifier: phone,   // القيمة اللي المستخدم بعته
+    userId: user.id,
+    email: user.email ?? undefined, // لو مفيش email، يبقى undefined
   });
 
   return { message: 'OTP sent', user };
 }
 
-  async sendOtp(authDto: { email?: string; phone?: string }) {
-    const identifier = authDto.phone ?? authDto.email;
 
-    if (!identifier) {
-      throw new BadRequestException('Phone or email is required');
-    }
+// Send OTP
+async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
+  const { identifier, userId, email } = authDto;
 
-    const otpCode = randomInt(10000, 99999).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-
-    const user = await this.prisma.user.findFirst({
-      where: { OR: [{ phone: authDto.phone }, { email: authDto.email }] },
-    });
-
-    if (user) {
-      await this.prisma.otp.deleteMany({ where: { userId: user.id } });
-    }
-
-    await this.prisma.otp.create({
-      data: { code: otpCode, identifier, userId: user ? user.id : null, expiresAt },
-    });
-
-    if (!user || !user.email) {
-      throw new NotFoundException("You Don't Have Email To Send OTP!")
-    }
-    //   await this.mailService.sendOtpMail(user.email, otpCode)
-
-    console.log(otpCode);
-
-    return { message: 'OTP sent successfully' };
+  if (!identifier) {
+    throw new BadRequestException('Phone or email is required');
   }
 
-  async verifyOtp(dto: VerifyOtpDto) {
-    const identifier = dto.phone ?? dto.email;
+  const otpCode = randomInt(10000, 99999).toString();
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 دقائق
 
-    if (!identifier) {
-      throw new BadRequestException('Phone or email is required');
-    }
+  // امسح أي OTP قديم لنفس المستخدم
+  await this.prisma.otp.deleteMany({ where: { userId } });
 
-    const otpRecord = await this.prisma.otp.findFirst({
-      where: { identifier },
-      orderBy: { createdAt: 'desc' },
-    });
+  // سجل OTP جديد
+  await this.prisma.otp.create({
+    data: { code: otpCode, identifier, userId, expiresAt },
+  });
 
-    if (!otpRecord) {
-      throw new UnauthorizedException('OTP not found');
-    }
+  if (!email) {
+    throw new NotFoundException("User doesn't have an email to send OTP!");
+  }
 
-    if (new Date() > otpRecord.expiresAt) {
-      await this.prisma.otp.delete({ where: { id: otpRecord.id } });
-      throw new UnauthorizedException('OTP expired');
-    }
+  // أرسل OTP على الإيميل
+  await this.mailService.sendOtpMail(email, otpCode);
 
-    if (otpRecord.code !== dto.otp) {
-      throw new UnauthorizedException('Invalid OTP');
-    }
+  return { message: 'OTP sent successfully' };
+}
 
+
+// Verify OTP
+async verifyOtp(dto: VerifyOtpDto) {
+  const identifier = dto.phone ?? dto.email; // المفتاح اللي المستخدم بعته
+
+  if (!identifier) {
+    throw new BadRequestException('Phone or email is required');
+  }
+
+  // جلب أحدث OTP بناءً على identifier
+  const otpRecord = await this.prisma.otp.findFirst({
+    where: { identifier },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!otpRecord) {
+    throw new UnauthorizedException('OTP not found');
+  }
+
+  if (new Date() > otpRecord.expiresAt) {
     await this.prisma.otp.delete({ where: { id: otpRecord.id } });
-
-    const user = await this.prisma.user.findFirst({
-      where: { OR: [{ phone: dto.phone ?? null }, { email: dto.email ?? null }] },
-      include: { market: true, addresses: true },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { phoneVerified: true },
-    });
-
-    const token = this.jwtService.sign({ sub: user.id, type: user.type });
-
-    return { token, user };
+    throw new UnauthorizedException('OTP expired');
   }
+
+  if (otpRecord.code !== dto.otp) {
+    throw new UnauthorizedException('Invalid OTP');
+  }
+
+  // احذف الـ OTP بعد التحقق
+  await this.prisma.otp.delete({ where: { id: otpRecord.id } });
+
+  // جلب المستخدم
+  const user = await this.prisma.user.findFirst({
+    where: { OR: [{ phone: identifier }, { email: identifier }] },
+    include: { market: true, addresses: true },
+  });
+
+  if (!user) {
+    throw new UnauthorizedException('User not found');
+  }
+
+  // ضبط الـ phoneVerified
+  await this.prisma.user.update({
+    where: { id: user.id },
+    data: { phoneVerified: true },
+  });
+
+  // إنشاء JWT
+  const token = this.jwtService.sign({ sub: user.id, type: user.type });
+
+  return { token, user };
+}
+
   async updateUser(
     userId: string,
     dto: UpdateUserDto,
@@ -730,37 +791,58 @@ Amount Due: ${totalDue.toFixed(2)}`;
     return { message: 'All user data has been deleted successfully.' };
   }
 
-  async deleteUser(userId: string) {
-    const user = await this.prisma.user.findUnique({
+async deleteUser(userId: string) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { market: true },
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  return await this.prisma.$transaction(async (prisma) => {
+    // 1. حذف البيانات المتعلقة بالمستخدم
+    await prisma.message.deleteMany({ where: { senderId: userId } });
+    await prisma.notification.deleteMany({ where: { userId } });
+    await prisma.otp.deleteMany({ where: { userId } });
+    await prisma.address.deleteMany({ where: { userId } });
+
+    if (user.type === 'OWNER' && user.market) {
+      const marketId = user.market.id;
+
+      // 2. حذف سجلات الجدول الوسيط للتصنيفات (حل المشكلة التي واجهتك)
+      // بدلاً من عمل update و set، نقوم بحذف السجلات التي تربط المتجر بالتصنيفات
+      await prisma.marketCategory.deleteMany({
+        where: { marketId: marketId },
+      });
+
+      // 3. حذف المنتجات التابعة للمتجر
+      await prisma.product.deleteMany({
+        where: { marketId: marketId },
+      });
+
+      // 4. حذف الطلبات التابعة للمتجر
+      await prisma.order.deleteMany({
+        where: { marketId: marketId },
+      });
+
+      // 5. حذف الدليفري (التوصيلات) المرتبطة بالمتجر (موجودة في الـ Schema الخاصة بك)
+      await prisma.delivery.deleteMany({
+        where: { marketId: marketId },
+      });
+
+      
+      await prisma.market.delete({
+        where: { id: marketId },
+      });
+    }
+
+    
+    await prisma.user.delete({
       where: { id: userId },
-      include: { market: true },
     });
 
-    if (!user) throw new NotFoundException('User not found');
-
-    return await this.prisma.$transaction(async (prisma) => {
-      // حذف الرسائل والإشعارات والـ OTP الخاصة بالمستخدم
-      await prisma.message.deleteMany({ where: { senderId: userId } });
-      await prisma.notification.deleteMany({ where: { userId } });
-      await prisma.otp.deleteMany({ where: { userId } });
-
-      // حذف العناوين
-      await prisma.address.deleteMany({ where: { userId } });
-
-      // لو Owner → حذف الماركت والمنتجات والطلبات
-      if (user.type === 'OWNER' && user.market) {
-        const marketId = user.market.id;
-
-        await prisma.order.deleteMany({ where: { marketId } });
-        await prisma.product.deleteMany({ where: { marketId } });
-        await prisma.market.delete({ where: { id: marketId } });
-      }
-
-      // حذف المستخدم نفسه
-      await prisma.user.delete({ where: { id: userId } });
-
-      return { message: `User ${user.name} has been deleted successfully.` };
-    });
-  }
+    return { message: `تم حذف المستخدم ${user.name} وجميع بيانات المتجر بنجاح.` };
+  });
+}
 
 }

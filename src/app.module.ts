@@ -20,15 +20,28 @@ import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notifications/notification.module';
 import { PaymentModule } from './payments/payment.module';
 import { MulterModule } from '@nestjs/platform-express';
-import { multerConfig } from './upload/multer.config';  
+import { multerConfig } from './upload/multer.config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+
 @Module({
   imports: [
+    // ⚡ Global Rate Limit
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000, // 60 seconds
+          limit: 100, // 100 request لكل ttl
+        },
+      ],
+    }),
+
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
       serveStaticOptions: {
         index: false,
-        fallthrough: true, 
+        fallthrough: true,
       },
     }),
 
@@ -50,7 +63,13 @@ import { multerConfig } from './upload/multer.config';
     JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
@@ -71,7 +90,7 @@ export class AppModule implements NestModule {
         { path: 'v1/orders/delete-all', method: RequestMethod.DELETE },
         { path: 'v1/auth/verify-otp', method: RequestMethod.POST },
         { path: 'v1/twilio/send-sms', method: RequestMethod.POST },
-        { path: 'uploads/(.*)', method: RequestMethod.GET }
+        { path: 'uploads/(.*)', method: RequestMethod.GET },
       )
       .forRoutes('*');
   }

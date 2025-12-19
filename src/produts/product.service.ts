@@ -66,12 +66,16 @@ export class ProductService {
     const filters: any = {};
 
     if (user.type === 'OWNER') {
-      const market = await this.prisma.market.findFirst({
-        where: { ownerId: existeUser.id },
-      });
+  const market = await this.prisma.market.findFirst({
+    where: { ownerId: existeUser.id },
+  });
 
-      filters.marketId = market?.id;
-    }
+  if (!market) {
+    throw new NotFoundException('Market not found for this owner');
+  }
+
+  filters.marketId = market.id; // هنا نضمن ان الفلتر صحيح
+}
 
     if (search) {
       filters.OR = [

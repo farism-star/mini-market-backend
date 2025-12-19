@@ -5,9 +5,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -45,115 +42,112 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-exports.OrdersController = void 0;
+exports.NotificationService = void 0;
 var common_1 = require("@nestjs/common");
-var passport_1 = require("@nestjs/passport");
-var roles_gaurd_1 = require("src/auth/roles.gaurd");
-var Role_decorator_1 = require("src/auth/Role.decorator");
-var roles_enum_1 = require("src/auth/roles.enum");
-var OrdersController = /** @class */ (function () {
-    function OrdersController(ordersService) {
-        this.ordersService = ordersService;
+var NotificationService = /** @class */ (function () {
+    function NotificationService(prisma, gateway) {
+        this.prisma = prisma;
+        this.gateway = gateway;
     }
-    OrdersController.prototype.create = function (createOrderDto, req) {
+    NotificationService.prototype.create = function (dto) {
         return __awaiter(this, void 0, void 0, function () {
-            var user;
-            return __generator(this, function (_a) {
-                user = req.user;
-                return [2 /*return*/, this.ordersService.create(createOrderDto, user)];
-            });
-        });
-    };
-    OrdersController.prototype.findAll = function (req, search) {
-        return __awaiter(this, void 0, void 0, function () {
-            var user;
-            return __generator(this, function (_a) {
-                user = req.user;
-                return [2 /*return*/, this.ordersService.findAll(user, search)];
-            });
-        });
-    };
-    OrdersController.prototype.findOne = function (id, req) {
-        return __awaiter(this, void 0, void 0, function () {
-            var user;
-            return __generator(this, function (_a) {
-                user = req.user;
-                return [2 /*return*/, this.ordersService.findOne(id, user)];
-            });
-        });
-    };
-    OrdersController.prototype.update = function (id, updateDto, req) {
-        return __awaiter(this, void 0, void 0, function () {
-            var user;
-            return __generator(this, function (_a) {
-                user = req.user;
-                return [2 /*return*/, this.ordersService.update(id, updateDto, user)];
-            });
-        });
-    };
-    OrdersController.prototype.remove = function (id, req) {
-        return __awaiter(this, void 0, void 0, function () {
-            var user;
+            var userId, body, user, notification;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        user = req.user;
-                        return [4 /*yield*/, this.ordersService.remove(id, user)];
+                        userId = dto.userId, body = dto.body;
+                        return [4 /*yield*/, this.prisma.user.findUnique({ where: { id: userId } })];
                     case 1:
-                        _a.sent();
-                        return [2 /*return*/];
+                        user = _a.sent();
+                        if (!user)
+                            throw new common_1.NotFoundException('User not found');
+                        return [4 /*yield*/, this.prisma.notification.create({ data: { userId: userId, body: body } })];
+                    case 2:
+                        notification = _a.sent();
+                        this.gateway.sendNotificationToUser(userId, notification);
+                        return [2 /*return*/, { message: 'Notification created', notification: notification }];
                 }
             });
         });
     };
-    OrdersController.prototype.deleteAllOrders = function () {
+    NotificationService.prototype.update = function (id, body) {
         return __awaiter(this, void 0, void 0, function () {
+            var notification, updated;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.ordersService.removeAll];
+                    case 0: return [4 /*yield*/, this.prisma.notification.findUnique({ where: { id: id } })];
                     case 1:
-                        _a.sent();
-                        return [2 /*return*/];
+                        notification = _a.sent();
+                        if (!notification)
+                            throw new common_1.NotFoundException('Notification not found');
+                        return [4 /*yield*/, this.prisma.notification.update({
+                                where: { id: id },
+                                data: { body: body }
+                            })];
+                    case 2:
+                        updated = _a.sent();
+                        this.gateway.sendNotificationToUser(notification.userId, updated);
+                        return [2 /*return*/, { message: 'Notification updated', notification: updated }];
                 }
             });
         });
     };
-    __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
-        common_1.Post(),
-        __param(0, common_1.Body()), __param(1, common_1.Req())
-    ], OrdersController.prototype, "create");
-    __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
-        common_1.Get(),
-        __param(0, common_1.Req()), __param(1, common_1.Query('search'))
-    ], OrdersController.prototype, "findAll");
-    __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
-        common_1.Get(':id'),
-        __param(0, common_1.Param('id')), __param(1, common_1.Req())
-    ], OrdersController.prototype, "findOne");
-    __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
-        common_1.Patch(':id'),
-        __param(0, common_1.Param('id')), __param(1, common_1.Body()), __param(2, common_1.Req())
-    ], OrdersController.prototype, "update");
-    __decorate([
-        Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT, roles_enum_1.Role.ADMIN),
-        common_1.Delete(':id'),
-        common_1.HttpCode(common_1.HttpStatus.NO_CONTENT),
-        __param(0, common_1.Param('id')), __param(1, common_1.Req())
-    ], OrdersController.prototype, "remove");
-    __decorate([
-        common_1.Delete('delete-all')
-    ], OrdersController.prototype, "deleteAllOrders");
-    OrdersController = __decorate([
-        common_1.Controller({
-            path: 'orders',
-            version: '1'
-        }),
-        common_1.UseGuards(passport_1.AuthGuard('jwt'), roles_gaurd_1.RolesGuard)
-    ], OrdersController);
-    return OrdersController;
+    NotificationService.prototype.getUserNotifications = function (userId) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.prisma.notification.findMany({
+                        where: { userId: userId },
+                        orderBy: { createdAt: 'desc' }
+                    })];
+            });
+        });
+    };
+    NotificationService.prototype.markAsRead = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var exists;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.notification.findUnique({ where: { id: id } })];
+                    case 1:
+                        exists = _a.sent();
+                        if (!exists)
+                            throw new common_1.NotFoundException('Notification not found');
+                        return [2 /*return*/, this.prisma.notification.update({ where: { id: id }, data: { isRead: true } })];
+                }
+            });
+        });
+    };
+    NotificationService.prototype.markAllAsRead = function (userId) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.prisma.notification.updateMany({
+                        where: { userId: userId, isRead: false },
+                        data: { isRead: true }
+                    })];
+            });
+        });
+    };
+    NotificationService.prototype["delete"] = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var exists;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.prisma.notification.findUnique({ where: { id: id } })];
+                    case 1:
+                        exists = _a.sent();
+                        if (!exists)
+                            throw new common_1.NotFoundException('Notification not found');
+                        return [4 /*yield*/, this.prisma.notification["delete"]({ where: { id: id } })];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/, { message: 'Notification deleted' }];
+                }
+            });
+        });
+    };
+    NotificationService = __decorate([
+        common_1.Injectable()
+    ], NotificationService);
+    return NotificationService;
 }());
-exports.OrdersController = OrdersController;
+exports.NotificationService = NotificationService;

@@ -127,12 +127,9 @@ var AuthService = /** @class */ (function () {
                         _a.sent();
                         _a.label = 5;
                     case 5: 
-                    // إرسال OTP (مثال)
-                    return [4 /*yield*/, this.sendOtp({ email: email, phone: phone })];
-                    case 6:
-                        // إرسال OTP (مثال)
-                        _a.sent();
-                        return [2 /*return*/, { message: 'User registered successfully', user: user, market: market }];
+                    // // إرسال OTP (مثال)
+                    // await this.sendOtp({ email, phone });
+                    return [2 /*return*/, { message: 'User registered successfully', user: user, market: market }];
                 }
             });
         });
@@ -356,59 +353,81 @@ var AuthService = /** @class */ (function () {
         });
     };
     // جلب كل الـ Clients
-    AuthService.prototype.getAllClients = function () {
+    AuthService.prototype.getAllClients = function (search) {
         return __awaiter(this, void 0, void 0, function () {
-            var clients;
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.prisma.user.findMany({
-                            where: { type: 'CLIENT' },
-                            include: { addresses: true, market: true }
-                        })];
-                    case 1:
-                        clients = _a.sent();
-                        return [2 /*return*/, clients];
-                }
+                return [2 /*return*/, this.prisma.user.findMany({
+                        where: __assign({ type: 'CLIENT' }, (search && {
+                            OR: [
+                                { name: { contains: search, mode: 'insensitive' } },
+                                { email: { contains: search, mode: 'insensitive' } },
+                                { phone: { contains: search, mode: 'insensitive' } },
+                            ]
+                        })),
+                        include: { addresses: true, market: true },
+                        orderBy: { createdAt: 'desc' }
+                    })];
             });
         });
     };
     // جلب كل الـ Owners
-    AuthService.prototype.getAllOwners = function () {
+    AuthService.prototype.getAllOwners = function (search) {
         return __awaiter(this, void 0, void 0, function () {
-            var owners;
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.prisma.user.findMany({
-                            where: { type: 'OWNER' },
-                            include: { addresses: true, market: true, payments: true }
-                        })];
-                    case 1:
-                        owners = _a.sent();
-                        return [2 /*return*/, owners];
-                }
+                return [2 /*return*/, this.prisma.user.findMany({
+                        where: __assign({ type: 'OWNER' }, (search && {
+                            OR: [
+                                { name: { contains: search, mode: 'insensitive' } },
+                                { email: { contains: search, mode: 'insensitive' } },
+                                {
+                                    market: {
+                                        OR: [
+                                            { nameAr: { contains: search, mode: 'insensitive' } },
+                                            { nameEn: { contains: search, mode: 'insensitive' } },
+                                        ]
+                                    }
+                                },
+                            ]
+                        })),
+                        include: {
+                            addresses: true,
+                            market: true,
+                            payments: true
+                        },
+                        orderBy: { createdAt: 'desc' } // اختياري: لترتيب الأحدث أولاً
+                    })];
             });
         });
     };
     // auth.service.ts
-    AuthService.prototype.getMarkets = function () {
+    AuthService.prototype.getMarkets = function (search) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, this.prisma.market.findMany({
+                        where: __assign({}, (search && {
+                            OR: [
+                                { nameAr: { contains: search, mode: 'insensitive' } },
+                                { nameEn: { contains: search, mode: 'insensitive' } },
+                                { owner: { name: { contains: search, mode: 'insensitive' } } },
+                            ]
+                        })),
                         include: {
                             owner: true,
-                            products: true
-                        }
+                            products: true,
+                            categories: { include: { category: true } }
+                        },
+                        orderBy: { createdAt: 'desc' }
                     })];
             });
         });
     };
     AuthService.prototype.getDashboardData = function (userId, type, categoryId, search) {
         return __awaiter(this, void 0, void 0, function () {
-            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, lastProducts, categories, user, userLocation, markets, marketsWithDistance, sortedMarkets, filteredMarkets;
+            var conversations, formattedConversation, lastConversation, otherUserId, otherUser, lastMsg, market, lastProducts, categories, user, userLocation, markets, marketsWithDistance, sortedMarkets, filteredMarkets;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(type === 'OWNER')) return [3 /*break*/, 5];
+                        if (!(type === 'OWNER')) return [3 /*break*/, 6];
                         return [4 /*yield*/, this.prisma.conversation.findMany({
                                 where: { users: { has: userId } },
                                 include: {
@@ -452,22 +471,31 @@ var AuthService = /** @class */ (function () {
                             unreadMessages: lastConversation._count.messages
                         };
                         _a.label = 3;
-                    case 3: return [4 /*yield*/, this.prisma.product.findMany({
-                            orderBy: { createdAt: 'desc' },
-                            take: 5,
-                            include: { market: true }
+                    case 3: return [4 /*yield*/, this.prisma.market.findFirst({
+                            where: { ownerId: userId }
                         })];
                     case 4:
+                        market = _a.sent();
+                        if (!market) {
+                            throw new common_1.NotFoundException('Market not found for this owner');
+                        }
+                        return [4 /*yield*/, this.prisma.product.findMany({
+                                where: { marketId: market.id },
+                                orderBy: { createdAt: 'desc' },
+                                take: 5,
+                                include: { market: true }
+                            })];
+                    case 5:
                         lastProducts = _a.sent();
                         return [2 /*return*/, { lastConversation: formattedConversation, lastProducts: lastProducts }];
-                    case 5: return [4 /*yield*/, this.prisma.category.findMany()];
-                    case 6:
+                    case 6: return [4 /*yield*/, this.prisma.category.findMany()];
+                    case 7:
                         categories = _a.sent();
                         return [4 /*yield*/, this.prisma.user.findUnique({
                                 where: { id: userId },
                                 select: { location: true }
                             })];
-                    case 7:
+                    case 8:
                         user = _a.sent();
                         userLocation = user === null || user === void 0 ? void 0 : user.location;
                         return [4 /*yield*/, this.prisma.market.findMany({
@@ -516,7 +544,7 @@ var AuthService = /** @class */ (function () {
                                     updatedAt: true
                                 }
                             })];
-                    case 8:
+                    case 9:
                         markets = _a.sent();
                         if (userLocation) {
                             marketsWithDistance = markets.map(function (m) {
@@ -536,77 +564,91 @@ var AuthService = /** @class */ (function () {
             });
         });
     };
+    // Login
     AuthService.prototype.login = function (authDto) {
+        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var email, phone, user;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var phone, user;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
-                        email = authDto.email, phone = authDto.phone;
-                        if (!email && !phone) {
-                            throw new common_1.BadRequestException('Email or phone is required');
+                        phone = authDto.phone;
+                        if (!phone) {
+                            throw new common_1.BadRequestException('Phone or email is required');
                         }
                         return [4 /*yield*/, this.prisma.user.findFirst({
-                                where: { OR: [{ email: email }, { phone: phone }] },
+                                where: {
+                                    OR: [
+                                        { email: phone },
+                                        { phone: phone },
+                                    ]
+                                },
                                 include: { market: true, addresses: true }
                             })];
                     case 1:
-                        user = _a.sent();
+                        user = _b.sent();
                         if (!user) {
                             throw new common_1.UnauthorizedException('User not found');
                         }
-                        return [4 /*yield*/, this.sendOtp({ email: user.email, phone: user.phone })];
+                        // ابعت المفتاح زي ما هو لـ sendOtp
+                        return [4 /*yield*/, this.sendOtp({
+                                identifier: phone,
+                                userId: user.id,
+                                email: (_a = user.email) !== null && _a !== void 0 ? _a : undefined
+                            })];
                     case 2:
-                        _a.sent();
+                        // ابعت المفتاح زي ما هو لـ sendOtp
+                        _b.sent();
                         return [2 /*return*/, { message: 'OTP sent', user: user }];
                 }
             });
         });
     };
+    // Send OTP
     AuthService.prototype.sendOtp = function (authDto) {
-        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var identifier, otpCode, expiresAt, user;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var identifier, userId, email, otpCode, expiresAt;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
-                        identifier = (_a = authDto.phone) !== null && _a !== void 0 ? _a : authDto.email;
+                        identifier = authDto.identifier, userId = authDto.userId, email = authDto.email;
                         if (!identifier) {
                             throw new common_1.BadRequestException('Phone or email is required');
                         }
                         otpCode = crypto_1.randomInt(10000, 99999).toString();
                         expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-                        return [4 /*yield*/, this.prisma.user.findFirst({
-                                where: { OR: [{ phone: authDto.phone }, { email: authDto.email }] }
-                            })];
+                        // امسح أي OTP قديم لنفس المستخدم
+                        return [4 /*yield*/, this.prisma.otp.deleteMany({ where: { userId: userId } })];
                     case 1:
-                        user = _b.sent();
-                        if (!user) return [3 /*break*/, 3];
-                        return [4 /*yield*/, this.prisma.otp.deleteMany({ where: { userId: user.id } })];
+                        // امسح أي OTP قديم لنفس المستخدم
+                        _a.sent();
+                        // سجل OTP جديد
+                        return [4 /*yield*/, this.prisma.otp.create({
+                                data: { code: otpCode, identifier: identifier, userId: userId, expiresAt: expiresAt }
+                            })];
                     case 2:
-                        _b.sent();
-                        _b.label = 3;
-                    case 3: return [4 /*yield*/, this.prisma.otp.create({
-                            data: { code: otpCode, identifier: identifier, userId: user ? user.id : null, expiresAt: expiresAt }
-                        })];
-                    case 4:
-                        _b.sent();
-                        if (!user || !user.email) {
-                            throw new common_1.NotFoundException("You Don't Have Email To Send OTP!");
+                        // سجل OTP جديد
+                        _a.sent();
+                        if (!email) {
+                            throw new common_1.NotFoundException("User doesn't have an email to send OTP!");
                         }
-                        //   await this.mailService.sendOtpMail(user.email, otpCode)
-                        console.log(otpCode);
+                        // أرسل OTP على الإيميل
+                        return [4 /*yield*/, this.mailService.sendOtpMail(email, otpCode)];
+                    case 3:
+                        // أرسل OTP على الإيميل
+                        _a.sent();
                         return [2 /*return*/, { message: 'OTP sent successfully' }];
                 }
             });
         });
     };
+    // Verify OTP
     AuthService.prototype.verifyOtp = function (dto) {
-        var _a, _b, _c;
+        var _a;
         return __awaiter(this, void 0, void 0, function () {
             var identifier, otpRecord, user, token;
-            return __generator(this, function (_d) {
-                switch (_d.label) {
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
                         identifier = (_a = dto.phone) !== null && _a !== void 0 ? _a : dto.email;
                         if (!identifier) {
@@ -617,37 +659,41 @@ var AuthService = /** @class */ (function () {
                                 orderBy: { createdAt: 'desc' }
                             })];
                     case 1:
-                        otpRecord = _d.sent();
+                        otpRecord = _b.sent();
                         if (!otpRecord) {
                             throw new common_1.UnauthorizedException('OTP not found');
                         }
                         if (!(new Date() > otpRecord.expiresAt)) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.prisma.otp["delete"]({ where: { id: otpRecord.id } })];
                     case 2:
-                        _d.sent();
+                        _b.sent();
                         throw new common_1.UnauthorizedException('OTP expired');
                     case 3:
                         if (otpRecord.code !== dto.otp) {
                             throw new common_1.UnauthorizedException('Invalid OTP');
                         }
+                        // احذف الـ OTP بعد التحقق
                         return [4 /*yield*/, this.prisma.otp["delete"]({ where: { id: otpRecord.id } })];
                     case 4:
-                        _d.sent();
+                        // احذف الـ OTP بعد التحقق
+                        _b.sent();
                         return [4 /*yield*/, this.prisma.user.findFirst({
-                                where: { OR: [{ phone: (_b = dto.phone) !== null && _b !== void 0 ? _b : null }, { email: (_c = dto.email) !== null && _c !== void 0 ? _c : null }] },
+                                where: { OR: [{ phone: identifier }, { email: identifier }] },
                                 include: { market: true, addresses: true }
                             })];
                     case 5:
-                        user = _d.sent();
+                        user = _b.sent();
                         if (!user) {
                             throw new common_1.UnauthorizedException('User not found');
                         }
+                        // ضبط الـ phoneVerified
                         return [4 /*yield*/, this.prisma.user.update({
                                 where: { id: user.id },
                                 data: { phoneVerified: true }
                             })];
                     case 6:
-                        _d.sent();
+                        // ضبط الـ phoneVerified
+                        _b.sent();
                         token = this.jwtService.sign({ sub: user.id, type: user.type });
                         return [2 /*return*/, { token: token, user: user }];
                 }
@@ -885,10 +931,10 @@ var AuthService = /** @class */ (function () {
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0: 
-                                        // حذف الرسائل والإشعارات والـ OTP الخاصة بالمستخدم
+                                        // 1. حذف البيانات المتعلقة بالمستخدم
                                         return [4 /*yield*/, prisma.message.deleteMany({ where: { senderId: userId } })];
                                         case 1:
-                                            // حذف الرسائل والإشعارات والـ OTP الخاصة بالمستخدم
+                                            // 1. حذف البيانات المتعلقة بالمستخدم
                                             _a.sent();
                                             return [4 /*yield*/, prisma.notification.deleteMany({ where: { userId: userId } })];
                                         case 2:
@@ -896,30 +942,53 @@ var AuthService = /** @class */ (function () {
                                             return [4 /*yield*/, prisma.otp.deleteMany({ where: { userId: userId } })];
                                         case 3:
                                             _a.sent();
-                                            // حذف العناوين
                                             return [4 /*yield*/, prisma.address.deleteMany({ where: { userId: userId } })];
                                         case 4:
-                                            // حذف العناوين
                                             _a.sent();
-                                            if (!(user.type === 'OWNER' && user.market)) return [3 /*break*/, 8];
+                                            if (!(user.type === 'OWNER' && user.market)) return [3 /*break*/, 10];
                                             marketId = user.market.id;
-                                            return [4 /*yield*/, prisma.order.deleteMany({ where: { marketId: marketId } })];
+                                            // 2. حذف سجلات الجدول الوسيط للتصنيفات (حل المشكلة التي واجهتك)
+                                            // بدلاً من عمل update و set، نقوم بحذف السجلات التي تربط المتجر بالتصنيفات
+                                            return [4 /*yield*/, prisma.marketCategory.deleteMany({
+                                                    where: { marketId: marketId }
+                                                })];
                                         case 5:
+                                            // 2. حذف سجلات الجدول الوسيط للتصنيفات (حل المشكلة التي واجهتك)
+                                            // بدلاً من عمل update و set، نقوم بحذف السجلات التي تربط المتجر بالتصنيفات
                                             _a.sent();
-                                            return [4 /*yield*/, prisma.product.deleteMany({ where: { marketId: marketId } })];
+                                            // 3. حذف المنتجات التابعة للمتجر
+                                            return [4 /*yield*/, prisma.product.deleteMany({
+                                                    where: { marketId: marketId }
+                                                })];
                                         case 6:
+                                            // 3. حذف المنتجات التابعة للمتجر
                                             _a.sent();
-                                            return [4 /*yield*/, prisma.market["delete"]({ where: { id: marketId } })];
+                                            // 4. حذف الطلبات التابعة للمتجر
+                                            return [4 /*yield*/, prisma.order.deleteMany({
+                                                    where: { marketId: marketId }
+                                                })];
                                         case 7:
+                                            // 4. حذف الطلبات التابعة للمتجر
                                             _a.sent();
-                                            _a.label = 8;
-                                        case 8: 
-                                        // حذف المستخدم نفسه
-                                        return [4 /*yield*/, prisma.user["delete"]({ where: { id: userId } })];
+                                            // 5. حذف الدليفري (التوصيلات) المرتبطة بالمتجر (موجودة في الـ Schema الخاصة بك)
+                                            return [4 /*yield*/, prisma.delivery.deleteMany({
+                                                    where: { marketId: marketId }
+                                                })];
+                                        case 8:
+                                            // 5. حذف الدليفري (التوصيلات) المرتبطة بالمتجر (موجودة في الـ Schema الخاصة بك)
+                                            _a.sent();
+                                            return [4 /*yield*/, prisma.market["delete"]({
+                                                    where: { id: marketId }
+                                                })];
                                         case 9:
-                                            // حذف المستخدم نفسه
                                             _a.sent();
-                                            return [2 /*return*/, { message: "User " + user.name + " has been deleted successfully." }];
+                                            _a.label = 10;
+                                        case 10: return [4 /*yield*/, prisma.user["delete"]({
+                                                where: { id: userId }
+                                            })];
+                                        case 11:
+                                            _a.sent();
+                                            return [2 /*return*/, { message: "\u062A\u0645 \u062D\u0630\u0641 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 " + user.name + " \u0648\u062C\u0645\u064A\u0639 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0645\u062A\u062C\u0631 \u0628\u0646\u062C\u0627\u062D." }];
                                     }
                                 });
                             }); })];

@@ -1,7 +1,7 @@
 // auth.controller.ts
 import {
   Controller, Post, Body, UseGuards, Req, Param, Patch, Delete, Get, UseInterceptors,
-  UploadedFile, UploadedFiles,NotFoundException,Query
+  UploadedFile, UploadedFiles, NotFoundException, Query
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
@@ -13,13 +13,14 @@ import { Role } from './roles.enum';
 import { Login } from './dtos/login.dto';
 import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { multerConfig } from '../upload/multer.config';
+import { Throttle } from '@nestjs/throttler';
 @Controller({
   path: 'auth',
   version: '1',
 })
 export class AuthController {
   constructor(private authService: AuthService) { }
-
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('register')
   @UseInterceptors(FileInterceptor('image', multerConfig))
   async register(
@@ -38,6 +39,10 @@ export class AuthController {
     const imageUrl = file ? `/uploads/${file.originalname}` : null;
     return this.authService.AdminAddUsers(dto, imageUrl);
   }
+
+
+
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('login')
   login(@Body() authDto: Login) {
     return this.authService.login(authDto);
@@ -68,7 +73,7 @@ export class AuthController {
     const user = req.user; // من JWT
     return this.authService.checkOwnerApproved(user.id);
   }
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.OWNER)
   @Get('feesRequired')
   async checkFees(@Req() req: any) {
@@ -149,45 +154,43 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/clients')
-  async getAllClients(@Req() req: any) {
-    const user = req.user
-    
-    return this.authService.getAllClients();
+  async getAllClients(@Query('search') search?: string) {
+    return this.authService.getAllClients(search);
   }
 
   // جلب كل الـ Owners - Admin فقط
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/owners')
-  async getAllOwners() {
-    return this.authService.getAllOwners();
+  async getAllOwners(@Query('search') search?: string) {
+    return this.authService.getAllOwners(search);
   }
 
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/markets')
-  async getAllMarkets() {
-    return this.authService.getMarkets();
+  async getMarkets(@Query('search') search?: string) {
+    return this.authService.getMarkets(search);
   }
 
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(Role.CLIENT, Role.OWNER)
-@Get('home-data')
-async getDashboardData(
-  @Req() req: any,
-  @Query('categoryId') categoryId?: string,
-  @Query('search') search?: string,
-) {
-  const user = req.user;
-  return this.authService.getDashboardData(
-    user.id,
-    user.type,
-    categoryId,
-    search,
-  );
-}
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.CLIENT, Role.OWNER)
+  @Get('home-data')
+  async getDashboardData(
+    @Req() req: any,
+    @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+  ) {
+    const user = req.user;
+    return this.authService.getDashboardData(
+      user.id,
+      user.type,
+      categoryId,
+      search,
+    );
+  }
 
 
 

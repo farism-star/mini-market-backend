@@ -133,7 +133,10 @@ var ProductService = /** @class */ (function () {
                             })];
                     case 2:
                         market = _d.sent();
-                        filters.marketId = market === null || market === void 0 ? void 0 : market.id;
+                        if (!market) {
+                            throw new common_1.NotFoundException('Market not found for this owner');
+                        }
+                        filters.marketId = market.id; // هنا نضمن ان الفلتر صحيح
                         _d.label = 3;
                     case 3:
                         if (search) {

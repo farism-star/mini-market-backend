@@ -30,6 +30,8 @@ var notification_module_1 = require("./notifications/notification.module");
 var payment_module_1 = require("./payments/payment.module");
 var platform_express_1 = require("@nestjs/platform-express");
 var multer_config_1 = require("./upload/multer.config");
+var throttler_1 = require("@nestjs/throttler");
+var core_1 = require("@nestjs/core");
 var AppModule = /** @class */ (function () {
     function AppModule() {
     }
@@ -42,6 +44,15 @@ var AppModule = /** @class */ (function () {
     AppModule = __decorate([
         common_1.Module({
             imports: [
+                // ⚡ Global Rate Limit
+                throttler_1.ThrottlerModule.forRoot({
+                    throttlers: [
+                        {
+                            ttl: 60000,
+                            limit: 100
+                        },
+                    ]
+                }),
                 serve_static_1.ServeStaticModule.forRoot({
                     rootPath: path_1.join(process.cwd(), 'uploads'),
                     serveRoot: '/uploads',
@@ -68,7 +79,13 @@ var AppModule = /** @class */ (function () {
                 jwt_1.JwtModule.register({ secret: process.env.JWT_SECRET }),
             ],
             controllers: [app_controller_1.AppController],
-            providers: [app_service_1.AppService]
+            providers: [
+                app_service_1.AppService,
+                {
+                    provide: core_1.APP_GUARD,
+                    useClass: throttler_1.ThrottlerGuard
+                },
+            ]
         })
     ], AppModule);
     return AppModule;

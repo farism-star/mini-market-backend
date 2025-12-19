@@ -99,36 +99,40 @@ export class OrdersService {
     }
   }
 
-  async findAll(user?: AuthUser) {
-    if (!user) return [];
+async findAll(user?: AuthUser, search?: string) {
+  if (!user) return [];
 
-    let orders: any[] = [];
+  const searchCondition = search ? {
+    OR: [
+      { orderId: { contains: search, mode: 'insensitive' } },
+      { market: { nameAr: { contains: search, mode: 'insensitive' } } },
+      { market: { nameEn: { contains: search, mode: 'insensitive' } } },
+      { client: { name: { contains: search, mode: 'insensitive' } } },
+    ]
+  } : {};
 
-    if (user.type === 'CLIENT') {
-      orders = await this.prisma.order.findMany({
-        where: { clientId: user.id },
-        include: { market: true, client: true,delivery:true },
-        orderBy: { createdAt: 'desc' },
-      });
-    } else if (user.type === 'OWNER') {
-      orders = await this.prisma.order.findMany({
-        where: { market: { ownerId: user.id } },
-        include: { market: true, client: true ,delivery:true},
-        orderBy: { createdAt: 'desc' },
-      });
-    } else {
-      orders = await this.prisma.order.findMany({
-        include: { market: true, client: true ,delivery:true},
-        orderBy: { createdAt: 'desc' },
-      });
-    }
+  let whereClause: any = {};
 
-    return orders.map(order => ({
-      ...order,
-      time: order.time ? formatTimeToAMPM(order.time) : null,
-    }));
+  if (user.type === 'CLIENT') {
+    whereClause = { clientId: user.id, ...searchCondition };
+  } else if (user.type === 'OWNER') {
+    whereClause = { market: { ownerId: user.id }, ...searchCondition };
+  } else {
+    // ADMIN
+    whereClause = { ...searchCondition };
   }
 
+  const orders = await this.prisma.order.findMany({
+    where: whereClause,
+    include: { market: true, client: true, delivery: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return orders.map(order => ({
+    ...order,
+    time: order.time ? formatTimeToAMPM(order.time) : null,
+  }));
+}
   async findOne(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },

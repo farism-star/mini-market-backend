@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards,Req } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { AuthGuard } from "@nestjs/passport";
@@ -29,11 +29,13 @@ export class NotificationController {
     return this.service.update(id, body);
   }
 
-  @Roles(Role.OWNER, Role.CLIENT)
-  @Get(':userId')
-  getUserNotifications(@Param('userId') userId: string) {
-    return this.service.getUserNotifications(userId);
-  }
+ @Roles(Role.OWNER, Role.CLIENT)
+@Get()
+getUserNotifications(@Req() req: any) {
+  const userId = req.user.sub; 
+  return this.service.getUserNotifications(userId);
+}
+
 
   @Roles(Role.OWNER, Role.CLIENT)
   @Patch('read/:id')
@@ -42,8 +44,9 @@ export class NotificationController {
   }
 
   @Roles(Role.OWNER, Role.CLIENT)
-  @Patch('read-all/:userId')
-  markAll(@Param('userId') userId: string) {
+  @Patch('read-all')
+  markAll(@Req() req: any) {
+    const userId = req.user.sub
     return this.service.markAllAsRead(userId);
   }
 

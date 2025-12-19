@@ -153,42 +153,41 @@ var OrdersService = /** @class */ (function () {
             });
         });
     };
-    OrdersService.prototype.findAll = function (user) {
+    OrdersService.prototype.findAll = function (user, search) {
         return __awaiter(this, void 0, void 0, function () {
-            var orders;
+            var searchCondition, whereClause, orders;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!user)
                             return [2 /*return*/, []];
-                        orders = [];
-                        if (!(user.type === 'CLIENT')) return [3 /*break*/, 2];
+                        searchCondition = search ? {
+                            OR: [
+                                { orderId: { contains: search, mode: 'insensitive' } },
+                                { market: { nameAr: { contains: search, mode: 'insensitive' } } },
+                                { market: { nameEn: { contains: search, mode: 'insensitive' } } },
+                                { client: { name: { contains: search, mode: 'insensitive' } } },
+                            ]
+                        } : {};
+                        whereClause = {};
+                        if (user.type === 'CLIENT') {
+                            whereClause = __assign({ clientId: user.id }, searchCondition);
+                        }
+                        else if (user.type === 'OWNER') {
+                            whereClause = __assign({ market: { ownerId: user.id } }, searchCondition);
+                        }
+                        else {
+                            // ADMIN
+                            whereClause = __assign({}, searchCondition);
+                        }
                         return [4 /*yield*/, this.prisma.order.findMany({
-                                where: { clientId: user.id },
+                                where: whereClause,
                                 include: { market: true, client: true, delivery: true },
                                 orderBy: { createdAt: 'desc' }
                             })];
                     case 1:
                         orders = _a.sent();
-                        return [3 /*break*/, 6];
-                    case 2:
-                        if (!(user.type === 'OWNER')) return [3 /*break*/, 4];
-                        return [4 /*yield*/, this.prisma.order.findMany({
-                                where: { market: { ownerId: user.id } },
-                                include: { market: true, client: true, delivery: true },
-                                orderBy: { createdAt: 'desc' }
-                            })];
-                    case 3:
-                        orders = _a.sent();
-                        return [3 /*break*/, 6];
-                    case 4: return [4 /*yield*/, this.prisma.order.findMany({
-                            include: { market: true, client: true, delivery: true },
-                            orderBy: { createdAt: 'desc' }
-                        })];
-                    case 5:
-                        orders = _a.sent();
-                        _a.label = 6;
-                    case 6: return [2 /*return*/, orders.map(function (order) { return (__assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })); })];
+                        return [2 /*return*/, orders.map(function (order) { return (__assign(__assign({}, order), { time: order.time ? helper_1.formatTimeToAMPM(order.time) : null })); })];
                 }
             });
         });

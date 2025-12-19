@@ -25,13 +25,15 @@ var NotificationController = /** @class */ (function () {
     NotificationController.prototype.update = function (id, body) {
         return this.service.update(id, body);
     };
-    NotificationController.prototype.getUserNotifications = function (userId) {
+    NotificationController.prototype.getUserNotifications = function (req) {
+        var userId = req.user.sub;
         return this.service.getUserNotifications(userId);
     };
     NotificationController.prototype.markAsRead = function (id) {
         return this.service.markAsRead(id);
     };
-    NotificationController.prototype.markAll = function (userId) {
+    NotificationController.prototype.markAll = function (req) {
+        var userId = req.user.sub;
         return this.service.markAllAsRead(userId);
     };
     NotificationController.prototype["delete"] = function (id) {
@@ -49,8 +51,8 @@ var NotificationController = /** @class */ (function () {
     ], NotificationController.prototype, "update");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
-        common_1.Get(':userId'),
-        __param(0, common_1.Param('userId'))
+        common_1.Get(),
+        __param(0, common_1.Req())
     ], NotificationController.prototype, "getUserNotifications");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
@@ -59,8 +61,8 @@ var NotificationController = /** @class */ (function () {
     ], NotificationController.prototype, "markAsRead");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),
-        common_1.Patch('read-all/:userId'),
-        __param(0, common_1.Param('userId'))
+        common_1.Patch('read-all'),
+        __param(0, common_1.Req())
     ], NotificationController.prototype, "markAll");
     __decorate([
         Role_decorator_1.Roles(roles_enum_1.Role.OWNER, roles_enum_1.Role.CLIENT),

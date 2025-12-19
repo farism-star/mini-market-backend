@@ -10,7 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dtos/create-order.dto';
@@ -38,12 +38,12 @@ export class OrdersController {
     return this.ordersService.create(createOrderDto, user);
   }
 
- @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
-  @Get()
-  async findAll(@Req() req: Request) {
-    const user = (req as any).user ;
-    return this.ordersService.findAll(user);
-  }
+@Roles(Role.OWNER, Role.CLIENT, Role.ADMIN)
+@Get()
+async findAll(@Req() req: Request, @Query('search') search?: string) {
+  const user = (req as any).user;
+  return this.ordersService.findAll(user, search);
+}
 
  @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Get(':id')
