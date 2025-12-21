@@ -42,43 +42,63 @@ export class OrdersService {
       include: { market: true, client: true },
     });
   
+    // إرسال FCM notification مع error handling
     if (order.client?.fcmToken) {
-      await this.firebaseService.sendNotification(
-        order.client.fcmToken,
-        'تم إنشاء الطلب',
-        `تم استلام طلبك رقم ${order.orderId} بنجاح، وجاري العمل على تجهيزه.`,
-        {
-          orderId: order.id,
-          status: order.status,
-        },
-      );
+      try {
+        await this.firebaseService.sendNotification(
+          order.client.fcmToken,
+          'تم إنشاء الطلب',
+          `تم استلام طلبك رقم ${order.orderId} بنجاح، وجاري العمل على تجهيزه.`,
+          {
+            orderId: order.id,
+            status: order.status,
+          },
+        );
+      } catch (error) {
+        console.error('Failed to send FCM notification:', error.message);
+        
+        // حذف الـ token إذا كان invalid
+        if (error.code === 'messaging/registration-token-not-registered' || 
+            error.code === 'messaging/invalid-registration-token') {
+          await this.prisma.user.update({
+            where: { id: order.clientId ?? '' },
+            data: { fcmToken: null },
+          });
+          console.log(`❌ Removed invalid FCM token for user ${order.clientId}`);
+        }
+      }
     }
   
     // إرسال رسالة BANNER للمحادثة + Notification
     if (order.clientId && order.market?.ownerId) {
-      const conversation = await this.prisma.conversation.findFirst({
-        where: {
-          users: { hasEvery: [order.clientId, order.market.ownerId] },
-        },
-      });
-  
-      if (conversation) {
-        // إرسال رسالة BANNER
-        await this.prisma.message.create({
-          data: {
-            conversationId: conversation.id,
-            senderId: order.clientId,
-            type: 'BANAR',
-            text: buildOrderMessage(order),
-            isRead: false,
+      try {
+        const conversation = await this.prisma.conversation.findFirst({
+          where: {
+            users: { hasEvery: [order.clientId, order.market.ownerId] },
           },
         });
   
-        // إرسال Notification لصاحب السوق
-        await this.notification.create({
-          userId: order.market.ownerId,
-          body: buildOrderBanarMessage(order),
-        });
+        if (conversation) {
+          // إرسال رسالة BANNER
+          await this.prisma.message.create({
+            data: {
+              conversationId: conversation.id,
+              senderId: order.clientId,
+              type: 'BANAR',
+              text: buildOrderMessage(order),
+              isRead: false,
+            },
+          });
+  
+          // إرسال Notification لصاحب السوق
+          await this.notification.create({
+            userId: order.market.ownerId,
+            body: buildOrderBanarMessage(order),
+          });
+        }
+      } catch (error) {
+        console.error('Failed to send banner message or notification:', error.message);
+        // لا نرمي الخطأ حتى لا نؤثر على إنشاء الطلب
       }
     }
   
@@ -141,17 +161,21 @@ export class OrdersService {
       throw new BadRequestException('You can only rate completed orders');
     }
   
-    // التحقق من عدم وجود تقييم سابق
-    if (order.rate !== null && order.rate !== undefined) {
+    // التحقق من عدم وجود تقييم سابق (rate > 0 يعني تم التقييم)
+    if (order.rate > 0) { // ⬅️ تغيير هنا
       throw new BadRequestException('This order has already been rated');
+    }
+  
+    // التحقق من أن التقييم لا يقل عن 1
+    if (rateDto.rate < 1) { // ⬅️ إضافة هنا
+      throw new BadRequestException('Rating must be at least 1 star');
     }
   
     const updated = await this.prisma.order.update({
       where: { id },
       data: { 
         rate: rateDto.rate,
-        // إذا كان لديك حقل comment في قاعدة البيانات
-        // rateComment: rateDto.comment 
+        hasRate: true, // ⬅️ تحديث hasRate
       },
       include: { market: true, client: true, delivery: true },
     });
@@ -169,7 +193,6 @@ export class OrdersService {
       time: updated.time ? formatTimeToAMPM(updated.time) : null,
     };
   }
-
   async findOne(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -202,41 +225,104 @@ export class OrdersService {
       where: { id },
       include: { market: true, client: true },
     });
-
+  
     if (!order) throw new NotFoundException('Order not found');
     if (!user) throw new ForbiddenException('Unauthorized');
-
+  
     const oldStatus = order.status;
-
+  
     const updated = await this.prisma.order.update({
       where: { id },
       data: dto,
       include: { market: true, client: true, delivery: true },
     });
-
+  
     const statusMap = {
       IN_PROGRESS: 'قيد المراجعة',
       COMPLETED: 'مكتمل',
       DECLINE: 'ملغي',
     };
-
-    if (updated.client?.fcmToken && dto.status && oldStatus !== dto.status) {
-      await this.firebaseService.sendNotification(
-        updated.client.fcmToken,
-        'تحديث حالة الطلب',
-        `نود إعلامك بأن حالة طلبك رقم ${updated.orderId} قد تم تحديثها من ${statusMap[oldStatus]} إلى ${statusMap[dto.status]}.`,
-        {
-          orderId: updated.id,
-          oldStatus,
-          newStatus: dto.status,
-        },
-      );
+  
+    if (dto.status && oldStatus !== dto.status) {
+      if (updated.client?.fcmToken) {
+        try {
+          await this.firebaseService.sendNotification(
+            updated.client.fcmToken,
+            'تحديث حالة الطلب',
+            `نود إعلامك بأن حالة طلبك رقم ${updated.orderId} قد تم تحديثها من ${statusMap[oldStatus]} إلى ${statusMap[dto.status]}.`,
+            {
+              orderId: updated.id,
+              oldStatus,
+              newStatus: dto.status,
+            },
+          );
+        } catch (error) {
+          if (error.code === 'messaging/registration-token-not-registered' || 
+              error.code === 'messaging/invalid-registration-token') {
+            await this.prisma.user.update({
+              where: { id: updated.clientId ?? '' },
+              data: { fcmToken: null },
+            });
+          }
+        }
+      }
+  
+      // حساب الرسوم عند تحديث الطلب لـ COMPLETED
+      if (dto.status === 'COMPLETED' && updated.marketId) {
+        await this.updateMarketFees(updated.marketId);
+      }
     }
-
+  
     return {
       ...updated,
       time: updated.time ? formatTimeToAMPM(updated.time) : null,
     };
+  }
+  
+  private async updateMarketFees(marketId: string) {
+    try {
+      const market = await this.prisma.market.findUnique({
+        where: { id: marketId },
+        select: {
+          id: true,
+          currentFees: true,
+          limitFees: true,
+          feePerOrder: true,
+          ownerId: true,
+        },
+      });
+  
+      if (!market) return;
+  
+      // زيادة عدد الطلبات المكتملة
+      const newCurrentFees = (market.currentFees || 0) + (market.feePerOrder || 0);
+      
+      // التحقق من الوصول للحد الأقصى
+      const isFeesRequired = newCurrentFees >= (market.limitFees || 0);
+  
+      await this.prisma.market.update({
+        where: { id: marketId },
+        data: {
+          currentFees: newCurrentFees,
+        },
+      });
+  
+      await this.prisma.user.update({
+        where: { id: market.ownerId },
+        data: {
+          isFeesRequired: isFeesRequired,
+        },
+      });
+  
+      if (isFeesRequired) {
+        await this.notification.create({
+          userId: market.ownerId,
+          body: `تنبيه: لقد وصلت الرسوم المستحقة إلى ${newCurrentFees} ريال من أصل ${market.limitFees} ريال. يرجى سداد الرسوم.`,
+        });
+      }
+    } catch (error) {
+      // تجاهل الأخطاء
+    }
   }
 
   async remove(id: string, user?: AuthUser) {

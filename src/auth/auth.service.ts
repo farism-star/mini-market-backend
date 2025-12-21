@@ -838,58 +838,95 @@ async verifyOtp(dto: VerifyOtpDto) {
     return { message: 'All user data has been deleted successfully.' };
   }
 
-async deleteUser(userId: string) {
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-    include: { market: true },
-  });
-
-  if (!user) throw new NotFoundException('User not found');
-
-  return await this.prisma.$transaction(async (prisma) => {
-    // 1. حذف البيانات المتعلقة بالمستخدم
-    await prisma.message.deleteMany({ where: { senderId: userId } });
-    await prisma.notification.deleteMany({ where: { userId } });
-    await prisma.otp.deleteMany({ where: { userId } });
-    await prisma.address.deleteMany({ where: { userId } });
-
-    if (user.type === 'OWNER' && user.market) {
-      const marketId = user.market.id;
-
-      // 2. حذف سجلات الجدول الوسيط للتصنيفات (حل المشكلة التي واجهتك)
-      // بدلاً من عمل update و set، نقوم بحذف السجلات التي تربط المتجر بالتصنيفات
-      await prisma.marketCategory.deleteMany({
-        where: { marketId: marketId },
-      });
-
-      // 3. حذف المنتجات التابعة للمتجر
-      await prisma.product.deleteMany({
-        where: { marketId: marketId },
-      });
-
-      // 4. حذف الطلبات التابعة للمتجر
-      await prisma.order.deleteMany({
-        where: { marketId: marketId },
-      });
-
-      // 5. حذف الدليفري (التوصيلات) المرتبطة بالمتجر (موجودة في الـ Schema الخاصة بك)
-      await prisma.delivery.deleteMany({
-        where: { marketId: marketId },
-      });
-
-      
-      await prisma.market.delete({
-        where: { id: marketId },
-      });
-    }
-
-    
-    await prisma.user.delete({
+  async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: { market: true },
     });
-
-    return { message: `تم حذف المستخدم ${user.name} وجميع بيانات المتجر بنجاح.` };
-  });
-}
+    
+    if (!user) throw new NotFoundException('User not found');
+    
+    return await this.prisma.$transaction(async (prisma) => {
+      // 1. حذف الرسائل التي أرسلها المستخدم
+      await prisma.message.deleteMany({ where: { senderId: userId } });
+      
+      // 2. حذف المحادثات التي يشارك فيها المستخدم
+      const userConversations = await prisma.conversation.findMany({
+        where: {
+          users: { has: userId }
+        }
+      });
+      
+      for (const conversation of userConversations) {
+        // حذف جميع الرسائل في المحادثة
+        await prisma.message.deleteMany({
+          where: { conversationId: conversation.id }
+        });
+        
+        // حذف المحادثة
+        await prisma.conversation.delete({
+          where: { id: conversation.id }
+        });
+      }
+      
+      // 3. حذف الإشعارات
+      await prisma.notification.deleteMany({ where: { userId } });
+      
+      // 4. حذف OTPs
+      await prisma.otp.deleteMany({ where: { userId } });
+      
+      // 5. حذف العناوين
+      await prisma.address.deleteMany({ where: { userId } });
+      
+  
+      
+      // 7. حذف الطلبات التي قام بها العميل
+      await prisma.order.deleteMany({ where: { clientId: userId } });
+      
+      // 8. إذا كان المستخدم مالك متجر
+      if (user.type === 'OWNER' && user.market) {
+        const marketId = user.market.id;
+        
+        // حذف سجلات الجدول الوسيط للتصنيفات
+        await prisma.marketCategory.deleteMany({
+          where: { marketId: marketId },
+        });
+        
+        // حذف المنتجات التابعة للمتجر
+        await prisma.product.deleteMany({
+          where: { marketId: marketId },
+        });
+        
+        // حذف الطلبات التابعة للمتجر
+        await prisma.order.deleteMany({
+          where: { marketId: marketId },
+        });
+        
+        // حذف الدليفري المرتبطة بالمتجر
+        await prisma.delivery.deleteMany({
+          where: { marketId: marketId },
+        });
+        
+        // حذف المتجر
+        await prisma.market.delete({
+          where: { id: marketId },
+        });
+      }
+      
+      // 9. حذف المستخدم نفسه
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+      
+      return { 
+        message: `تم حذف المستخدم ${user.name} وجميع بياناته بنجاح.`,
+        deletedUser: {
+          id: user.id,
+          name: user.name,
+          type: user.type
+        }
+      };
+    });
+  }
 
 }
