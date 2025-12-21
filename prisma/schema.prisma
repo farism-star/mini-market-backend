@@ -148,8 +148,8 @@ model Market {
   image         String?
   commissionFee Float   @default(5)
   location      Float[] @default([])
-  rate          Float   @default(0)
-  isOpen        Boolean @default(false)
+
+  isOpen Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -178,16 +178,16 @@ model Order {
 
   deliveryAddress String?
 
-  date DateTime?
-  time DateTime?
-
+  date      DateTime?
+  time      DateTime?
+  hasRate   Boolean     @default(false)
   status    OrderStatus @default(IN_PROGRESS)
   createdAt DateTime    @default(now())
-
+  rate      Float       @default(0)
   // relations
-  market   Market?   @relation(fields: [marketId], references: [id])
-  client   User?     @relation(fields: [clientId], references: [id])
-  delivery Delivery? @relation(fields: [deliveryId], references: [id]) // الجديد
+  market    Market?     @relation(fields: [marketId], references: [id])
+  client    User?       @relation(fields: [clientId], references: [id])
+  delivery  Delivery?   @relation(fields: [deliveryId], references: [id]) // الجديد
 
   totalPrice      Float @default(0)
   commissionValue Float @default(0)

@@ -340,25 +340,34 @@ async getAllOwners(search?: string) {
   });
 }
   // auth.service.ts
- async getMarkets(search?: string) {
-  return this.prisma.market.findMany({
-    where: {
-      ...(search && {
-        OR: [
-          { nameAr: { contains: search, mode: 'insensitive' } },
-          { nameEn: { contains: search, mode: 'insensitive' } },
-          { owner: { name: { contains: search, mode: 'insensitive' } } },
-        ],
-      }),
-    },
-    include: {
-      owner: true,
-      products: true,
-      categories: { include: { category: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
-}
+  async getMarkets(search?: string) {
+    return this.prisma.market.findMany({
+      where: search
+        ? {
+            OR: [
+              { nameAr: { contains: search, mode: 'insensitive' } },
+              { nameEn: { contains: search, mode: 'insensitive' } },
+              {
+                owner: {
+                  is: {
+                    name: { contains: search, mode: 'insensitive' },
+                  },
+                },
+              },
+            ],
+          }
+        : undefined,
+      include: {
+        owner: true,
+        products: true,
+        categories: { include: { category: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+  
+  
+  
 
 
   async getDashboardData(
@@ -482,7 +491,7 @@ async getAllOwners(search?: string) {
         image: true,
         commissionFee: true,
         location: true,
-        rate: true,
+       
         isOpen: true,
         from: true,
         to: true,
@@ -582,8 +591,8 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
   }
 
   // أرسل OTP على الإيميل
-  // await this.mailService.sendOtpMail(email, otpCode);
-  console.log(otpCode);
+  await this.mailService.sendOtpMail(email, otpCode);
+ 
   
 
   return { message: 'OTP sent successfully' };
@@ -592,13 +601,13 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
 
 // Verify OTP
 async verifyOtp(dto: VerifyOtpDto) {
-  const identifier = dto.phone ?? dto.email;
+  const identifier = dto.phone ;
 
   if (!identifier) {
     throw new BadRequestException('Phone or email is required');
   }
 
-  // جلب أحدث OTP بناءً على identifier
+ 
   const otpRecord = await this.prisma.otp.findFirst({
     where: { identifier },
     orderBy: { createdAt: 'desc' },

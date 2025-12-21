@@ -75,9 +75,6 @@ export class VerifyOtpDto {
   @IsString()
   phone: string;
 
-  @IsOptional()
-  @IsString()
-  email?: string;
 
   @IsNotEmpty()
   @IsString()

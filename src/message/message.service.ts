@@ -56,6 +56,7 @@ async getMessages(
           name: true,
           email: true,
           image: true, 
+          addresses:true
         },
       },
     },

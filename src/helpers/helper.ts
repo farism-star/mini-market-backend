@@ -22,6 +22,11 @@ export function buildOrderBanarMessage(order: any) {
   return `📦 Order ${order.orderId}*
 `;
 }
+export function buildOrderDataMessage(order: any): string {
+  return JSON.stringify({
+    orderId: order.orderId,
+  });
+}
 export function buildOrderMessage(order: any) {
   return `📦 *New Order Created!*
 

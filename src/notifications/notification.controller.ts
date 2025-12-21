@@ -32,7 +32,7 @@ export class NotificationController {
  @Roles(Role.OWNER, Role.CLIENT)
 @Get()
 getUserNotifications(@Req() req: any) {
-  const userId = req.user.sub; 
+  const userId = req.user.id; 
   return this.service.getUserNotifications(userId);
 }
 

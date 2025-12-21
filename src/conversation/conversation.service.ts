@@ -82,7 +82,7 @@ async getUserConversations(userId: string) {
 
       const otherUser = await this.prisma.user.findUnique({
         where: { id: otherUserId },
-        select: { id: true, name: true, image: true },
+        select: { id: true, name: true, image: true,addresses:true },
       });
 
       const lastMsg = conv.messages[0];

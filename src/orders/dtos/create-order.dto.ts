@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsEnum,IsNumber } from 'class-validator';
 import { OrderStatus } from '@prisma/client'; // prisma enum types if available
 
 export class CreateOrderDto {
@@ -32,4 +32,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;
+
+
+  @IsOptional()
+  @IsNumber()
+  rate?:number;
 }

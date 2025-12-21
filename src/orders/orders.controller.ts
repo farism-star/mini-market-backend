@@ -20,6 +20,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { RolesGuard } from "src/auth/roles.gaurd";
 import { Roles } from "src/auth/Role.decorator";
 import { Role } from "src/auth/roles.enum";
+import { RateOrderDto } from './dtos/rate-order.dto';
 @Controller(
   {
     path:'orders',
@@ -58,7 +59,16 @@ async findAll(@Req() req: Request, @Query('search') search?: string) {
     const user = (req as any).user ;
     return this.ordersService.update(id, updateDto, user);
   }
-
+  @Roles(Role.CLIENT) // فقط العملاء يمكنهم التقييم
+  @Patch(':id/rate')
+  async rateOrder(
+    @Param('id') id: string, 
+    @Body() rateDto: RateOrderDto, 
+    @Req() req: Request
+  ) {
+    const user = (req as any).user;
+    return this.ordersService.rateOrder(id, rateDto, user);
+  }
  @Roles(Role.OWNER,Role.CLIENT,Role.ADMIN)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)

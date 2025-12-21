@@ -9,6 +9,8 @@ import { CreateOrderDto } from './dtos/create-order.dto';
 import { UpdateOrderDto } from './dtos/update-order.dto';
 import { NotificationService } from '../notifications/notification.service';
 import { formatTimeToAMPM, buildOrderBanarMessage, buildOrderMessage } from '../helpers/helper';
+import { FirebaseService } from '../firbase/firebase.service';
+import { RateOrderDto } from './dtos/rate-order.dto';
 
 type AuthUser = { id: string; type: string };
 
@@ -17,126 +19,161 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notification: NotificationService,
+    private firebaseService: FirebaseService,
   ) { }
 
   async create(createDto: CreateOrderDto, user?: AuthUser) {
-    try {
-      const data: any = { ...createDto };
-
-      if (user && user.type === 'CLIENT') {
-        data.clientId = user.id;
-      }
-
-      if (!data.orderId) {
-        data.orderId = `ORD-${Date.now()}`;
-      }
-      if (!data.deliveryId) {
-        data.deliveryId = null;
-      }
-      const order = await this.prisma.order.create({
-        data,
-        include: { market: true, client: true },
-      });
-
-      // إشعارات للمالك والعميل
-      if (order.market?.ownerId) {
-        await this.notification.create({
-          userId: order.market.ownerId,
-          body: `New order (${order.orderId}) from ${order.client?.name ?? 'a customer'}`,
-        });
-      }
-
-      if (order.clientId) {
-        await this.notification.create({
-          userId: order.clientId,
-          body: `Your order (${order.orderId}) has been created successfully`,
-        });
-      }
-
-      // إيجاد أو إنشاء Conversation بين العميل وOwner
-      let conversation = await this.prisma.conversation.findFirst({
+    const data: any = { ...createDto };
+  
+    if (user && user.type === 'CLIENT') {
+      data.clientId = user.id;
+    }
+  
+    if (!data.orderId) {
+      data.orderId = `ORD-${Date.now()}`;
+    }
+  
+    if (!data.deliveryId) {
+      data.deliveryId = null;
+    }
+  
+    const order = await this.prisma.order.create({
+      data,
+      include: { market: true, client: true },
+    });
+  
+    if (order.client?.fcmToken) {
+      await this.firebaseService.sendNotification(
+        order.client.fcmToken,
+        'تم إنشاء الطلب',
+        `تم استلام طلبك رقم ${order.orderId} بنجاح، وجاري العمل على تجهيزه.`,
+        {
+          orderId: order.id,
+          status: order.status,
+        },
+      );
+    }
+  
+    // إرسال رسالة BANNER للمحادثة + Notification
+    if (order.clientId && order.market?.ownerId) {
+      const conversation = await this.prisma.conversation.findFirst({
         where: {
-          AND: [
-            { users: { has: order.clientId } },
-            { users: { has: order.market?.ownerId } },
-          ],
+          users: { hasEvery: [order.clientId, order.market.ownerId] },
         },
       });
-
-      if (!conversation) {
-        conversation = await this.prisma.conversation.create({
+  
+      if (conversation) {
+        // إرسال رسالة BANNER
+        await this.prisma.message.create({
           data: {
-            users: [order.clientId!, order.market!.ownerId!],
+            conversationId: conversation.id,
+            senderId: order.clientId,
+            type: 'BANAR',
+            text: buildOrderMessage(order),
+            isRead: false,
           },
         });
+  
+        // إرسال Notification لصاحب السوق
+        await this.notification.create({
+          userId: order.market.ownerId,
+          body: buildOrderBanarMessage(order),
+        });
       }
-
-      // إنشاء BANAR message باستخدام الدالة من الـ helper
-      await this.prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          senderId: order.market!.ownerId!,
-          type: 'BANAR',
-          text: buildOrderBanarMessage(order),
-        },
-      });
-
-      await this.prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          senderId: order.market!.ownerId!,
-          type: 'TEXT',
-          text: buildOrderMessage(order),
-        },
-      });
-
-      return {
-        ...order,
-        time: order.time ? formatTimeToAMPM(order.time) : null,
-      };
-    } catch (err) {
-      throw new BadRequestException(err?.message || 'Failed to create order');
     }
+  
+    return {
+      ...order,
+      time: order.time ? formatTimeToAMPM(order.time) : null,
+    };
+  }
+  async findAll(user?: AuthUser, search?: string) {
+    if (!user) return [];
+
+    const searchCondition = search ? {
+      OR: [
+        { orderId: { contains: search, mode: 'insensitive' } },
+        { market: { nameAr: { contains: search, mode: 'insensitive' } } },
+        { market: { nameEn: { contains: search, mode: 'insensitive' } } },
+        { client: { name: { contains: search, mode: 'insensitive' } } },
+      ]
+    } : {};
+
+    let whereClause: any = {};
+
+    if (user.type === 'CLIENT') {
+      whereClause = { clientId: user.id, ...searchCondition };
+    } else if (user.type === 'OWNER') {
+      whereClause = { market: { ownerId: user.id }, ...searchCondition };
+    } else {
+      // ADMIN
+      whereClause = { ...searchCondition };
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: whereClause,
+      include: { market: true, client: true, delivery: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return orders.map(order => ({
+      ...order,
+      time: order.time ? formatTimeToAMPM(order.time) : null,
+    }));
   }
 
-async findAll(user?: AuthUser, search?: string) {
-  if (!user) return [];
-
-  const searchCondition = search ? {
-    OR: [
-      { orderId: { contains: search, mode: 'insensitive' } },
-      { market: { nameAr: { contains: search, mode: 'insensitive' } } },
-      { market: { nameEn: { contains: search, mode: 'insensitive' } } },
-      { client: { name: { contains: search, mode: 'insensitive' } } },
-    ]
-  } : {};
-
-  let whereClause: any = {};
-
-  if (user.type === 'CLIENT') {
-    whereClause = { clientId: user.id, ...searchCondition };
-  } else if (user.type === 'OWNER') {
-    whereClause = { market: { ownerId: user.id }, ...searchCondition };
-  } else {
-    // ADMIN
-    whereClause = { ...searchCondition };
+  async rateOrder(id: string, rateDto: RateOrderDto, user?: AuthUser) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { market: true, client: true },
+    });
+  
+    if (!order) throw new NotFoundException('Order not found');
+    if (!user) throw new ForbiddenException('Unauthorized');
+  
+    // التحقق من أن العميل هو من يقيم طلبه فقط
+    if (user.type === 'CLIENT' && order.clientId !== user.id) {
+      throw new ForbiddenException('You can only rate your own orders');
+    }
+  
+    // التحقق من أن الطلب مكتمل قبل التقييم
+    if (order.status !== 'COMPLETED') {
+      throw new BadRequestException('You can only rate completed orders');
+    }
+  
+    // التحقق من عدم وجود تقييم سابق
+    if (order.rate !== null && order.rate !== undefined) {
+      throw new BadRequestException('This order has already been rated');
+    }
+  
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: { 
+        rate: rateDto.rate,
+        // إذا كان لديك حقل comment في قاعدة البيانات
+        // rateComment: rateDto.comment 
+      },
+      include: { market: true, client: true, delivery: true },
+    });
+  
+    // إرسال إشعار للسوق/المالك عن التقييم
+    if (order.market?.ownerId) {
+      await this.notification.create({
+        userId: order.market.ownerId,
+        body: `تم تقييم طلبك رقم ${order.orderId} بـ ${rateDto.rate} نجوم`,
+      });
+    }
+  
+    return {
+      ...updated,
+      time: updated.time ? formatTimeToAMPM(updated.time) : null,
+    };
   }
 
-  const orders = await this.prisma.order.findMany({
-    where: whereClause,
-    include: { market: true, client: true, delivery: true },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  return orders.map(order => ({
-    ...order,
-    time: order.time ? formatTimeToAMPM(order.time) : null,
-  }));
-}
   async findOne(id: string, user?: AuthUser) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { market: true, client: true,delivery:true },
+      include: { market: true, client: true, delivery: true },
     });
 
     if (!order) throw new NotFoundException('Order not found');
@@ -169,131 +206,67 @@ async findAll(user?: AuthUser, search?: string) {
     if (!order) throw new NotFoundException('Order not found');
     if (!user) throw new ForbiddenException('Unauthorized');
 
-    // ... (منطق التحقق من الصلاحيات)
-
-    // حفظ الحالة القديمة والحالة الجديدة المحتملة للمقارنة
     const oldStatus = order.status;
-    const newStatus = dto.status;
 
-    // تحديد ما إذا كان هناك تغيير في الحالة من/إلى COMPLETED
-    const completedToOther = oldStatus === 'COMPLETED' && newStatus !== 'COMPLETED';
-    const otherToCompleted = oldStatus !== 'COMPLETED' && newStatus === 'COMPLETED';
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: dto,
+      include: { market: true, client: true, delivery: true },
+    });
 
-    try {
-      const updated = await this.prisma.order.update({
-        where: { id },
-        data: dto,
-        include: { market: true, client: true,delivery:true },
-      });
+    const statusMap = {
+      IN_PROGRESS: 'قيد المراجعة',
+      COMPLETED: 'مكتمل',
+      DECLINE: 'ملغي',
+    };
 
-      // ==========================================================
-      // منطق تحديث الرسوم المالية بناءً على تغيير الحالة
-      // ==========================================================
-      if (updated.market) {
-        const marketId = updated.market.id;
-        const ownerId = updated.market.ownerId;
-        const feePerOrder = updated.market.feePerOrder || 0;
-        const currentFees = updated.market.currentFees || 0; // القيمة الحالية قبل التغيير في هذه العملية
-
-        let newFees = currentFees;
-        let shouldUpdateFees = false;
-
-        // 1. الانتقال من أي حالة إلى COMPLETED (إضافة الرسوم)
-        if (otherToCompleted) {
-          newFees += feePerOrder;
-          shouldUpdateFees = true;
-        }
-        // 2. الانتقال من COMPLETED إلى أي حالة أخرى (خصم الرسوم)
-        else if (completedToOther) {
-          // نستخدم Math.max(0, ...) لضمان أن الرسوم الجديدة لا تقل عن الصفر
-          newFees = Math.max(0, currentFees - feePerOrder);
-          shouldUpdateFees = true;
-        }
-
-        // إذا حدث تغيير في الرسوم
-        if (shouldUpdateFees) {
-          // تحديث currentFees للماركت بالقيمة الجديدة المحسوبة
-          let updatedMarket = await this.prisma.market.update({
-            where: { id: marketId },
-            data: {
-              currentFees: newFees, // نستخدم القيمة المطلقة المحسوبة (newFees) بدلاً من increment
-            },
-          });
-
-          // 3. تحديث حالة المالك (isFeesRequired) بناءً على currentFees الجديدة
-
-          // تحديد قيمة isFeesRequired الجديدة
-          let newIsFeesRequired = false;
-          if (updatedMarket.currentFees && updatedMarket.limitFees) {
-            newIsFeesRequired = updatedMarket.currentFees >= updatedMarket.limitFees;
-          }
-
-          // جلب بيانات المالك للتحقق من حالته الحالية
-          const owner = await this.prisma.user.findUnique({
-            where: { id: ownerId },
-            select: { isFeesRequired: true } // جلب الحقل المطلوب فقط
-          });
-
-          // إذا كانت الحالة الجديدة تختلف عن الحالة الحالية للمالك، قم بالتحديث
-          if (owner && owner.isFeesRequired !== newIsFeesRequired) {
-            await this.prisma.user.update({
-              where: { id: ownerId },
-              data: {
-                isFeesRequired: newIsFeesRequired, // تحديث طلب الرسوم
-              },
-            });
-          }
-        }
-      }
-      // ==========================================================
-      // نهاية منطق تحديث الرسوم المالية
-      // ==========================================================
-
-
-      if (updated.clientId) {
-        await this.notification.create({
-          userId: updated.clientId,
-          body: `Your order (${updated.orderId}) status is now: ${updated.status}`,
-        });
-      }
-
-      return {
-        ...updated,
-        time: updated.time ? formatTimeToAMPM(updated.time) : null,
-      };
-    } catch (err) {
-      throw new BadRequestException(err?.message || 'Failed to update order');
+    if (updated.client?.fcmToken && dto.status && oldStatus !== dto.status) {
+      await this.firebaseService.sendNotification(
+        updated.client.fcmToken,
+        'تحديث حالة الطلب',
+        `نود إعلامك بأن حالة طلبك رقم ${updated.orderId} قد تم تحديثها من ${statusMap[oldStatus]} إلى ${statusMap[dto.status]}.`,
+        {
+          orderId: updated.id,
+          oldStatus,
+          newStatus: dto.status,
+        },
+      );
     }
+
+    return {
+      ...updated,
+      time: updated.time ? formatTimeToAMPM(updated.time) : null,
+    };
   }
 
   async remove(id: string, user?: AuthUser) {
-  const order = await this.prisma.order.findUnique({
-    where: { id },
-    include: { market: true, client: true },
-  });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { market: true, client: true },
+    });
 
-  if (!order) throw new NotFoundException('Order not found');
-  if (!user) throw new ForbiddenException('Unauthorized');
+    if (!order) throw new NotFoundException('Order not found');
+    if (!user) throw new ForbiddenException('Unauthorized');
 
-  if (user.type !== 'ADMIN' && (user.type !== 'OWNER' || order.market?.ownerId !== user.id)) {
-    throw new ForbiddenException('You do not have permission to delete this order');
-  }
-
-  try {
-    await this.prisma.order.delete({ where: { id } });
-
-    if (order.clientId) {
-      await this.notification.create({
-        userId: order.clientId,
-        body: `Your order (${order.orderId}) was deleted`,
-      });
+    if (user.type !== 'ADMIN' && (user.type !== 'OWNER' || order.market?.ownerId !== user.id)) {
+      throw new ForbiddenException('You do not have permission to delete this order');
     }
 
-    return { success: true };
-  } catch (err) {
-    throw new BadRequestException(err?.message || 'Failed to delete order');
+    try {
+      await this.prisma.order.delete({ where: { id } });
+
+      if (order.clientId) {
+        await this.notification.create({
+          userId: order.clientId,
+          body: `Your order (${order.orderId}) was deleted`,
+        });
+      }
+
+      return { success: true };
+    } catch (err) {
+      throw new BadRequestException(err?.message || 'Failed to delete order');
+    }
   }
-}
 
 
   async removeAll() {
