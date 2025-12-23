@@ -386,7 +386,6 @@ async getAllOwners(search?: string) {
   
   
 
-
   async getDashboardData(
     userId: string,
     type: string,
@@ -437,7 +436,6 @@ async getAllOwners(search?: string) {
         };
       }
   
-      // اجلب الماركت الخاص بالـ OWNER
       const market = await this.prisma.market.findFirst({
         where: { ownerId: userId },
       });
@@ -446,7 +444,6 @@ async getAllOwners(search?: string) {
         throw new NotFoundException('Market not found for this owner');
       }
   
-      // جلب آخر 5 منتجات خاصة بالماركت
       const lastProducts = await this.prisma.product.findMany({
         where: { marketId: market.id },
         orderBy: { createdAt: 'desc' },
@@ -466,55 +463,28 @@ async getAllOwners(search?: string) {
   
     const userLocation = user?.location;
   
-    // ✅ شيل الـ select تماماً واستخدم include بس
     let markets = await this.prisma.market.findMany({
       where: {
         ...(categoryId && {
-          categories: {
-            some: {
-              categoryId,
-            },
-          },
+          categories: { some: { categoryId } },
         }),
         ...(search && {
           OR: [
-            {
-              nameAr: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-            {
-              nameEn: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
+            { nameAr: { contains: search, mode: 'insensitive' } },
+            { nameEn: { contains: search, mode: 'insensitive' } },
           ],
         }),
       },
       include: {
-        orders: {
-          where: {
-            rate: { not: 0 }
-          },
-          select: { rate: true }
-        }
-      }
+        orders: { where: { rate: { not: 0 } }, select: { rate: true } },
+      },
     });
   
-    // ✅ إضافة rate و isOpen وإزالة الـ fields الغير مطلوبة
     const marketsWithRateAndStatus = markets.map((market: any) => {
-      // حساب متوسط التقييم
       const averageRate = this.calculateAverageRate(market.orders);
-      
-      // حساب isOpen ديناميكياً
       const isOpen = this.isMarketOpen(market.operations, market.hours);
-      
-      // إزالة orders من الـ response
       const { orders, ...marketData } = market;
-      
-      // لو عايز fields معينة بس، استخدم destructuring هنا:
+  
       return {
         id: marketData.id,
         nameAr: marketData.nameAr,
@@ -535,14 +505,13 @@ async getAllOwners(search?: string) {
         createdAt: marketData.createdAt,
         updatedAt: marketData.updatedAt,
         rate: averageRate,
-        isOpen // ⬅️ الحالة الديناميكية (بدل isOpen من الداتابيز)
+        isOpen,
       };
     });
   
     if (userLocation) {
       const marketsWithDistance = marketsWithRateAndStatus.map((m: any) => {
         let distanceInKm: number | null = null;
-  
         if (m.location?.length === 2) {
           distanceInKm = getDistance(
             userLocation[0],
@@ -551,7 +520,6 @@ async getAllOwners(search?: string) {
             m.location[1],
           );
         }
-  
         return { ...m, distanceInKm };
       });
   
@@ -568,71 +536,182 @@ async getAllOwners(search?: string) {
   
     return { categories, markets: marketsWithRateAndStatus };
   }
-  
-  // ✅ دالة حساب متوسط التقييم
+
   private calculateAverageRate(orders: { rate: number }[]): number {
     if (!orders || orders.length === 0) return 0;
-    
     const sum = orders.reduce((acc, order) => acc + order.rate, 0);
     return parseFloat((sum / orders.length).toFixed(1));
   }
-  
-  // ✅ دالة التحقق من حالة المحل
+
   private isMarketOpen(operations: string[], hours: string[]): boolean {
-    if (!operations || operations.length === 0 || !hours || hours.length === 0) {
+  
+
+    if (!operations?.length || !hours?.length) {
+      
       return false;
     }
-  
-    const now = new Date();
-    const currentDay = now.toLocaleDateString('en-US', { weekday: 'short' });
+
+    const nowUTC = new Date();
     
-    const isDayOpen = operations.includes(currentDay);
-    
-    if (!isDayOpen) {
-      return false;
-    }
-  
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    
-    for (const hourRange of hours) {
-      const isWithinHours = this.isTimeWithinRange(currentTime, hourRange);
-      if (isWithinHours) {
-        return true;
+
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Cairo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    const parts = formatter.formatToParts(nowUTC);
+    const dateParts: any = {};
+    parts.forEach(part => {
+      if (part.type !== 'literal') {
+        dateParts[part.type] = part.value;
+      }
+    });
+
+    const cairoHour = parseInt(dateParts.hour);
+    const cairoMinute = parseInt(dateParts.minute);
+    const cairoDay = new Date(
+      parseInt(dateParts.year),
+      parseInt(dateParts.month) - 1,
+      parseInt(dateParts.day)
+    ).getDay();
+
+   
+    const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const currentDay = dayMap[cairoDay];
+   
+
+    if (operations.length === 2) {
+      const dayIndexMap: { [key: string]: number } = {
+        'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+      };
+      
+      const startDayIndex = dayIndexMap[operations[0]];
+      const endDayIndex = dayIndexMap[operations[1]];
+      
+   
+      let isDayInRange = false;
+      if (startDayIndex <= endDayIndex) {
+        isDayInRange = cairoDay >= startDayIndex && cairoDay <= endDayIndex;
+      } else {
+        isDayInRange = cairoDay >= startDayIndex || cairoDay <= endDayIndex;
+      }
+      
+   
+      if (!isDayInRange) {
+        
+        return false;
+      }
+    } else {
+      if (!operations.includes(currentDay)) {
+        
+        return false;
       }
     }
+
+    const currentTimeInMinutes = cairoHour * 60 + cairoMinute;
     
+
+    for (let i = 0; i < hours.length; i++) {
+      const hourRange = hours[i];
+      
+
+      const parts = hourRange.split('-');
+      if (parts.length !== 2) {
+       
+        continue;
+      }
+
+      const startStr = parts[0].trim();
+      const endStr = parts[1].trim();
+
+
+      const startMinutes = this.parseTimeToMinutes(startStr);
+      const endMinutes = this.parseTimeToMinutes(endStr);
+     
+
+      if (startMinutes === -1 || endMinutes === -1) {
+      
+        continue;
+      }
+
+      const startHour = Math.floor(startMinutes / 60);
+      const startMin = startMinutes % 60;
+      const endHour = Math.floor(endMinutes / 60);
+      const endMin = endMinutes % 60;
+     
+      if (currentTimeInMinutes >= startMinutes && currentTimeInMinutes < endMinutes) {
+       
+        return true;
+      } else {
+        
+      }
+    }
+
+  
     return false;
   }
-  
-  // ✅ دالة مساعدة للتحقق من الوقت
-  private isTimeWithinRange(currentTimeInMinutes: number, hourRange: string): boolean {
+
+  private parseTimeToMinutes(timeStr: string): number {
+
     try {
-      const [startStr, endStr] = hourRange.split('-').map(s => s.trim());
+      const cleaned = timeStr.trim().replace(/\s+/g, ' ');
       
-      const startMinutes = this.convertTo24HourMinutes(startStr);
-      const endMinutes = this.convertTo24HourMinutes(endStr);
       
-      return currentTimeInMinutes >= startMinutes && currentTimeInMinutes <= endMinutes;
+      const parts = cleaned.split(' ');
+     
+      
+      if (parts.length !== 2) {
+        
+        return -1;
+      }
+
+      const timePart = parts[0];
+      const period = parts[1].toUpperCase();
+     
+
+      if (period !== 'AM' && period !== 'PM') {
+        
+        return -1;
+      }
+
+      const timeSplit = timePart.split(':');
+      if (timeSplit.length !== 2) {
+        
+        return -1;
+      }
+
+      let hours = parseInt(timeSplit[0]);
+      const minutes = parseInt(timeSplit[1]);
+      
+
+      if (isNaN(hours) || isNaN(minutes)) {
+        
+        return -1;
+      }
+      if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+       
+        return -1;
+      }
+
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+
+      const result = hours * 60 + minutes;
+     
+      return result;
     } catch (error) {
-      console.error('Error parsing time range:', hourRange, error);
-      return false;
+    
+      return -1;
     }
-  }
-  
-  // ✅ دالة لتحويل الوقت من 12-hour format إلى دقائق
-  private convertTo24HourMinutes(timeStr: string): number {
-    const [time, period] = timeStr.split(' ');
-    const [hours, minutes] = time.split(':').map(Number);
-    
-    let hour24 = hours;
-    
-    if (period === 'PM' && hours !== 12) {
-      hour24 = hours + 12;
-    } else if (period === 'AM' && hours === 12) {
-      hour24 = 0;
-    }
-    
-    return hour24 * 60 + minutes;
   }
 
 
@@ -1140,7 +1219,7 @@ async verifyOtp(dto: VerifyOtpDto) {
         }
       };
     },  {
-      timeout: 20000, // 20 ث
+      timeout: 20000,
       maxWait: 5000,
     });
   }

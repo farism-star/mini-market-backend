@@ -36,7 +36,7 @@ export class AuthController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: AuthDto,
   ) {
-    const imageUrl = file ? `/uploads/${file.originalname}` : null;
+    const imageUrl = file ? `/uploads/${file.filename}` : null;
     return this.authService.AdminAddUsers(dto, imageUrl);
   }
 

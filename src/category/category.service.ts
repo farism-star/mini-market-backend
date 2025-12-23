@@ -81,10 +81,21 @@ async findAll() {
   }
 
   async remove(id: string) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
+    const category = await this.prisma.category.findUnique({ 
+      where: { id },
+      include: { markets: true } // ✅ جيب الماركتس المرتبطة
+    });
+    
     if (!category) throw new NotFoundException('Category not found');
-
+  
+    // ✅ امسح العلاقات في MarketCategory الأول
+    await this.prisma.marketCategory.deleteMany({
+      where: { categoryId: id }
+    });
+  
+    // ✅ دلوقتي امسح الـ Category
     await this.prisma.category.delete({ where: { id } });
+    
     return { message: 'Category deleted' };
   }
 }

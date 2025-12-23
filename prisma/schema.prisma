@@ -135,7 +135,7 @@ model Market {
   descriptionAr String?
   descriptionEn String?
   ownerId       String     @unique @db.ObjectId
-  owner         User       @relation(fields: [ownerId], references: [id])
+  owner         User?       @relation(fields: [ownerId], references: [id])
   limitFees     Float?     @default(0.0)
   feePerOrder   Float?     @default(0.0)
   currentFees   Float?     @default(0.0)
