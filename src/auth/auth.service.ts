@@ -1139,6 +1139,9 @@ async verifyOtp(dto: VerifyOtpDto) {
           type: user.type
         }
       };
+    },  {
+      timeout: 20000, // 20 ث
+      maxWait: 5000,
     });
   }
 
