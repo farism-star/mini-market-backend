@@ -6,7 +6,7 @@ import { randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { AuthDto, VerifyOtpDto, UpdateAddressDto, UpdateUserDto } from './dtos/auth.dto';
 import { Login } from './dtos/login.dto';
-
+import { GlobalFeesSettingsService } from 'src/globaleFeesSettings/GlobaleFees.service';
 import { MailService } from 'src/mail/mail.service';
 import { AddAdminDto } from './dtos/add-admin.dto';
 import { getDistance } from "src/helpers/distance";
@@ -23,11 +23,12 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private firebaseService: FirebaseService,
+    private globalFeesService: GlobalFeesSettingsService,
   ) { }
 
   async register(dto: AuthDto, imageUrl: string | null) {
     const { email, phone, name, type, zone, district, address, operations, hours, location, marketName, categoryIds } = dto;
-
+    console.log('REGISTER CALLED, TYPE =', type);
     // تحقق إن المستخدم موجود بالفعل
     const existingUser = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
@@ -35,7 +36,7 @@ export class AuthService {
     if (existingUser) {
       throw new ConflictException('User already exists with this email or phone');
     }
-
+  
     // إنشاء المستخدم
     const user = await this.prisma.user.create({
       data: {
@@ -56,10 +57,16 @@ export class AuthService {
       },
       include: { addresses: true },
     });
-
+  
     // إنشاء ماركت لو المستخدم OWNER
     let market: any = null;
     if (type === 'OWNER') {
+      // 🆕 جلب الإعدادات العامة
+      const globalFeesResult = await this.globalFeesService.getSettings();
+      const globalFees = globalFeesResult.settings;
+  console.log(globalFees);
+  console.log(globalFeesResult);
+      // إنشاء الماركت مع الإعدادات العامة
       market = await this.prisma.market.create({
         data: {
           nameAr: marketName ?? `${name}'s Market`,
@@ -70,22 +77,23 @@ export class AuthService {
           operations: operations ?? [],
           hours: hours ?? [],
           location: location ?? [],
+          // 🆕 تطبيق الإعدادات العامة
+          limitFees: globalFees.limitFees,
+          feePerOrder: globalFees.feePerOrder,
+          currentFees: globalFees.currentFees,
         },
       });
-
+  
       // ربط الماركت بالـ categories لو موجودة
-      if (Array.isArray((dto as any).categoryIds) && (dto as any).categoryIds.length > 0) {
-        const marketCategories = (dto as any).categoryIds.map((catId: string) => ({
+      if (Array.isArray(categoryIds) && categoryIds.length > 0) {
+        const marketCategories = categoryIds.map((catId: string) => ({
           marketId: market.id,
           categoryId: catId,
         }));
         await this.prisma.marketCategory.createMany({ data: marketCategories });
       }
     }
-
-    // // إرسال OTP (مثال)
-    // await this.sendOtp({ email, phone });
-
+  
     return { message: 'User registered successfully', user, market };
   }
 
@@ -126,6 +134,9 @@ export class AuthService {
     // إنشاء ماركت لو المستخدم OWNER
     let market: any = null;
     if (type === 'OWNER') {
+      const { settings: globalFees } =
+        await this.globalFeesService.getSettings();
+    
       market = await this.prisma.market.create({
         data: {
           nameAr: marketName ?? `${name}'s Market`,
@@ -136,18 +147,24 @@ export class AuthService {
           operations: operations ?? [],
           hours: hours ?? [],
           location: location ?? [],
+    
+          limitFees: globalFees.limitFees,
+          feePerOrder: globalFees.feePerOrder,
+          currentFees: globalFees.currentFees,
         },
       });
-
-      // ربط الماركت بالـ categories لو موجودة
-      if (Array.isArray((dto as any).categoryIds) && (dto as any).categoryIds.length > 0) {
-        const marketCategories = (dto as any).categoryIds.map((catId: string) => ({
+    
+      if (Array.isArray(categoryIds) && categoryIds.length > 0) {
+        const marketCategories = categoryIds.map((catId: string) => ({
           marketId: market.id,
           categoryId: catId,
         }));
-        await this.prisma.marketCategory.createMany({ data: marketCategories });
+        await this.prisma.marketCategory.createMany({
+          data: marketCategories,
+        });
       }
     }
+    
 
 
 
@@ -376,80 +393,80 @@ async getAllOwners(search?: string) {
     categoryId?: string,
     search?: string,
   ) {
-   if (type === 'OWNER') {
-  const conversations = await this.prisma.conversation.findMany({
-    where: { users: { has: userId } },
-    include: {
-      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-      _count: {
-        select: {
-          messages: { where: { senderId: { not: userId }, isRead: false } },
+    if (type === 'OWNER') {
+      const conversations = await this.prisma.conversation.findMany({
+        where: { users: { has: userId } },
+        include: {
+          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+          _count: {
+            select: {
+              messages: { where: { senderId: { not: userId }, isRead: false } },
+            },
+          },
         },
-      },
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: 1,
-  });
-
-  let formattedConversation: any = null;
-
-  if (conversations.length > 0) {
-    const lastConversation = conversations[0];
-    const otherUserId = lastConversation.users.find((uid) => uid !== userId);
-    const otherUser = await this.prisma.user.findUnique({
-      where: { id: otherUserId },
-      select: { id: true, name: true, image: true },
-    });
-    const lastMsg = lastConversation.messages[0];
-
-    formattedConversation = {
-      id: lastConversation.id,
-      user: otherUser,
-      lastMessage: lastMsg
-        ? {
-            id: lastMsg.id,
-            type: lastMsg.type,
-            senderId: lastMsg.senderId,
-            text: lastMsg.text,
-            image: lastMsg.imageUrl,
-            voice: lastMsg.voice,
-            createdAt: lastMsg.createdAt,
-          }
-        : null,
-      unreadMessages: lastConversation._count.messages,
-    };
-  }
-
-  // اجلب الماركت الخاص بالـ OWNER
-  const market = await this.prisma.market.findFirst({
-    where: { ownerId: userId },
-  });
-
-  if (!market) {
-    throw new NotFoundException('Market not found for this owner');
-  }
-
-  // جلب آخر 5 منتجات خاصة بالماركت
-  const lastProducts = await this.prisma.product.findMany({
-    where: { marketId: market.id }, // فلترة حسب ماركت الـ OWNER
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-    include: { market: true },
-  });
-
-  return { lastConversation: formattedConversation, lastProducts };
-}
-
-
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+      });
+  
+      let formattedConversation: any = null;
+  
+      if (conversations.length > 0) {
+        const lastConversation = conversations[0];
+        const otherUserId = lastConversation.users.find((uid) => uid !== userId);
+        const otherUser = await this.prisma.user.findUnique({
+          where: { id: otherUserId },
+          select: { id: true, name: true, image: true },
+        });
+        const lastMsg = lastConversation.messages[0];
+  
+        formattedConversation = {
+          id: lastConversation.id,
+          user: otherUser,
+          lastMessage: lastMsg
+            ? {
+                id: lastMsg.id,
+                type: lastMsg.type,
+                senderId: lastMsg.senderId,
+                text: lastMsg.text,
+                image: lastMsg.imageUrl,
+                voice: lastMsg.voice,
+                createdAt: lastMsg.createdAt,
+              }
+            : null,
+          unreadMessages: lastConversation._count.messages,
+        };
+      }
+  
+      // اجلب الماركت الخاص بالـ OWNER
+      const market = await this.prisma.market.findFirst({
+        where: { ownerId: userId },
+      });
+  
+      if (!market) {
+        throw new NotFoundException('Market not found for this owner');
+      }
+  
+      // جلب آخر 5 منتجات خاصة بالماركت
+      const lastProducts = await this.prisma.product.findMany({
+        where: { marketId: market.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { market: true },
+      });
+  
+      return { lastConversation: formattedConversation, lastProducts };
+    }
+  
     const categories = await this.prisma.category.findMany();
-
+  
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { location: true },
     });
-
+  
     const userLocation = user?.location;
-
+  
+    // ✅ شيل الـ select تماماً واستخدم include بس
     let markets = await this.prisma.market.findMany({
       where: {
         ...(categoryId && {
@@ -476,34 +493,56 @@ async getAllOwners(search?: string) {
           ],
         }),
       },
-      select: {
-        id: true,
-        nameAr: true,
-        nameEn: true,
-        descriptionAr: true,
-        descriptionEn: true,
-        ownerId: true,
-        zone: true,
-        district: true,
-        address: true,
-        operations: true,
-        hours: true,
-        image: true,
-        commissionFee: true,
-        location: true,
-       
-        isOpen: true,
-        from: true,
-        to: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: {
+        orders: {
+          where: {
+            rate: { not: 0 }
+          },
+          select: { rate: true }
+        }
+      }
     });
-
+  
+    // ✅ إضافة rate و isOpen وإزالة الـ fields الغير مطلوبة
+    const marketsWithRateAndStatus = markets.map((market: any) => {
+      // حساب متوسط التقييم
+      const averageRate = this.calculateAverageRate(market.orders);
+      
+      // حساب isOpen ديناميكياً
+      const isOpen = this.isMarketOpen(market.operations, market.hours);
+      
+      // إزالة orders من الـ response
+      const { orders, ...marketData } = market;
+      
+      // لو عايز fields معينة بس، استخدم destructuring هنا:
+      return {
+        id: marketData.id,
+        nameAr: marketData.nameAr,
+        nameEn: marketData.nameEn,
+        descriptionAr: marketData.descriptionAr,
+        descriptionEn: marketData.descriptionEn,
+        ownerId: marketData.ownerId,
+        zone: marketData.zone,
+        district: marketData.district,
+        address: marketData.address,
+        operations: marketData.operations,
+        hours: marketData.hours,
+        image: marketData.image,
+        commissionFee: marketData.commissionFee,
+        location: marketData.location,
+        from: marketData.from,
+        to: marketData.to,
+        createdAt: marketData.createdAt,
+        updatedAt: marketData.updatedAt,
+        rate: averageRate,
+        isOpen // ⬅️ الحالة الديناميكية (بدل isOpen من الداتابيز)
+      };
+    });
+  
     if (userLocation) {
-      const marketsWithDistance = markets.map((m: any) => {
+      const marketsWithDistance = marketsWithRateAndStatus.map((m: any) => {
         let distanceInKm: number | null = null;
-
+  
         if (m.location?.length === 2) {
           distanceInKm = getDistance(
             userLocation[0],
@@ -512,41 +551,113 @@ async getAllOwners(search?: string) {
             m.location[1],
           );
         }
-
+  
         return { ...m, distanceInKm };
       });
-
+  
       const sortedMarkets = marketsWithDistance.sort(
         (a, b) => (a.distanceInKm ?? Infinity) - (b.distanceInKm ?? Infinity),
       );
-
+  
       const filteredMarkets = sortedMarkets.filter(
         (m) => m.distanceInKm !== null && m.distanceInKm <= 30,
       );
-
+  
       return { categories, markets: filteredMarkets };
     }
-
-    return { categories, markets };
+  
+    return { categories, markets: marketsWithRateAndStatus };
   }
-
+  
+  // ✅ دالة حساب متوسط التقييم
+  private calculateAverageRate(orders: { rate: number }[]): number {
+    if (!orders || orders.length === 0) return 0;
+    
+    const sum = orders.reduce((acc, order) => acc + order.rate, 0);
+    return parseFloat((sum / orders.length).toFixed(1));
+  }
+  
+  // ✅ دالة التحقق من حالة المحل
+  private isMarketOpen(operations: string[], hours: string[]): boolean {
+    if (!operations || operations.length === 0 || !hours || hours.length === 0) {
+      return false;
+    }
+  
+    const now = new Date();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'short' });
+    
+    const isDayOpen = operations.includes(currentDay);
+    
+    if (!isDayOpen) {
+      return false;
+    }
+  
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    for (const hourRange of hours) {
+      const isWithinHours = this.isTimeWithinRange(currentTime, hourRange);
+      if (isWithinHours) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  // ✅ دالة مساعدة للتحقق من الوقت
+  private isTimeWithinRange(currentTimeInMinutes: number, hourRange: string): boolean {
+    try {
+      const [startStr, endStr] = hourRange.split('-').map(s => s.trim());
+      
+      const startMinutes = this.convertTo24HourMinutes(startStr);
+      const endMinutes = this.convertTo24HourMinutes(endStr);
+      
+      return currentTimeInMinutes >= startMinutes && currentTimeInMinutes <= endMinutes;
+    } catch (error) {
+      console.error('Error parsing time range:', hourRange, error);
+      return false;
+    }
+  }
+  
+  // ✅ دالة لتحويل الوقت من 12-hour format إلى دقائق
+  private convertTo24HourMinutes(timeStr: string): number {
+    const [time, period] = timeStr.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    let hour24 = hours;
+    
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    return hour24 * 60 + minutes;
+  }
 
 
 
 // Login
 async login(authDto: Login) {
-  const { phone } = authDto; // المفتاح الوحيد اللي هيجي من frontend
+  const { phone } = authDto;
 
   if (!phone) {
     throw new BadRequestException('Phone or email is required');
   }
 
-  // دور على المستخدم سواء بالإيميل أو رقم الهاتف
+  // تنظيف المدخل من المسافات
+  const identifier = phone.trim();
+
+  if (!identifier) {
+    throw new BadRequestException('Phone or email cannot be empty');
+  }
+
+  // البحث عن المستخدم بالإيميل أو رقم الهاتف
   const user = await this.prisma.user.findFirst({
     where: {
       OR: [
-        { email: phone },
-        { phone: phone },
+        { email: identifier },
+        { phone: identifier },
       ],
     },
     include: { market: true, addresses: true },
@@ -556,11 +667,11 @@ async login(authDto: Login) {
     throw new UnauthorizedException('User not found');
   }
 
-  // ابعت المفتاح زي ما هو لـ sendOtp
+  // إرسال OTP مع الـ identifier المنظف
   await this.sendOtp({
-    identifier: phone,   // القيمة اللي المستخدم بعته
+    identifier: identifier, // القيمة المنظفة
     userId: user.id,
-    email: user.email ?? undefined, // لو مفيش email، يبقى undefined
+    email: user.email ?? undefined,
   });
 
   return { message: 'OTP sent', user };
@@ -576,12 +687,12 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
   }
 
   const otpCode = randomInt(10000, 99999).toString();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 دقائق
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
 
-  // امسح أي OTP قديم لنفس المستخدم
+  // حذف أي OTP قديم لنفس المستخدم
   await this.prisma.otp.deleteMany({ where: { userId } });
 
-  // سجل OTP جديد
+  // تسجيل OTP جديد بالـ identifier
   await this.prisma.otp.create({
     data: { code: otpCode, identifier, userId, expiresAt },
   });
@@ -590,10 +701,8 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
     throw new NotFoundException("User doesn't have an email to send OTP!");
   }
 
-  // أرسل OTP على الإيميل
+  // إرسال OTP على الإيميل
   await this.mailService.sendOtpMail(email, otpCode);
- 
-  
 
   return { message: 'OTP sent successfully' };
 }
@@ -601,19 +710,119 @@ async sendOtp(authDto: { identifier: string; userId: string; email?: string }) {
 
 // Verify OTP
 async verifyOtp(dto: VerifyOtpDto) {
-  const identifier = dto.phone ;
+  const rawIdentifier = dto.phone;
 
-  if (!identifier) {
+  if (!rawIdentifier) {
     throw new BadRequestException('Phone or email is required');
   }
 
- 
+  // تنظيف المدخل من المسافات
+  const identifier = rawIdentifier.trim();
+
+  if (!identifier) {
+    throw new BadRequestException('Phone or email cannot be empty');
+  }
+
+  console.log('🔍 Searching for OTP with identifier:', identifier);
+
+  // البحث عن OTP بالـ identifier
   const otpRecord = await this.prisma.otp.findFirst({
     where: { identifier },
     orderBy: { createdAt: 'desc' },
   });
 
+
+
+  // لو مش لاقي الـ OTP، نبحث بطريقة مختلفة
   if (!otpRecord) {
+   
+    
+    // نجيب كل الـ OTPs عشان نشوف المشكلة فين
+    const allOtps = await this.prisma.otp.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+    
+   
+    
+    // نحاول نلاقي الـ OTP بالـ userId
+    const user = await this.prisma.user.findFirst({
+      where: { 
+        OR: [
+          { phone: identifier }, 
+          { email: identifier }
+        ] 
+      },
+    });
+
+    if (user) {
+      
+      
+      const otpByUserId = await this.prisma.otp.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      if (otpByUserId) {
+        
+        
+        // نستخدم هذا الـ OTP
+        if (new Date() > otpByUserId.expiresAt) {
+          await this.prisma.otp.delete({ where: { id: otpByUserId.id } });
+          throw new UnauthorizedException('OTP expired');
+        }
+
+        if (otpByUserId.code !== dto.otp) {
+          throw new UnauthorizedException('Invalid OTP');
+        }
+
+        // حذف الـ OTP بعد التحقق
+        await this.prisma.otp.delete({ where: { id: otpByUserId.id } });
+
+        // باقي الكود...
+        const updateData: any = { phoneVerified: true };
+        
+        if (dto.fcmToken) {
+          updateData.fcmToken = dto.fcmToken;
+        }
+
+        const updatedUser = await this.prisma.user.update({
+          where: { id: user.id },
+          data: updateData,
+          include: { market: true, addresses: true },
+        });
+
+        if (dto.fcmToken) {
+          try {
+            await this.firebaseService.sendNotification(
+              updatedUser.fcmToken || dto.fcmToken,
+              'مرحباً بك في تطبيق ميني ماركت! 🛒',
+              'نورت التطبيق! يمكنك الآن تصفح المنتجات والتسوق بكل سهولة 🎉',
+              {
+                type: 'welcome',
+                userId: updatedUser.id,
+                timestamp: new Date().toISOString(),
+              },
+            );
+            console.log('Welcome notification sent successfully');
+          } catch (error) {
+            console.error('Failed to send welcome notification:', error);
+          }
+        }
+
+        const token = this.jwtService.sign({ 
+          sub: updatedUser.id, 
+          type: updatedUser.type 
+        });
+
+        return { 
+          token, 
+          user: updatedUser,
+          message: 'Login successful',
+        };
+      }
+    }
+    
     throw new UnauthorizedException('OTP not found');
   }
 
@@ -626,12 +835,17 @@ async verifyOtp(dto: VerifyOtpDto) {
     throw new UnauthorizedException('Invalid OTP');
   }
 
-  // احذف الـ OTP بعد التحقق
+  // حذف الـ OTP بعد التحقق
   await this.prisma.otp.delete({ where: { id: otpRecord.id } });
 
   // جلب المستخدم
   const user = await this.prisma.user.findFirst({
-    where: { OR: [{ phone: identifier }, { email: identifier }] },
+    where: { 
+      OR: [
+        { phone: identifier }, 
+        { email: identifier }
+      ] 
+    },
     include: { market: true, addresses: true },
   });
 
@@ -655,9 +869,9 @@ async verifyOtp(dto: VerifyOtpDto) {
   if (dto.fcmToken) {
     try {
       await this.firebaseService.sendNotification(
-        updatedUser.fcmToken|| dto.fcmToken,
+        updatedUser.fcmToken || dto.fcmToken,
         'مرحباً بك في تطبيق ميني ماركت! 🛒',
-      'نورت التطبيق! يمكنك الآن تصفح المنتجات والتسوق بكل سهولة 🎉',
+        'نورت التطبيق! يمكنك الآن تصفح المنتجات والتسوق بكل سهولة 🎉',
         {
           type: 'welcome',
           userId: updatedUser.id,
@@ -666,7 +880,6 @@ async verifyOtp(dto: VerifyOtpDto) {
       );
       console.log('Welcome notification sent successfully');
     } catch (error) {
-      // لا نوقف العملية إذا فشل إرسال الإشعار
       console.error('Failed to send welcome notification:', error);
     }
   }

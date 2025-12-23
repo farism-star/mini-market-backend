@@ -120,7 +120,14 @@ model MarketCategory {
   market   Market   @relation(fields: [marketId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
 }
-
+model GlobalFeesSettings {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  limitFees   Float    @default(0.0)
+  feePerOrder Float    @default(0.0)
+  currentFees Float    @default(0.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 model Market {
   id            String     @id @default(auto()) @map("_id") @db.ObjectId
   nameAr        String?

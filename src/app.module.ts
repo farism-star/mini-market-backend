@@ -24,6 +24,7 @@ import { multerConfig } from './upload/multer.config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { FirebaseModule } from './firbase/firebase.module';
+import { GlobalFeesModule } from './globaleFeesSettings/GlobaleFees.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { FirebaseModule } from './firbase/firebase.module';
     ProductModule,
     CategoryModule,
     MarketModule,
+    GlobalFeesModule,
     FirebaseModule,
     OrdersModule,
     MulterModule.register(multerConfig),

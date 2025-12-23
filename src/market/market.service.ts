@@ -95,11 +95,6 @@ export class MarketService {
     return hour24 * 60 + minutes;
   }
 
-
-
-
-
-
   async createMarket(dto: CreateMarketDto) {
     // تحقق إن Owner موجود
     const owner = await this.prisma.user.findUnique({ where: { id: dto.ownerId } });
@@ -230,10 +225,33 @@ export class MarketService {
   async getMarketById(marketId: string) {
     const market = await this.prisma.market.findUnique({
       where: { id: marketId },
-      include: { owner: true, products: true },
+      include: { 
+        owner: true, 
+        products: true,
+        orders: {
+          where: { rate: { not: 0 } },
+          select: { rate: true }
+        }
+      },
     });
+    
     if (!market) throw new NotFoundException("Market not found");
-    return { message: "Market details loaded successfully", market };
+    
+    // ✅ حساب rate و isOpen ديناميكياً
+    const averageRate = this.calculateAverageRate(market.orders);
+    const isOpen = this.isMarketOpen(market.operations, market.hours);
+    
+    // ✅ إزالة orders من الـ response
+    const { orders, ...marketData } = market;
+    
+    return { 
+      message: "Market details loaded successfully", 
+      market: {
+        ...marketData,
+        rate: averageRate,
+        isOpen
+      }
+    };
   }
 
   async updateMyMarket(userId: string, userType: string, dto: UpdateMarketDto) {

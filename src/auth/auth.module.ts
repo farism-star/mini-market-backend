@@ -5,15 +5,16 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { TwilioModule } from 'src/twilio/twilio.module';
-
 import { MailModule } from 'src/mail/mail.module';
 import { FirebaseService } from '../firbase/firebase.service';
 import { FirebaseModule } from 'src/firbase/firebase.module';
-
+import { GlobalFeesSettingsService } from 'src/globaleFeesSettings/GlobaleFees.service';
+import { GlobalFeesModule } from 'src/globaleFeesSettings/GlobaleFees.module';
 @Module({
   imports: [
     MailModule,
     PrismaModule,
+    GlobalFeesModule,
     FirebaseModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'secretKey', 
